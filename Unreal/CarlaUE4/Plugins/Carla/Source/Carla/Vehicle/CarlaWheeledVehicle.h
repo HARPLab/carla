@@ -15,8 +15,13 @@
 #include "Vehicle/VehiclePhysicsControl.h"
 #include "VehicleVelocityControl.h"
 #include "WheeledVehicleMovementComponent4W.h"
+<<<<<<< HEAD
 #include "Components/AudioComponent.h"         // UAudioComponent
 #include "Sound/SoundCue.h"                    // USoundCue
+=======
+#include "VehicleAnimInstance.h"
+#include "MovementComponents/BaseCarlaMovementComponent.h"
+>>>>>>> b8399a5200fa8cc19071295c4e68139e38ad9a1f
 
 #include "CoreMinimal.h"
 
@@ -29,6 +34,18 @@
 #include "CarlaWheeledVehicle.generated.h"
 
 class UBoxComponent;
+
+UENUM()
+enum class EVehicleWheelLocation : uint8 {
+
+  FL_Wheel = 0,
+  FR_Wheel = 1,
+  BL_Wheel = 2,
+  BR_Wheel = 3,
+  //Use for bikes and bicycles
+  Front_Wheel = 0,
+  Back_Wheel = 1,
+};
 
 /// Base class for CARLA wheeled vehicles.
 UCLASS()
@@ -122,9 +139,14 @@ public:
   FVehiclePhysicsControl GetVehiclePhysicsControl() const;
 
   UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
+  void RestoreVehiclePhysicsControl();
+
+  UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
   FVehicleLightState GetVehicleLightState() const;
 
   void ApplyVehiclePhysicsControl(const FVehiclePhysicsControl &PhysicsControl);
+
+  void SetSimulatePhysics(bool enabled);
 
   void SetWheelCollision(UWheeledVehicleMovementComponent4W *Vehicle4W, const FVehiclePhysicsControl &PhysicsControl);
 
@@ -158,6 +180,9 @@ public:
 
   UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
   void DeactivateVelocityControl();
+
+  UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
+  void ShowDebugTelemetry(bool Enabled);
 
   /// @todo This function should be private to AWheeledVehicleAIController.
   void FlushVehicleControl();
@@ -206,7 +231,18 @@ public:
 
   void SetWheelsFrictionScale(TArray<float> &WheelsFrictionScale);
 
+<<<<<<< HEAD
   virtual void SetVolume(const float Mult);
+=======
+  void SetCarlaMovementComponent(UBaseCarlaMovementComponent* MoementComponent);
+
+  template<typename T = UBaseCarlaMovementComponent>
+  T* GetCarlaMovementComponent() const
+  {
+    return Cast<T>(BaseMovementComponent);
+  }
+
+>>>>>>> b8399a5200fa8cc19071295c4e68139e38ad9a1f
   /// @}
   // ===========================================================================
   /// @name Overriden from AActor
@@ -215,6 +251,7 @@ public:
 protected:
 
   virtual void BeginPlay() override;
+<<<<<<< HEAD
   
   // DReyeVR add-on (mostly sound related)
   virtual void Tick(float DeltaTime) override;
@@ -225,6 +262,10 @@ protected:
   UPROPERTY(Category = Sound, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
   class UAudioComponent *EngineRevSound;  // good for feedback on throttle
     
+=======
+  virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+
+>>>>>>> b8399a5200fa8cc19071295c4e68139e38ad9a1f
   UFUNCTION(BlueprintImplementableEvent)
   void RefreshLightState(const FVehicleLightState &VehicleLightState);
 
@@ -252,68 +293,33 @@ private:
   InputControl;
 
   FVehicleControl LastAppliedControl;
+  FVehiclePhysicsControl LastPhysicsControl;
 
-
-//-----CARSIM--------------------------------
 public:
 
-  // Enables carsim once enabled it won't turn back to UE4 physics simulation
-  // (for some reason the UE4 physics get meesed up after enabling carsim)
-  UFUNCTION(Category="CARLA Wheeled Vehicle", BlueprintCallable)
-  void EnableCarSim(FString SimfilePath = "");
+  /// Set the rotation of the car wheels indicated by the user
+  /// 0 = FL_VehicleWheel, 1 = FR_VehicleWheel, 2 = BL_VehicleWheel, 3 = BR_VehicleWheel
+  /// NOTE : This is purely aesthetic. It will not modify the physics of the car in any way
+  UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
+  void SetWheelSteerDirection(EVehicleWheelLocation WheelLocation, float AngleInDeg);
 
-  // Enables usage of carsim terrain
-  UFUNCTION(Category="CARLA Wheeled Vehicle", BlueprintCallable)
-  void UseCarSimRoad(bool bEnabled);
+  UFUNCTION(Category = "CARLA Wheeled Vehicle", BlueprintCallable)
+  float GetWheelSteerAngle(EVehicleWheelLocation WheelLocation);
 
-  #ifdef WITH_CARSIM
   virtual FVector GetVelocity() const override;
-  #endif
 
-  UFUNCTION(Category="CARLA Wheeled Vehicle", BlueprintPure)
-  bool IsCarSimEnabled() const;
-
-  virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+//-----CARSIM--------------------------------
+  UPROPERTY(Category="CARLA Wheeled Vehicle", EditAnywhere)
+  float CarSimOriginOffset = 150.f;
+//-------------------------------------------
 
 private:
 
-  // On car mesh hit, only works when carsim is enabled
-  UFUNCTION()
-  void OnCarSimHit(AActor *Actor,
-      AActor *OtherActor,
-      FVector NormalImpulse,
-      const FHitResult &Hit);
-
-  // On car mesh overlap, only works when carsim is enabled
-  // (this event triggers when overlapping with static environment)
-  UFUNCTION()
-  void OnCarSimOverlap(UPrimitiveComponent* OverlappedComponent,
-      AActor* OtherActor,
-      UPrimitiveComponent* OtherComp,
-      int32 OtherBodyIndex,
-      bool bFromSweep,
-      const FHitResult & SweepResult);
-
-  UFUNCTION()
-  void SwitchToUE4Physics();
-
-  UFUNCTION()
-  void RevertToCarSimPhysics();
-
   UPROPERTY(Category="CARLA Wheeled Vehicle", VisibleAnywhere)
-  bool bCarSimEnabled = false;
-
-  UPROPERTY(Category="CARLA Wheeled Vehicle", EditAnywhere)
-  float CarSimOriginOffset = 150.f;
+  bool bPhysicsEnabled = true;
 
   // Small workarround to allow optional CarSim plugin usage
   UPROPERTY(Category="CARLA Wheeled Vehicle", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-  UMovementComponent * ExternalMovementComponent;
+  UBaseCarlaMovementComponent * BaseMovementComponent = nullptr;
 
-  #ifdef WITH_CARSIM
-  AActor* OffsetActor;
-  // Casted version of ExternalMovementComponent
-  UCarSimMovementComponent * CarSimMovementComponent;
-  #endif
-  //-------------------------------------------
 };

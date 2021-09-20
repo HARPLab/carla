@@ -44,6 +44,7 @@ public:
     double Duration;
     uint32_t FollowId;
     double TimeFactor;
+    bool ReplaySensors;
   };
 
   static PlayAfterLoadMap Autoplay;
@@ -51,7 +52,8 @@ public:
   CarlaReplayer() {};
   ~CarlaReplayer() { Stop(); };
 
-  std::string ReplayFile(std::string Filename, double TimeStart = 0.0f, double Duration = 0.0f, uint32_t FollowId = 0);
+  std::string ReplayFile(std::string Filename, double TimeStart = 0.0f, double Duration = 0.0f,
+      uint32_t FollowId = 0, bool ReplaySensors = false);
 
   // void Start(void);
   void Stop(bool KeepActors = false);
@@ -97,7 +99,12 @@ public:
   
 private:
 
+<<<<<<< HEAD
   bool Enabled, Paused = false;
+=======
+  bool Enabled;
+  bool bReplaySensors = false;
+>>>>>>> b8399a5200fa8cc19071295c4e68139e38ad9a1f
   UCarlaEpisode *Episode = nullptr;
   // binary file reader
   std::ifstream File;

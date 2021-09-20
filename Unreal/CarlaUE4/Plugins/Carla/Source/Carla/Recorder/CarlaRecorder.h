@@ -151,7 +151,8 @@ public:
   std::string ShowFileActorsBlocked(std::string Name, double MinTime = 30, double MinDistance = 10);
 
   // replayer
-  std::string ReplayFile(std::string Name, double TimeStart, double Duration, uint32_t FollowId);
+  std::string ReplayFile(std::string Name, double TimeStart, double Duration,
+      uint32_t FollowId, bool ReplaySensors);
   void SetReplayerTimeFactor(double TimeFactor);
   void SetReplayerIgnoreHero(bool IgnoreHero);
   void StopReplayer(bool KeepActors = false);
@@ -209,6 +210,7 @@ private:
   CarlaRecorderQuery Query;
 
   void AddExistingActors(void);
+<<<<<<< HEAD
   void AddActorPosition(FActorView &View);
   void AddWalkerAnimation(FActorView &View);
   void AddVehicleAnimation(FActorView &View);
@@ -217,4 +219,13 @@ private:
   void AddActorKinematics(FActorView &View);
   void AddActorBoundingBox(FActorView &View);
   void AddDReyeVRData();
+=======
+  void AddActorPosition(FCarlaActor *CarlaActor);
+  void AddWalkerAnimation(FCarlaActor *CarlaActor);
+  void AddVehicleAnimation(FCarlaActor *CarlaActor);
+  void AddTrafficLightState(FCarlaActor *CarlaActor);
+  void AddVehicleLight(FCarlaActor *CarlaActor);
+  void AddActorKinematics(FCarlaActor *CarlaActor);
+  void AddActorBoundingBox(FCarlaActor *CarlaActor);
+>>>>>>> b8399a5200fa8cc19071295c4e68139e38ad9a1f
 };
