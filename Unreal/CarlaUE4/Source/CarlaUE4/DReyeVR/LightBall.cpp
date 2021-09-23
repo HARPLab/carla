@@ -13,7 +13,7 @@ ALightBall::ALightBall()
 	SphereMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	SphereMesh->SetupAttachment(RootComponent);
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereVisualAsset(TEXT("/Game/StarterContent/Shapes/Shape_Sphere.Shape_Sphere"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereVisualAsset(TEXT("/Game/LightBallMaterial/StarterContent/Shapes/Shape_Sphere.Shape_Sphere"));
 
 	if (SphereVisualAsset.Succeeded())
 	{
@@ -22,7 +22,7 @@ ALightBall::ALightBall()
 
 	}
 
-	static ConstructorHelpers::FObjectFinder<UMaterialInstance> MaterialAsset(TEXT("/Game/EBlue.EBlue"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInstance> MaterialAsset(TEXT("/Game/LightBallMaterial/ERed.ERed"));
 	MaterialBlue = MaterialAsset.Object;
 
 	SphereMesh->SetMaterial(0, MaterialBlue);
