@@ -95,7 +95,8 @@ void UCarlaSettingsDelegate::ApplyQualityLevelPostRestart()
       SetAllRoads(InWorld, CarlaSettings->LowRoadPieceMeshMaxDrawDistance, CarlaSettings->LowRoadMaterials);
       // Set all actors with static meshes a max disntace configured in the
       // global settings for the low quality
-      SetAllActorsDrawDistance(InWorld, CarlaSettings->LowStaticMeshMaxDrawDistance);
+      // SetAllActorsDrawDistance(InWorld, CarlaSettings->LowStaticMeshMaxDrawDistance);
+      SetAllActorsDrawDistance(InWorld, 0); // full render distance
       // Disable all post process volumes
       SetPostProcessEffectsEnabled(InWorld, false);
       break;

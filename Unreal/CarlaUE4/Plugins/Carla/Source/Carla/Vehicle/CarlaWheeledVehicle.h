@@ -15,6 +15,8 @@
 #include "Vehicle/VehiclePhysicsControl.h"
 #include "VehicleVelocityControl.h"
 #include "WheeledVehicleMovementComponent4W.h"
+#include "Components/AudioComponent.h"         // UAudioComponent
+#include "Sound/SoundCue.h"                    // USoundCue
 
 #include "CoreMinimal.h"
 
@@ -204,16 +206,25 @@ public:
 
   void SetWheelsFrictionScale(TArray<float> &WheelsFrictionScale);
 
+  virtual void SetVolume(const float Mult);
   /// @}
   // ===========================================================================
   /// @name Overriden from AActor
   // ===========================================================================
   /// @{
-
 protected:
 
   virtual void BeginPlay() override;
+  
+  // DReyeVR add-on (mostly sound related)
+  virtual void Tick(float DeltaTime) override;
 
+  void InitSounds();
+  void SoundUpdate();
+  const FVector EngineLocnInVehicle{180.f, 0.f, 70.f};
+  UPROPERTY(Category = Sound, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+  class UAudioComponent *EngineRevSound;  // good for feedback on throttle
+    
   UFUNCTION(BlueprintImplementableEvent)
   void RefreshLightState(const FVehicleLightState &VehicleLightState);
 

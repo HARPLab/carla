@@ -90,9 +90,14 @@ public:
   // tick for the replayer
   void Tick(float Time);
 
+  // DReyeVR replayer functions
+  void PlayPause();
+  void Restart();
+  void Advance(const float Amnt);
+  
 private:
 
-  bool Enabled;
+  bool Enabled, Paused = false;
   UCarlaEpisode *Episode = nullptr;
   // binary file reader
   std::ifstream File;
@@ -143,6 +148,22 @@ private:
 
   void ProcessLightVehicle(void);
   void ProcessLightScene(void);
+
+  // DReyeVR recordings
+  void ProcessDReyeVRData(void);
+  // For restarting the recording with the same params
+  struct LastReplayStruct
+  {
+    std::string Filename = "None";
+    double TimeStart = 0;
+    double Duration = 0;
+    uint32_t ThisFollowId = 0;
+  };
+  LastReplayStruct LastReplay;
+
+  // DReyeVR sensor data
+  DReyeVRDataRecorder DReyeVRDataInstance;
+  void UpdateDReyeVRSensor(double Per, double DeltaTime);
 
   // positions
   void UpdatePositions(double Per, double DeltaTime);
