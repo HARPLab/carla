@@ -118,7 +118,4 @@ private:
   UPROPERTY(Category = "CARLA Game Instance", EditAnywhere)
   int32 CurrentMapLayer = static_cast<int32>(carla::rpc::MapLayer::All);
 
-  UPROPERTY()
-  FString _MapPath;
-
 };

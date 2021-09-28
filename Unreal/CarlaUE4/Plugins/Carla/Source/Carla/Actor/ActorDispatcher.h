@@ -46,38 +46,20 @@ public:
   /// @return A pair containing the result of the spawn function and a view over
   /// the actor and its properties. If the status is different of Success the
   /// view is invalid.
-  TPair<EActorSpawnResultStatus, FCarlaActor*> SpawnActor(
+  TPair<EActorSpawnResultStatus, FActorView> SpawnActor(
       const FTransform &Transform,
       FActorDescription ActorDescription,
-      FCarlaActor::IdType DesiredId = 0);
-
-  /// ReSpawns an actor based on @a ActorDescription at @a Transform. To properly
-  /// despawn an actor created with this function call DestroyActor.
-  /// Used to respawn dormant actors.
-  ///
-  /// @return The actor to be respawned
-  AActor* ReSpawnActor(
-      const FTransform &Transform,
-      FActorDescription ActorDescription);
-
-  void PutActorToSleep(FCarlaActor::IdType Id, UCarlaEpisode* CarlaEpisode);
-
-  void WakeActorUp(FCarlaActor::IdType Id, UCarlaEpisode* CarlaEpisode);
+      FActorView::IdType DesiredId = 0);
 
   /// Destroys an actor, properly removing it from the registry.
   ///
   /// Return true if the @a Actor is destroyed or already marked for
   /// destruction, false if indestructible or nullptr.
-  //bool DestroyActor(AActor *Actor);
-
-  bool DestroyActor(FCarlaActor::IdType ActorId);
+  bool DestroyActor(AActor *Actor);
 
   /// Register an actor that was not created using "SpawnActor" function but
   /// that should be kept in the registry.
-  FCarlaActor* RegisterActor(
-      AActor &Actor,
-      FActorDescription ActorDescription,
-      FActorRegistry::IdType DesiredId = 0);
+  FActorView RegisterActor(AActor &Actor, FActorDescription ActorDescription, FActorRegistry::IdType DesiredId = 0);
 
   const TArray<FActorDefinition> &GetActorDefinitions() const
   {
@@ -89,15 +71,13 @@ public:
     return Registry;
   }
 
-  FActorRegistry &GetActorRegistry()
-  {
-    return Registry;
-  }
-
 private:
 
   UFUNCTION()
-  void OnActorDestroyed(AActor *Actor);
+  void OnActorDestroyed(AActor *Actor)
+  {
+    Registry.Deregister(Actor);
+  }
 
   TArray<FActorDefinition> Definitions;
 

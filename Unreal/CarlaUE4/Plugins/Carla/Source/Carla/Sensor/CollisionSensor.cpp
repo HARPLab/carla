@@ -51,8 +51,8 @@ void ACollisionSensor::OnCollisionEvent(
     NormalImpulse *= TO_METERS;
     GetDataStream(*this).Send(
         *this,
-        Episode.SerializeActor(Actor),
-        Episode.SerializeActor(OtherActor),
+        Episode.SerializeActor(Episode.FindOrFakeActor(Actor)),
+        Episode.SerializeActor(Episode.FindOrFakeActor(OtherActor)),
         carla::geom::Vector3D{NormalImpulse.X, NormalImpulse.Y, NormalImpulse.Z});
     // record the collision event
     if (Episode.GetRecorder()->IsEnabled())

@@ -64,18 +64,6 @@ public:
   }
 
   UFUNCTION(BlueprintCallable)
-  void Enable16BitFormat(bool Enable = false)
-  {
-    bEnable16BitFormat = Enable;
-  }
-
-  UFUNCTION(BlueprintCallable)
-  bool Is16BitFormatEnabled() const
-  {
-    return bEnable16BitFormat;
-  }
-
-  UFUNCTION(BlueprintCallable)
   void SetFOVAngle(float FOVAngle);
 
   UFUNCTION(BlueprintCallable)
@@ -294,8 +282,7 @@ public:
 
   /// Blocks until the render thread has finished all it's tasks.
   void WaitForRenderThreadToFinsih() {
-    TRACE_CPUPROFILER_EVENT_SCOPE(ASceneCaptureSensor::WaitForRenderThreadToFinsih);
-    // FlushRenderingCommands();
+    FlushRenderingCommands();
   }
 
 protected:
@@ -332,10 +319,8 @@ protected:
   UPROPERTY(EditAnywhere)
   bool bEnablePostProcessingEffects = true;
 
-  /// Whether to change render target format to PF_A16B16G16R16, offering 16bit / channel
-  UPROPERTY(EditAnywhere)
-  bool bEnable16BitFormat = false;
-
   FRenderCommandFence RenderFence;
+
+  bool ReadyToCapture = false;
 
 };

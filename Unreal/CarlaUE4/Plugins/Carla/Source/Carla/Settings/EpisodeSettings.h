@@ -33,8 +33,4 @@ struct CARLA_API FEpisodeSettings
   UPROPERTY(EditAnywhere, BlueprintReadWrite)
   bool bDeterministicRagdolls = true;
 
-  float TileStreamingDistance = 300000.f; // 3km
-
-  float ActorActiveDistance = 200000.f; // 3km
-
 };

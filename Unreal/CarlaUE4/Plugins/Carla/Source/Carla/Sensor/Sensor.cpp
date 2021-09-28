@@ -24,7 +24,7 @@ void ASensor::BeginPlay()
 {
   Super::BeginPlay();
   OnPostTickDelegate = FWorldDelegates::OnWorldPostActorTick.AddUObject(
-      this, &ASensor::PostPhysTickInternal);
+      this, &ASensor::PostPhysTick);
 }
 
 void ASensor::Set(const FActorDescription &Description)
@@ -40,9 +40,7 @@ void ASensor::Set(const FActorDescription &Description)
 
 void ASensor::Tick(const float DeltaTime)
 {
-  TRACE_CPUPROFILER_EVENT_SCOPE(ASensor::Tick);
   Super::Tick(DeltaTime);
-  ReadyToTick = true;
   PrePhysTick(DeltaTime);
 }
 
@@ -78,14 +76,4 @@ void ASensor::EndPlay(EEndPlayReason::Type EndPlayReason)
   Stream = FDataStream();
 
   FWorldDelegates::OnWorldPostActorTick.Remove(OnPostTickDelegate);
-}
-
-void ASensor::PostPhysTickInternal(UWorld *World, ELevelTick TickType, float DeltaSeconds)
-{
-  TRACE_CPUPROFILER_EVENT_SCOPE(ASensor::PostPhysTickInternal);
-  if(ReadyToTick)
-  {
-    PostPhysTick(World, TickType, DeltaSeconds);
-    ReadyToTick = false;
-  }
 }

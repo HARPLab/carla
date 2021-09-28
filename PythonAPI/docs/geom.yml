@@ -141,11 +141,6 @@
       doc: >
         Returns the axis values for the vector parsed as string.
     # --------------------------------------
-    - def_name: __abs__
-      return: carla.Vector3D
-      doc: >
-        Returns a Vector3D with the absolute value of the components x, y and z.
-    # --------------------------------------
 
   - class_name: Location
     parent: carla.Vector3D
@@ -215,12 +210,6 @@
       doc: >
         Parses the axis' values to string.
     # --------------------------------------
-    - def_name: __abs__
-      return: carla.Location
-      doc: >
-        Returns a Location with the absolute value of the components x, y and z.
-    # --------------------------------------
-
 
   - class_name: Rotation
     # - DESCRIPTION ------------------------

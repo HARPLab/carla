@@ -56,14 +56,10 @@ void ARayCastLidar::Set(const FLidarDescription &LidarDescription)
 
 void ARayCastLidar::PostPhysTick(UWorld *World, ELevelTick TickType, float DeltaTime)
 {
-  TRACE_CPUPROFILER_EVENT_SCOPE(ARayCastLidar::PostPhysTick);
   SimulateLidar(DeltaTime);
 
-  {
-    TRACE_CPUPROFILER_EVENT_SCOPE_STR("Send Stream");
-    auto DataStream = GetDataStream(*this);
-    DataStream.Send(*this, LidarData, DataStream.PopBufferFromPool());
-  }
+  auto DataStream = GetDataStream(*this);
+  DataStream.Send(*this, LidarData, DataStream.PopBufferFromPool());
 }
 
 float ARayCastLidar::ComputeIntensity(const FSemanticDetection& RawDetection) const
@@ -125,18 +121,13 @@ ARayCastLidar::FDetection ARayCastLidar::ComputeDetection(const FHitResult& HitI
   void ARayCastLidar::ComputeAndSaveDetections(const FTransform& SensorTransform) {
     for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel)
       PointsPerChannel[idxChannel] = RecordedHits[idxChannel].size();
-
-    LidarData.ResetMemory(PointsPerChannel);
+    LidarData.ResetSerPoints(PointsPerChannel);
 
     for (auto idxChannel = 0u; idxChannel < Description.Channels; ++idxChannel) {
       for (auto& hit : RecordedHits[idxChannel]) {
         FDetection Detection = ComputeDetection(hit, SensorTransform);
         if (PostprocessDetection(Detection))
           LidarData.WritePointSync(Detection);
-        else
-          PointsPerChannel[idxChannel]--;
       }
     }
-
-    LidarData.WriteChannelCount(PointsPerChannel);
   }

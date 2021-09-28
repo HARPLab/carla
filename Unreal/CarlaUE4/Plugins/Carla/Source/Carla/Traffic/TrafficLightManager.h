@@ -93,9 +93,6 @@ private:
   UPROPERTY(EditAnywhere, Category= "Traffic Light Manager")
   TMap<FString, TSubclassOf<USignComponent>> SignComponentModels;
 
-  UPROPERTY(EditAnywhere, Category= "Traffic Light Manager")
-  TMap<FString, TSubclassOf<AActor>> SpeedLimitModels;
-
   UPROPERTY(Category = "Traffic Light Manager", VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
   USceneComponent *SceneComponent;
 

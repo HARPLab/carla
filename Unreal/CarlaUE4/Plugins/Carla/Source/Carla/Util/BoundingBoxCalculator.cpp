@@ -319,7 +319,7 @@ void UBoundingBoxCalculator::GetISMBoundingBox(
   const UStaticMesh *Mesh = ISMComp->GetStaticMesh();
   const FBoundingBox SMBoundingBox = GetStaticMeshBoundingBox(Mesh);
 
-  if(!Mesh)
+  if(SMBoundingBox.Extent.IsZero())
   {
     UE_LOG(LogCarla, Error, TEXT("%s has no SM assigned to the ISM"), *ISMComp->GetOwner()->GetName());
     return;
@@ -351,13 +351,8 @@ void UBoundingBoxCalculator::GetBBsOfStaticMeshComponents(
   for(UStaticMeshComponent* Comp : StaticMeshComps)
   {
 
-    bool isCrosswalk = Comp->GetOwner()->GetName().Contains("crosswalk");
-
     // Avoid duplication with SMComp and not visible meshes
-    if( (!Comp->IsVisible() && !isCrosswalk) || Cast<UInstancedStaticMeshComponent>(Comp))
-    {
-      continue;
-    }
+    if(!Comp->IsVisible() || Cast<UInstancedStaticMeshComponent>(Comp)) continue;
 
     // Filter by tag
     crp::CityObjectLabel Tag = ATagger::GetTagOfTaggedComponent(*Comp);
@@ -366,7 +361,11 @@ void UBoundingBoxCalculator::GetBBsOfStaticMeshComponents(
     UStaticMesh* StaticMesh = Comp->GetStaticMesh();
     FBoundingBox BoundingBox = GetStaticMeshBoundingBox(StaticMesh);
 
-    if(StaticMesh)
+    if(BoundingBox.Extent.IsZero())
+    {
+      // UE_LOG(LogCarla, Error, TEXT("%s has no SM assigned"), *Comp->GetOwner()->GetName());
+    }
+    else
     {
       // Component-to-world transform for this component
       const FTransform& CompToWorldTransform = Comp->GetComponentTransform();

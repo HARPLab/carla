@@ -6,6 +6,10 @@
 
 #pragma once
 
+#include <compiler/disable-ue4-macros.h>
+#include <carla/rpc/TrafficLightState.h>
+#include <compiler/enable-ue4-macros.h>
+
 #include "TrafficLightState.generated.h"
 
 

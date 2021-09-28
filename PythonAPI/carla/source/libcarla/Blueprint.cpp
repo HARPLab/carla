@@ -24,12 +24,6 @@ namespace data {
     return out;
   }
 
-  std::ostream &operator<<(std::ostream &out, const OpticalFlowPixel &color) {
-    out << "Color(" << std::to_string(color.x)
-        << ',' << std::to_string(color.y) << ')';
-    return out;
-  }
-
 } // namespace data
 } // namespace sensor
 
@@ -100,16 +94,6 @@ void export_blueprint() {
     .def_readwrite("a", &csd::Color::a)
     .def("__eq__", &csd::Color::operator==)
     .def("__ne__", &csd::Color::operator!=)
-    .def(self_ns::str(self_ns::self))
-  ;
-
-  class_<csd::OpticalFlowPixel>("OpticalFlowPixel")
-    .def(init<float, float>(
-        (arg("x")=0, arg("y")=0)))
-    .def_readwrite("x", &csd::OpticalFlowPixel::x)
-    .def_readwrite("y", &csd::OpticalFlowPixel::y)
-    .def("__eq__", &csd::OpticalFlowPixel::operator==)
-    .def("__ne__", &csd::OpticalFlowPixel::operator!=)
     .def(self_ns::str(self_ns::self))
   ;
 

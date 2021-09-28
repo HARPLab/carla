@@ -16,7 +16,7 @@
 #include <compiler/enable-ue4-macros.h>
 
 #include "Engine/Classes/Interfaces/Interface_CollisionDataProvider.h"
-#include "PhysicsCore/Public/BodySetupEnums.h"
+#include "PhysicsEngine/BodySetupEnums.h"
 
 AProceduralMeshActor::AProceduralMeshActor()
 {
@@ -169,7 +169,8 @@ void AOpenDriveGenerator::BeginPlay()
 {
   Super::BeginPlay();
 
-  const FString XodrContent = UOpenDrive::GetXODR(GetWorld());
+  // Search for "{project_content_folder}/Carla/Maps/OpenDrive/{current_map_name}.xodr"
+  const FString XodrContent = UOpenDrive::LoadXODR(GetWorld()->GetMapName());
   LoadOpenDrive(XodrContent);
 
   GenerateAll();

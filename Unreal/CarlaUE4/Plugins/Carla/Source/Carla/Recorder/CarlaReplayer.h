@@ -44,7 +44,6 @@ public:
     double Duration;
     uint32_t FollowId;
     double TimeFactor;
-    bool ReplaySensors;
   };
 
   static PlayAfterLoadMap Autoplay;
@@ -52,8 +51,7 @@ public:
   CarlaReplayer() {};
   ~CarlaReplayer() { Stop(); };
 
-  std::string ReplayFile(std::string Filename, double TimeStart = 0.0f, double Duration = 0.0f,
-      uint32_t FollowId = 0, bool ReplaySensors = false);
+  std::string ReplayFile(std::string Filename, double TimeStart = 0.0f, double Duration = 0.0f, uint32_t FollowId = 0);
 
   // void Start(void);
   void Stop(bool KeepActors = false);
@@ -92,10 +90,14 @@ public:
   // tick for the replayer
   void Tick(float Time);
 
+  // DReyeVR replayer functions
+  void PlayPause();
+  void Restart();
+  void Advance(const float Amnt);
+  
 private:
 
-  bool Enabled;
-  bool bReplaySensors = false;
+  bool Enabled, Paused = false;
   UCarlaEpisode *Episode = nullptr;
   // binary file reader
   std::ifstream File;
@@ -146,6 +148,22 @@ private:
 
   void ProcessLightVehicle(void);
   void ProcessLightScene(void);
+
+  // DReyeVR recordings
+  void ProcessDReyeVRData(void);
+  // For restarting the recording with the same params
+  struct LastReplayStruct
+  {
+    std::string Filename = "None";
+    double TimeStart = 0;
+    double Duration = 0;
+    uint32_t ThisFollowId = 0;
+  };
+  LastReplayStruct LastReplay;
+
+  // DReyeVR sensor data
+  DReyeVRDataRecorder DReyeVRDataInstance;
+  void UpdateDReyeVRSensor(double Per, double DeltaTime);
 
   // positions
   void UpdatePositions(double Per, double DeltaTime);

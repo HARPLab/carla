@@ -6,9 +6,6 @@
 
 #include "Carla.h"
 #include "Carla/Util/DebugShapeDrawer.h"
-#include "Carla/Game/CarlaHUD.h"
-#include "Carla/Game/CarlaStatics.h"
-#include "Carla/MapGen/LargeMapManager.h"
 
 #include "DrawDebugHelpers.h"
 #include "Components/LineBatchComponent.h"
@@ -17,8 +14,6 @@
 #include <carla/rpc/DebugShape.h>
 #include <carla/rpc/String.h>
 #include <compiler/enable-ue4-macros.h>
-
-
 
 struct FShapeVisitor
 {
@@ -35,14 +30,8 @@ struct FShapeVisitor
 
   void operator()(const Shape::Point &Point) const
   {
-    FVector Location = FVector(Point.location);
-    ALargeMapManager* LargeMap = UCarlaStatics::GetLargeMapManager(World);
-    if (LargeMap)
-    {
-      Location = LargeMap->GlobalToLocalLocation(Location);
-    }
     World->PersistentLineBatcher->DrawPoint(
-        Location,
+        Point.location,
         Color,
         1e2f * Point.size,
         DepthPriority,
@@ -51,17 +40,9 @@ struct FShapeVisitor
 
   void operator()(const Shape::Line &Line) const
   {
-    FVector Begin = FVector(Line.begin);
-    FVector End = FVector(Line.end);
-    ALargeMapManager* LargeMap = UCarlaStatics::GetLargeMapManager(World);
-    if (LargeMap)
-    {
-      Begin = LargeMap->GlobalToLocalLocation(Begin);
-      End = LargeMap->GlobalToLocalLocation(End);
-    }
     World->PersistentLineBatcher->DrawLine(
-        Begin,
-        End,
+        Line.begin,
+        Line.end,
         Color,
         DepthPriority,
         1e2f * Line.thickness,
@@ -70,56 +51,48 @@ struct FShapeVisitor
 
   void operator()(const Shape::Arrow &Arrow) const
   {
-    FVector Begin = FVector(Arrow.line.begin);
-    FVector End = FVector(Arrow.line.end);
-    ALargeMapManager* LargeMap = UCarlaStatics::GetLargeMapManager(World);
-    if (LargeMap)
-    {
-      Begin = LargeMap->GlobalToLocalLocation(Begin);
-      End = LargeMap->GlobalToLocalLocation(End);
-    }
-    const auto Diff = End - Begin;
+    const auto Diff = Arrow.line.end - Arrow.line.begin;
     const FRotator LookAt = FRotationMatrix::MakeFromX(Diff).Rotator();
-    const FTransform Transform = {LookAt, Begin};
+    const FTransform Transform = {LookAt, Arrow.line.begin};
 
     // Everything in centimeters
-    const auto Dist = Diff.Size();
+    const auto Dist = 1e2f * Diff.Length();
     const auto ArrowSize = 1e2f * Arrow.arrow_size;
     const auto ArrowTipDist = Dist - ArrowSize;
     const auto Thickness = 1e2f * Arrow.line.thickness;
 
     World->PersistentLineBatcher->DrawLines(TArray<FBatchedLine>({
         FBatchedLine(
-            Begin,
-            End,
+            Arrow.line.begin,
+            Arrow.line.end,
             Color,
             LifeTime,
             Thickness,
             DepthPriority),
         FBatchedLine(
             Transform.TransformPosition(FVector(ArrowTipDist, +ArrowSize, +ArrowSize)),
-            End,
+            Arrow.line.end,
             Color,
             LifeTime,
             Thickness,
             DepthPriority),
         FBatchedLine(
             Transform.TransformPosition(FVector(ArrowTipDist, +ArrowSize, -ArrowSize)),
-            End,
+            Arrow.line.end,
             Color,
             LifeTime,
             Thickness,
             DepthPriority),
         FBatchedLine(
             Transform.TransformPosition(FVector(ArrowTipDist, -ArrowSize, +ArrowSize)),
-            End,
+            Arrow.line.end,
             Color,
             LifeTime,
             Thickness,
             DepthPriority),
         FBatchedLine(
             Transform.TransformPosition(FVector(ArrowTipDist, -ArrowSize, -ArrowSize)),
-            End,
+            Arrow.line.end,
             Color,
             LifeTime,
             Thickness,
@@ -129,14 +102,8 @@ struct FShapeVisitor
   void operator()(const Shape::Box &Box) const
   {
     const FVector Extent = 1e2f * FVector{Box.box.extent.x, Box.box.extent.y, Box.box.extent.z};
-    FTransform Transform = {FRotator(Box.rotation), Box.box.location};
+    const FTransform Transform = {FRotator(Box.rotation), Box.box.location};
     const auto Thickness = 1e2f * Box.thickness;
-
-    ALargeMapManager* LargeMap = UCarlaStatics::GetLargeMapManager(World);
-    if (LargeMap)
-    {
-      Transform = LargeMap->GlobalToLocalTransform(Transform);
-    }
 
     FVector B[2], P, Q;
     B[0] = -Extent;
@@ -199,14 +166,8 @@ struct FShapeVisitor
       UE_LOG(LogCarla, Error, TEXT("Can't find player controller!"));
       return;
     }
-    FVector Location = FVector(Str.location);
-    ALargeMapManager* LargeMap = UCarlaStatics::GetLargeMapManager(World);
-    if (LargeMap)
-    {
-      Location = LargeMap->GlobalToLocalLocation(Location);
-    }
     ACarlaHUD *Hud = Cast<ACarlaHUD>(PlayerController->GetHUD());
-    Hud->AddHUDString(carla::rpc::ToFString(Str.text), Location, Color.Quantize(), LifeTime);
+    Hud->AddHUDString(carla::rpc::ToFString(Str.text), Str.location, Color.Quantize(), LifeTime);
   }
 
 private:

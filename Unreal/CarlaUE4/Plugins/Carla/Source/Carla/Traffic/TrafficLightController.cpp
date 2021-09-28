@@ -60,28 +60,12 @@ const TArray<UTrafficLightComponent *> &UTrafficLightController::GetTrafficLight
 void UTrafficLightController::EmptyTrafficLights()
 {
   TrafficLights.Empty();
-  TrafficLightCarlaActors.Empty();
 }
 
 void UTrafficLightController::AddTrafficLight(UTrafficLightComponent * TrafficLight)
 {
   TrafficLights.Add(TrafficLight);
   TrafficLight->SetController(this);
-}
-
-void UTrafficLightController::RemoveTrafficLight(UTrafficLightComponent * TrafficLight)
-{
-  TrafficLights.Remove(TrafficLight);
-}
-
-void UTrafficLightController::AddCarlaActorTrafficLight(FCarlaActor* CarlaActor)
-{
-  TrafficLightCarlaActors.Add(CarlaActor);
-}
-
-void UTrafficLightController::RemoveCarlaActorTrafficLight(FCarlaActor* CarlaActor)
-{
-  TrafficLightCarlaActors.Remove(CarlaActor);
 }
 
 const FString &UTrafficLightController::GetControllerId() const
@@ -101,14 +85,9 @@ bool UTrafficLightController::IsCycleFinished() const
 
 void UTrafficLightController::SetTrafficLightsState(ETrafficLightState NewState)
 {
-  SetCurrentLightState(NewState);
   for(auto *Light : TrafficLights)
   {
     Light->SetLightState(NewState);
-  }
-  for(FCarlaActor* Light : TrafficLightCarlaActors)
-  {
-    Light->SetTrafficLightState(NewState);
   }
 }
 

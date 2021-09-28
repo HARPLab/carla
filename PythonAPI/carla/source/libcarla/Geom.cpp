@@ -141,7 +141,6 @@ void export_geom() {
     .def_readwrite("z", &cg::Vector3D::z)
     .def("__eq__", &cg::Vector3D::operator==)
     .def("__ne__", &cg::Vector3D::operator!=)
-    .def("__abs__", &cg::Vector3D::Abs)
     .def(self += self)
     .def(self + self)
     .def(self -= self)
@@ -164,7 +163,6 @@ void export_geom() {
     .def("distance", &cg::Location::Distance, (arg("location")))
     .def("__eq__", &cg::Location::operator==)
     .def("__ne__", &cg::Location::operator!=)
-    .def("__abs__", &cg::Location::Abs)
     .def(self_ns::str(self_ns::self))
   ;
 
@@ -190,10 +188,6 @@ void export_geom() {
     .def("transform", +[](const cg::Transform &self, cg::Vector3D &location) {
       self.TransformPoint(location);
       return location;
-    }, arg("in_point"))
-    .def("transform_vector", +[](const cg::Transform &self, cg::Vector3D &vector) {
-      self.TransformVector(vector);
-      return vector;
     }, arg("in_point"))
     .def("get_forward_vector", &cg::Transform::GetForwardVector)
     .def("get_right_vector", &cg::Transform::GetRightVector)

@@ -16,6 +16,9 @@
 #include "CarlaRecorder.h"
 #include "CarlaReplayerHelper.h"
 
+// DReyeVR include
+#include "Carla/Sensor/DReyeVRSensor.h"
+
 #include <ctime>
 #include <sstream>
 
@@ -47,31 +50,29 @@ std::string ACarlaRecorder::ShowFileActorsBlocked(std::string Name, double MinTi
   return Query.QueryBlocked(Name, MinTime, MinDistance);
 }
 
-std::string ACarlaRecorder::ReplayFile(std::string Name, double TimeStart, double Duration,
-    uint32_t FollowId, bool ReplaySensors)
+std::string ACarlaRecorder::ReplayFile(std::string Name, double TimeStart, double Duration, uint32_t FollowId)
 {
   Stop();
-  return Replayer.ReplayFile(Name, TimeStart, Duration, FollowId, ReplaySensors);
+  return Replayer.ReplayFile(Name, TimeStart, Duration, FollowId);
 }
 
-void ACarlaRecorder::SetReplayerTimeFactor(double TimeFactor)
+inline void ACarlaRecorder::SetReplayerTimeFactor(double TimeFactor)
 {
   Replayer.SetTimeFactor(TimeFactor);
 }
 
-void ACarlaRecorder::SetReplayerIgnoreHero(bool IgnoreHero)
+inline void ACarlaRecorder::SetReplayerIgnoreHero(bool IgnoreHero)
 {
   Replayer.SetIgnoreHero(IgnoreHero);
 }
 
-void ACarlaRecorder::StopReplayer(bool KeepActors)
+inline void ACarlaRecorder::StopReplayer(bool KeepActors)
 {
   Replayer.Stop(KeepActors);
 }
 
 void ACarlaRecorder::Ticking(float DeltaSeconds)
 {
-  TRACE_CPUPROFILER_EVENT_SCOPE(ACarlaRecorder::Ticking);
   Super::Tick(DeltaSeconds);
 
   if (!Episode)
@@ -86,17 +87,12 @@ void ACarlaRecorder::Ticking(float DeltaSeconds)
     // through all actors in registry
     for (auto It = Registry.begin(); It != Registry.end(); ++It)
     {
-      FCarlaActor* View = It.Value().Get();
+      FActorView View = *It;
 
-      switch (View->GetActorType())
+      switch (View.GetActorType())
       {
-        // save the transform for props
-        case FCarlaActor::ActorType::Other:
-          AddActorPosition(View);
-          break;
-
         // save the transform of all vehicles
-        case FCarlaActor::ActorType::Vehicle:
+        case FActorView::ActorType::Vehicle:
           AddActorPosition(View);
           AddVehicleAnimation(View);
           AddVehicleLight(View);
@@ -107,7 +103,7 @@ void ACarlaRecorder::Ticking(float DeltaSeconds)
           break;
 
         // save the transform of all walkers
-        case FCarlaActor::ActorType::Walker:
+        case FActorView::ActorType::Walker:
           AddActorPosition(View);
           AddWalkerAnimation(View);
           if (bAdditionalData)
@@ -117,11 +113,13 @@ void ACarlaRecorder::Ticking(float DeltaSeconds)
           break;
 
         // save the state of each traffic light
-        case FCarlaActor::ActorType::TrafficLight:
+        case FActorView::ActorType::TrafficLight:
           AddTrafficLightState(View);
           break;
       }
     }
+    // Add the DReyeVR data
+    AddDReyeVRData();
 
     // write all data for this frame
     Write(DeltaSeconds);
@@ -145,35 +143,41 @@ void ACarlaRecorder::Disable(void)
   Enabled = false;
 }
 
-void ACarlaRecorder::AddActorPosition(FCarlaActor *CarlaActor)
+void ACarlaRecorder::AddActorPosition(FActorView &View)
 {
-  check(CarlaActor != nullptr);
+  AActor *Actor = View.GetActor();
+  check(Actor != nullptr);
 
-  FTransform Transform = CarlaActor->GetActorGlobalTransform();
   // get position of the vehicle
   AddPosition(CarlaRecorderPosition
   {
-    CarlaActor->GetActorId(),
-    Transform.GetLocation(),
-    Transform.GetRotation().Euler()
+    View.GetActorId(),
+    Actor->GetTransform().GetTranslation(),
+    Actor->GetTransform().GetRotation().Euler()
   });
 }
 
-void ACarlaRecorder::AddVehicleAnimation(FCarlaActor *CarlaActor)
+void ACarlaRecorder::AddVehicleAnimation(FActorView &View)
 {
-  check(CarlaActor != nullptr);
+  AActor *Actor = View.GetActor();
+  check(Actor != nullptr);
 
-  if (CarlaActor->IsPendingKill())
+  if (Actor->IsPendingKill())
   {
     return;
   }
 
-  FVehicleControl Control;
-  CarlaActor->GetVehicleControl(Control);
+  auto Vehicle = Cast<ACarlaWheeledVehicle>(Actor);
+  if (Vehicle == nullptr)
+  {
+    return;
+  }
+
+  FVehicleControl Control = Vehicle->GetVehicleControl();
 
   // save
   CarlaRecorderAnimVehicle Record;
-  Record.DatabaseId = CarlaActor->GetActorId();
+  Record.DatabaseId = View.GetActorId();
   Record.Steering = Control.Steer;
   Record.Throttle = Control.Throttle;
   Record.Brake = Control.Brake;
@@ -182,84 +186,122 @@ void ACarlaRecorder::AddVehicleAnimation(FCarlaActor *CarlaActor)
   AddAnimVehicle(Record);
 }
 
-void ACarlaRecorder::AddWalkerAnimation(FCarlaActor *CarlaActor)
+void ACarlaRecorder::AddWalkerAnimation(FActorView &View)
 {
-  check(CarlaActor != nullptr);
+  AActor *Actor = View.GetActor();
+  check(Actor != nullptr);
 
-  if (!CarlaActor->IsPendingKill())
+  if (!Actor->IsPendingKill())
   {
-    FWalkerControl Control;
-    CarlaActor->GetWalkerControl(Control);
-    AddAnimWalker(CarlaRecorderAnimWalker
+    // check to set speed in walkers
+    auto Walker = Cast<APawn>(Actor);
+    if (Walker)
     {
-      CarlaActor->GetActorId(),
-      Control.Speed
-    });
-  }
-}
-
-void ACarlaRecorder::AddTrafficLightState(FCarlaActor *CarlaActor)
-{
-  check(CarlaActor != nullptr);
-
-  ETrafficLightState LightState = CarlaActor->GetTrafficLightState();
-  UTrafficLightController* Controller = CarlaActor->GetTrafficLightController();
-  if (Controller)
-  {
-    ATrafficLightGroup* Group = Controller->GetGroup();
-    if (Group)
-    {
-      AddState(CarlaRecorderStateTrafficLight
+      auto Controller = Cast<AWalkerController>(Walker->GetController());
+      if (Controller != nullptr)
       {
-        CarlaActor->GetActorId(),
-        Group->IsFrozen(),
-        Controller->GetElapsedTime(),
-        static_cast<char>(LightState)
-      });
+        AddAnimWalker(CarlaRecorderAnimWalker
+        {
+          View.GetActorId(),
+          Controller->GetWalkerControl().Speed
+        });
+      }
     }
   }
 }
 
-void ACarlaRecorder::AddVehicleLight(FCarlaActor *CarlaActor)
+void ACarlaRecorder::AddTrafficLightState(FActorView &View)
 {
-  check(CarlaActor != nullptr);
+  AActor *Actor = View.GetActor();
+  check(Actor != nullptr);
 
-  FVehicleLightState LightState;
-  CarlaActor->GetVehicleLightState(LightState);
+  // get states
+  auto TrafficLight = Cast<ATrafficLightBase>(Actor);
+  if (TrafficLight != nullptr)
+  {
+    AddState(CarlaRecorderStateTrafficLight
+    {
+      View.GetActorId(),
+      TrafficLight->GetTimeIsFrozen(),
+      TrafficLight->GetElapsedTime(),
+      static_cast<char>(TrafficLight->GetTrafficLightState())
+    });
+  }
+}
+
+void ACarlaRecorder::AddVehicleLight(FActorView &View)
+{
+  AActor *Actor = View.GetActor();
+  check(Actor != nullptr);
+
+  if (Actor->IsPendingKill())
+  {
+    return;
+  }
+
+  auto Vehicle = Cast<ACarlaWheeledVehicle>(Actor);
+  if (Vehicle == nullptr)
+  {
+    return;
+  }
+
   CarlaRecorderLightVehicle LightVehicle;
-  LightVehicle.DatabaseId = CarlaActor->GetActorId();
+  LightVehicle.DatabaseId = View.GetActorId();
+  auto LightState = Vehicle->GetVehicleLightState();
   LightVehicle.State = carla::rpc::VehicleLightState(LightState).light_state;
   AddLightVehicle(LightVehicle);
 }
 
-void ACarlaRecorder::AddActorKinematics(FCarlaActor *CarlaActor)
+void ACarlaRecorder::AddActorKinematics(FActorView &View)
 {
-  check(CarlaActor != nullptr);
+  AActor *Actor = View.GetActor();
+  check(Actor != nullptr);
+
+  if (Actor->IsPendingKill())
+  {
+    return;
+  }
 
   FVector Velocity, AngularVelocity;
   constexpr float TO_METERS = 1e-2;
-  Velocity = TO_METERS* CarlaActor->GetActorVelocity();
-  AngularVelocity = CarlaActor->GetActorAngularVelocity();
+  Velocity = TO_METERS * Actor->GetVelocity();
+  UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+  if (Primitive)
+  {
+    AngularVelocity = Primitive->GetPhysicsAngularVelocityInDegrees();
+  }
   CarlaRecorderKinematics Kinematic =
   {
-    CarlaActor->GetActorId(),
+    View.GetActorId(),
     Velocity,
     AngularVelocity
    };
    AddKinematics(Kinematic);
 }
-void ACarlaRecorder::AddActorBoundingBox(FCarlaActor *CarlaActor)
+void ACarlaRecorder::AddActorBoundingBox(FActorView &View)
 {
-  check(CarlaActor != nullptr);
+  AActor *Actor = View.GetActor();
+  check(Actor != nullptr);
 
-  const auto &Box = CarlaActor->GetActorInfo()->BoundingBox;
+  if (Actor->IsPendingKill())
+  {
+    return;
+  }
+
+  const auto &Box = View.GetActorInfo()->BoundingBox;
   CarlaRecorderActorBoundingBox BoundingBox =
   {
-    CarlaActor->GetActorId(),
+    View.GetActorId(),
     {Box.Origin, Box.Extent}
   };
 
   AddBoundingBox(BoundingBox);
+}
+
+void ACarlaRecorder::AddDReyeVRData()
+{
+  // Add the latest instance of the DReyeVR snapshot to our data
+  DReyeVRData.Add(DReyeVRDataRecorder(ADReyeVRSensor::Snapshot));
 }
 
 void ACarlaRecorder::AddTriggerVolume(const ATrafficSignBase &TrafficSign)
@@ -276,7 +318,7 @@ void ACarlaRecorder::AddTriggerVolume(const ATrafficSignBase &TrafficSign)
     auto VolumeExtent = Trigger->GetScaledBoxExtent();
     CarlaRecorderActorBoundingBox TriggerVolume =
     {
-      Episode->GetActorRegistry().FindCarlaActor(&TrafficSign)->GetActorId(),
+      Episode->GetActorRegistry().Find(&TrafficSign).GetActorId(),
       {VolumeOrigin, VolumeExtent}
     };
     TriggerVolumes.Add(TriggerVolume);
@@ -288,7 +330,7 @@ void ACarlaRecorder::AddPhysicsControl(const ACarlaWheeledVehicle& Vehicle)
   if (bAdditionalData)
   {
     CarlaRecorderPhysicsControl Control;
-    Control.DatabaseId = Episode->GetActorRegistry().FindCarlaActor(&Vehicle)->GetActorId();
+    Control.DatabaseId = Episode->GetActorRegistry().Find(&Vehicle).GetActorId();
     Control.VehiclePhysicsControl = Vehicle.GetVehiclePhysicsControl();
     PhysicsControls.Add(Control);
   }
@@ -298,7 +340,7 @@ void ACarlaRecorder::AddTrafficLightTime(const ATrafficLightBase& TrafficLight)
 {
   if (bAdditionalData)
   {
-    auto DatabaseId = Episode->GetActorRegistry().FindCarlaActor(&TrafficLight)->GetActorId();
+    auto DatabaseId = Episode->GetActorRegistry().Find(&TrafficLight).GetActorId();
     CarlaRecorderTrafficLightTime TrafficLightTime{
       DatabaseId,
       TrafficLight.GetGreenTime(),
@@ -382,6 +424,7 @@ void ACarlaRecorder::Clear(void)
   TriggerVolumes.Clear();
   PhysicsControls.Clear();
   TrafficLightTimes.Clear();
+  DReyeVRData.Clear();
 }
 
 void ACarlaRecorder::Write(double DeltaSeconds)
@@ -418,7 +461,9 @@ void ACarlaRecorder::Write(double DeltaSeconds)
     PhysicsControls.Write(File);
     TrafficLightTimes.Write(File);
   }
-
+  // custom DReyeVR data
+  DReyeVRData.Write(File);
+  
   // end
   Frames.WriteEnd(File);
 
@@ -469,22 +514,22 @@ void ACarlaRecorder::AddCollision(AActor *Actor1, AActor *Actor2)
     Collision.IsActor2Hero = false;
 
     // check actor 1
-    if (Episode->GetActorRegistry().FindCarlaActor(Actor1)->GetActorInfo() != nullptr)
+    if (Episode->GetActorRegistry().Find(Actor1).GetActorInfo() != nullptr)
     {
-      auto *Role = Episode->GetActorRegistry().FindCarlaActor(Actor1)->GetActorInfo()->Description.Variations.Find("role_name");
+      auto *Role = Episode->GetActorRegistry().Find(Actor1).GetActorInfo()->Description.Variations.Find("role_name");
       if (Role != nullptr)
         Collision.IsActor1Hero = (Role->Value == "hero");
     }
-    Collision.DatabaseId1 = Episode->GetActorRegistry().FindCarlaActor(Actor1)->GetActorId();
+    Collision.DatabaseId1 = Episode->GetActorRegistry().Find(Actor1).GetActorId();
 
     // check actor 2
-    if (Episode->GetActorRegistry().FindCarlaActor(Actor2)->GetActorInfo() != nullptr)
+    if (Episode->GetActorRegistry().Find(Actor2).GetActorInfo() != nullptr)
     {
-      auto Role = Episode->GetActorRegistry().FindCarlaActor(Actor2)->GetActorInfo()->Description.Variations.Find("role_name");
+      auto Role = Episode->GetActorRegistry().Find(Actor2).GetActorInfo()->Description.Variations.Find("role_name");
       if (Role != nullptr)
         Collision.IsActor2Hero = (Role->Value == "hero");
     }
-    Collision.DatabaseId2 = Episode->GetActorRegistry().FindCarlaActor(Actor2)->GetActorId();
+    Collision.DatabaseId2 = Episode->GetActorRegistry().Find(Actor2).GetActorId();
 
     Collisions.Add(std::move(Collision));
   }
@@ -559,17 +604,17 @@ void ACarlaRecorder::AddExistingActors(void)
 {
   // registring all existing actors in first frame
   FActorRegistry Registry = Episode->GetActorRegistry();
-  for (auto& It : Registry)
+  for (auto &&View : Registry)
   {
-    const FCarlaActor* CarlaActor = It.Value.Get();
-    if (CarlaActor != nullptr)
+    const AActor *Actor = View.GetActor();
+    if (Actor != nullptr)
     {
       // create event
       CreateRecorderEventAdd(
-          CarlaActor->GetActorId(),
-          static_cast<uint8_t>(CarlaActor->GetActorType()),
-          CarlaActor->GetActorGlobalTransform(),
-          CarlaActor->GetActorInfo()->Description);
+          View.GetActorId(),
+          static_cast<uint8_t>(View.GetActorType()),
+          Actor->GetActorTransform(),
+          View.GetActorInfo()->Description);
     }
   }
 
@@ -623,22 +668,22 @@ void ACarlaRecorder::CreateRecorderEventAdd(
   };
   AddEvent(std::move(RecEvent));
 
-  FCarlaActor* CarlaActor = Episode->FindCarlaActor(DatabaseId);
+  FActorView ActorView = Episode->GetActorRegistry().Find(DatabaseId);
   // Other events related to spawning actors
   // check if it is a vehicle to get initial physics control
-  ACarlaWheeledVehicle* Vehicle = Cast<ACarlaWheeledVehicle>(CarlaActor->GetActor());
+  ACarlaWheeledVehicle* Vehicle = Cast<ACarlaWheeledVehicle>(ActorView.GetActor());
   if (Vehicle)
   {
     AddPhysicsControl(*Vehicle);
   }
 
-  ATrafficLightBase* TrafficLight = Cast<ATrafficLightBase>(CarlaActor->GetActor());
+  ATrafficLightBase* TrafficLight = Cast<ATrafficLightBase>(ActorView.GetActor());
   if (TrafficLight)
   {
     AddTrafficLightTime(*TrafficLight);
   }
 
-  ATrafficSignBase* TrafficSign = Cast<ATrafficSignBase>(CarlaActor->GetActor());
+  ATrafficSignBase* TrafficSign = Cast<ATrafficSignBase>(ActorView.GetActor());
   if (TrafficSign)
   {
     // Trigger volume in global coordinates
@@ -647,6 +692,33 @@ void ACarlaRecorder::CreateRecorderEventAdd(
   else
   {
     // Bounding box in local coordinates
-    AddActorBoundingBox(CarlaActor);
+    AddActorBoundingBox(ActorView);
   }
+}
+
+// DReyeVR replayer functions
+void ACarlaRecorder::RecPlayPause()
+{
+  Replayer.PlayPause();
+}
+
+void ACarlaRecorder::RecFastForward()
+{
+  Replayer.Advance(TimestepReplayer);
+}
+
+void ACarlaRecorder::RecRewind()
+{
+  Replayer.Advance(-TimestepReplayer);
+}
+
+void ACarlaRecorder::RecRestart()
+{
+  Replayer.Restart();
+}
+
+void ACarlaRecorder::RecIncrTimestep(const float Amnt_s)
+{
+  TimestepReplayer = FMath::Clamp(TimestepReplayer + Amnt_s, 0.1f, 20.f);
+  UE_LOG(LogTemp, Log, TEXT("Timestep to: %.3f"), TimestepReplayer);
 }

@@ -6,18 +6,8 @@
 
 #pragma once
 
-#include "CarlaRecorderEventAdd.h"
-#include "CarlaRecorderPosition.h"
-#include "CarlaRecorderState.h"
-#include "CarlaRecorderAnimWalker.h"
-#include "CarlaRecorderAnimVehicle.h"
-#include "CarlaRecorderLightVehicle.h"
-#include "CarlaRecorderLightScene.h"
-
-#include <unordered_map>
-
 class UCarlaEpisode;
-class FCarlaActor;
+class FActorView;
 struct FActorDescription;
 
 class CarlaReplayerHelper
@@ -37,8 +27,7 @@ public:
       FVector Rotation,
       CarlaRecorderActorDescription Description,
       uint32_t DesiredId,
-      bool bIgnoreHero,
-      bool ReplaySensors);
+      bool bIgnoreHero);
 
   // replay event for removing actor
   bool ProcessReplayerEventDel(uint32_t DatabaseId);
@@ -67,11 +56,20 @@ public:
   // replay finish
   bool ProcessReplayerFinish(bool bApplyAutopilot, bool bIgnoreHero, std::unordered_map<uint32_t, bool> &IsHero);
 
+  // DReyeVR variables:
+  AActor *EyeTrackerPtr = nullptr;
+
+  int EgoVehicleID = -1;       // Actor ID of the EgoVehicle (-1 means we need to search for it)
+  bool FindSpectatorDReyeVR(); // how to find the EgoVehicleID 
+
+  FTransform EgoTransform; // DReyeVR ego-vehicle transform
+  void ProcessReplayerDReyeVRData(const DReyeVRDataRecorder &DReyeVRDataInstance, const double Per);
+
   // set the camera position to follow an actor
   bool SetCameraPosition(uint32_t Id, FVector Offset, FQuat Rotation);
 
   // set the velocity of the actor
-  void SetActorVelocity(FCarlaActor *CarlaActor, FVector Velocity);
+  void SetActorVelocity(const FActorView &ActorView, FVector Velocity);
 
   // set the animation speed for walkers
   void SetWalkerSpeed(uint32_t ActorId, float Speed);
@@ -82,17 +80,16 @@ private:
 
   UCarlaEpisode *Episode {nullptr};
 
-  std::pair<int, FCarlaActor*>TryToCreateReplayerActor(
+  std::pair<int, FActorView>TryToCreateReplayerActor(
     FVector &Location,
     FVector &Rotation,
     FActorDescription &ActorDesc,
-    uint32_t DesiredId,
-    bool SpawnSensors);
+    uint32_t DesiredId);
 
-  FCarlaActor* FindTrafficLightAt(FVector Location);
+  AActor *FindTrafficLightAt(FVector Location);
 
   // enable / disable physics for an actor
-  bool SetActorSimulatePhysics(FCarlaActor *CarlaActor, bool bEnabled);
+  bool SetActorSimulatePhysics(const FActorView &ActorView, bool bEnabled);
   // enable / disable autopilot for an actor
-  bool SetActorAutopilot(FCarlaActor *CarlaActor, bool bEnabled, bool bKeepState = false);
+  bool SetActorAutopilot(const FActorView &ActorView, bool bEnabled, bool bKeepState = false);
 };

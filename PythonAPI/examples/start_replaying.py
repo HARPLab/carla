@@ -71,10 +71,6 @@ def main():
         '-i', '--ignore-hero',
         action='store_true',
         help='ignore hero vehicles')
-    argparser.add_argument(
-        '--spawn-sensors',
-        action='store_true',
-        help='spawn sensors in the replayed world')
     args = argparser.parse_args()
 
     try:
@@ -89,8 +85,8 @@ def main():
         client.set_replayer_ignore_hero(args.ignore_hero)
 
         # replay the session
-        print(client.replay_file(args.recorder_filename, args.start, args.duration, args.camera, args.spawn_sensors))
-
+        print(client.replay_file(args.recorder_filename,
+                                 args.start, args.duration, 2))
     finally:
         pass
 

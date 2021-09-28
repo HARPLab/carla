@@ -79,6 +79,11 @@ def main():
         world = client.get_world()
         blueprints = world.get_blueprint_library().filter('vehicle.*')
 
+        # NO FIXED TIMESTEP (DEBUG ONLY)
+        settings = world.get_settings()
+        settings.fixed_delta_seconds = 0.0
+        world.apply_settings(settings)
+
         spawn_points = world.get_map().get_spawn_points()
         random.shuffle(spawn_points)
 
@@ -90,13 +95,8 @@ def main():
 
         if args.safe:
             blueprints = [x for x in blueprints if int(x.get_attribute('number_of_wheels')) == 4]
-            blueprints = [x for x in blueprints if not x.id.endswith('microlino')]
+            blueprints = [x for x in blueprints if not x.id.endswith('isetta')]
             blueprints = [x for x in blueprints if not x.id.endswith('carlacola')]
-            blueprints = [x for x in blueprints if not x.id.endswith('cybertruck')]
-            blueprints = [x for x in blueprints if not x.id.endswith('t2')]
-            blueprints = [x for x in blueprints if not x.id.endswith('sprinter')]
-            blueprints = [x for x in blueprints if not x.id.endswith('firetruck')]
-            blueprints = [x for x in blueprints if not x.id.endswith('ambulance')]
 
         spawn_points = world.get_map().get_spawn_points()
         number_of_spawn_points = len(spawn_points)
@@ -113,24 +113,24 @@ def main():
         SetAutopilot = carla.command.SetAutopilot
         FutureActor = carla.command.FutureActor
 
-        batch = []
-        for n, transform in enumerate(spawn_points):
-            if n >= count:
-                break
-            blueprint = random.choice(blueprints)
-            if blueprint.has_attribute('color'):
-                color = random.choice(blueprint.get_attribute('color').recommended_values)
-                blueprint.set_attribute('color', color)
-            blueprint.set_attribute('role_name', 'autopilot')
-            batch.append(SpawnActor(blueprint, transform).then(SetAutopilot(FutureActor, True)))
-
-        for response in client.apply_batch_sync(batch):
-            if response.error:
-                logging.error(response.error)
-            else:
-                actor_list.append(response.actor_id)
-
-        print('spawned %d vehicles, press Ctrl+C to exit.' % len(actor_list))
+        # batch = []
+        # for n, transform in enumerate(spawn_points):
+        #     if n >= count:
+        #         break
+        #     blueprint = random.choice(blueprints)
+        #     if blueprint.has_attribute('color'):
+        #         color = random.choice(blueprint.get_attribute('color').recommended_values)
+        #         blueprint.set_attribute('color', color)
+        #     blueprint.set_attribute('role_name', 'autopilot')
+        #     batch.append(SpawnActor(blueprint, transform).then(SetAutopilot(FutureActor, True)))
+        #
+        # for response in client.apply_batch_sync(batch):
+        #     if response.error:
+        #         logging.error(response.error)
+        #     else:
+        #         actor_list.append(response.actor_id)
+        #
+        # print('spawned %d vehicles, press Ctrl+C to exit.' % len(actor_list))
 
         if (args.recorder_time > 0):
             time.sleep(args.recorder_time)
@@ -141,8 +141,8 @@ def main():
 
     finally:
 
-        print('\ndestroying %d actors' % len(actor_list))
-        client.apply_batch_sync([carla.command.DestroyActor(x) for x in actor_list])
+        # print('\ndestroying %d actors' % len(actor_list))
+        # client.apply_batch_sync([carla.command.DestroyActor(x) for x in actor_list])
 
         print("Stop recording")
         client.stop_recorder()

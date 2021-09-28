@@ -62,7 +62,7 @@ public:
   ///
   /// @pre To be called from game-thread.
   template <typename TSensor>
-  static void SendPixelsInRenderThread(TSensor &Sensor, bool use16BitFormat = false);
+  static void SendPixelsInRenderThread(TSensor &Sensor);
 
 private:
 
@@ -73,8 +73,7 @@ private:
       UTextureRenderTarget2D &RenderTarget,
       carla::Buffer &Buffer,
       uint32 Offset,
-      FRHICommandListImmediate &InRHICmdList,
-      bool use16BitFormat = false);
+      FRHICommandListImmediate &InRHICmdList);
 
 };
 
@@ -83,9 +82,8 @@ private:
 // =============================================================================
 
 template <typename TSensor>
-void FPixelReader::SendPixelsInRenderThread(TSensor &Sensor, bool use16BitFormat)
+void FPixelReader::SendPixelsInRenderThread(TSensor &Sensor)
 {
-  TRACE_CPUPROFILER_EVENT_SCOPE(FPixelReader::SendPixelsInRenderThread);
   check(Sensor.CaptureRenderTarget != nullptr);
 
   if (!Sensor.HasActorBegunPlay() || Sensor.IsPendingKill())
@@ -101,10 +99,8 @@ void FPixelReader::SendPixelsInRenderThread(TSensor &Sensor, bool use16BitFormat
   // game-thread.
   ENQUEUE_RENDER_COMMAND(FWritePixels_SendPixelsInRenderThread)
   (
-    [&Sensor, Stream=Sensor.GetDataStream(Sensor), use16BitFormat](auto &InRHICmdList) mutable
+    [&Sensor, Stream=Sensor.GetDataStream(Sensor)](auto &InRHICmdList) mutable
     {
-      TRACE_CPUPROFILER_EVENT_SCOPE_STR("FWritePixels_SendPixelsInRenderThread");
-
       /// @todo Can we make sure the sensor is not going to be destroyed?
       if (!Sensor.IsPendingKill())
       {
@@ -113,12 +109,10 @@ void FPixelReader::SendPixelsInRenderThread(TSensor &Sensor, bool use16BitFormat
             *Sensor.CaptureRenderTarget,
             Buffer,
             carla::sensor::SensorRegistry::get<TSensor *>::type::header_offset,
-            InRHICmdList, use16BitFormat);
-
+            InRHICmdList);
         if(Buffer.data())
         {
           SCOPE_CYCLE_COUNTER(STAT_CarlaSensorStreamSend);
-          TRACE_CPUPROFILER_EVENT_SCOPE_STR("Stream Send");
           Stream.Send(Sensor, std::move(Buffer));
         }
       }

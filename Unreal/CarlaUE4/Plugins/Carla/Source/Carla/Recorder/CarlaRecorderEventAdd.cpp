@@ -67,12 +67,12 @@ void CarlaRecorderEventAdd::Read(std::ifstream &InFile)
 
 //---------------------------------------------
 
-void CarlaRecorderEventsAdd::Clear(void)
+inline void CarlaRecorderEventsAdd::Clear(void)
 {
     Events.clear();
 }
 
-void CarlaRecorderEventsAdd::Add(const CarlaRecorderEventAdd &Event)
+inline void CarlaRecorderEventsAdd::Add(const CarlaRecorderEventAdd &Event)
 {
     Events.push_back(std::move(Event));
 }

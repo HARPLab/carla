@@ -22,7 +22,7 @@ UMoveAssetsCommandlet::UMoveAssetsCommandlet()
 namespace SSTags {
   // Carla Semantic Segmentation Folder Tags
   static const FString ROAD       = TEXT("Road");
-  static const FString ROADLINE   = TEXT("RoadLine");
+  static const FString ROADLINES  = TEXT("RoadLines");
   static const FString TERRAIN    = TEXT("Terrain");
   static const FString GRASS      = TEXT("Terrain");
   static const FString SIDEWALK   = TEXT("SideWalk");
@@ -36,19 +36,13 @@ namespace SSTags {
   //
   // meshType is a larger geographical tag (e.g. "Road", "Terrain")
   // meshSubType is a denomination of the tag (e.g. "Road", "Gutter", "Ground")
-  static const FString R_ROAD1     = TEXT("Road_Road");
-  static const FString R_ROAD2     = TEXT("Roads_Road");
-  static const FString R_GRASS1    = TEXT("Road_Grass");
-  static const FString R_GRASS2    = TEXT("Roads_Grass");
-  static const FString R_MARKING1  = TEXT("Road_Marking");
-  static const FString R_MARKING2  = TEXT("Roads_Marking");
-  static const FString R_SIDEWALK1 = TEXT("Road_Sidewalk");
-  static const FString R_SIDEWALK2 = TEXT("Roads_Sidewalk");
-  static const FString R_CURB1     = TEXT("Road_Curb");
-  static const FString R_CURB2     = TEXT("Roads_Curb");
-  static const FString R_GUTTER1   = TEXT("Road_Gutter");
-  static const FString R_GUTTER2   = TEXT("Roads_Gutter");
-  static const FString R_TERRAIN   = TEXT("Terrain");
+  static const FString R_ROAD     = TEXT("Road_Road");
+  static const FString R_TERRAIN  = TEXT("Terrain");
+  static const FString R_GRASS    = TEXT("Road_Grass");
+  static const FString R_MARKING  = TEXT("Road_Marking");
+  static const FString R_SIDEWALK = TEXT("Road_Sidewalk");
+  static const FString R_CURB     = TEXT("Road_Curb");
+  static const FString R_GUTTER   = TEXT("Road_Gutter");
 }
 
 FMovePackageParams UMoveAssetsCommandlet::ParseParams(const FString &InParams) const
@@ -102,12 +96,13 @@ void MoveFiles(const TArray<UObject *> &Assets, const FString &DestPath)
     {
       continue;
     }
-    AssetsAndNames.Emplace(Asset, DestPath, Asset->GetName());
+
+    new(AssetsAndNames) FAssetRenameData(Asset, DestPath, Asset->GetName());
   }
 
   if (AssetsAndNames.Num() > 0)
   {
-    AssetToolsModule.Get().RenameAssets(AssetsAndNames);
+    AssetToolsModule.Get().RenameAssetsWithDialog(AssetsAndNames);
   }
 }
 
@@ -125,7 +120,7 @@ void UMoveAssetsCommandlet::MoveAssetsFromMapForSemanticSegmentation(
   AssetsObjectLibrary->GetAssetDataList(MapContents);
   AssetsObjectLibrary->ClearLoaded();
 
-  TArray<FString> DestinationPaths = {SSTags::ROAD, SSTags::ROADLINE, SSTags::TERRAIN, SSTags::GRASS, SSTags::SIDEWALK, SSTags::CURB, SSTags::GUTTER};
+  TArray<FString> DestinationPaths = {SSTags::ROAD, SSTags::ROADLINES, SSTags::TERRAIN, SSTags::GRASS, SSTags::SIDEWALK, SSTags::CURB, SSTags::GUTTER};
 
   // Init Map with keys
   TMap<FString, TArray<UObject *>> AssetDataMap;
@@ -137,8 +132,10 @@ void UMoveAssetsCommandlet::MoveAssetsFromMapForSemanticSegmentation(
   for (const auto &MapAsset : MapContents)
   {
     // Get AssetName
-    FString AssetName;
     UStaticMesh *MeshAsset = CastChecked<UStaticMesh>(MapAsset.GetAsset());
+    FString ObjectName = MeshAsset->GetName();
+
+    FString AssetName;
     MapAsset.AssetName.ToString(AssetName);
 
     if (SrcPath.Len())
@@ -153,33 +150,29 @@ void UMoveAssetsCommandlet::MoveAssetsFromMapForSemanticSegmentation(
 
       // Bind between tags and classify assets according to semantic
       // segmentation
-      if (AssetName.Contains(SSTags::R_ROAD1) || AssetName.Contains(SSTags::R_ROAD2))
+      if (AssetName.Contains(SSTags::R_ROAD))
       {
         AssetDataMap[SSTags::ROAD].Add(MeshAsset);
       }
-      else if (AssetName.Contains(SSTags::R_MARKING1) || AssetName.Contains(SSTags::R_MARKING2))
+      else if (AssetName.Contains(SSTags::R_MARKING))
       {
-        AssetDataMap[SSTags::ROADLINE].Add(MeshAsset);
+        AssetDataMap[SSTags::ROADLINES].Add(MeshAsset);
       }
       else if (AssetName.Contains(SSTags::R_TERRAIN))
       {
         AssetDataMap[SSTags::TERRAIN].Add(MeshAsset);
       }
-      else if (AssetName.Contains(SSTags::R_SIDEWALK1) || AssetName.Contains(SSTags::R_SIDEWALK2))
+      else if (AssetName.Contains(SSTags::R_SIDEWALK))
       {
         AssetDataMap[SSTags::SIDEWALK].Add(MeshAsset);
       }
-      else if (AssetName.Contains(SSTags::R_CURB1) || AssetName.Contains(SSTags::R_CURB2))
+      else if (AssetName.Contains(SSTags::R_CURB))
       {
         AssetDataMap[SSTags::CURB].Add(MeshAsset);
       }
-      else if (AssetName.Contains(SSTags::R_GUTTER1) || AssetName.Contains(SSTags::R_GUTTER2))
+      else if (AssetName.Contains(SSTags::R_GUTTER))
       {
         AssetDataMap[SSTags::GUTTER].Add(MeshAsset);
-      }
-      else
-      {
-        AssetDataMap[SSTags::TERRAIN].Add(MeshAsset);
       }
     }
   }
@@ -188,7 +181,6 @@ void UMoveAssetsCommandlet::MoveAssetsFromMapForSemanticSegmentation(
   for (const auto &Elem : AssetDataMap)
   {
     FString DestPath = TEXT("/Game/") + PackageName + TEXT("/Static/") + Elem.Key + "/" + MapName;
-    
     MoveFiles(Elem.Value, DestPath);
   }
 }

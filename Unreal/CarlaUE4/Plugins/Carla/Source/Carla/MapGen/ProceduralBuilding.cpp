@@ -46,14 +46,6 @@ UHierarchicalInstancedStaticMeshComponent* AProceduralBuilding::GetHISMComp(
   return HISMComp;
 }
 
-void AProceduralBuilding::FixMobility() {
-
-  for (UChildActorComponent *ChildComp : ChildActorComps) {
-
-    ChildComp->SetMobility(EComponentMobility::Type::Static);
-  }
-}
-
 void AProceduralBuilding::ConvertOldBP_ToNativeCodeObject(AActor* BP_Building)
 {
   AProceduralBuilding* ProceduralBuilding = nullptr;
@@ -89,7 +81,6 @@ void AProceduralBuilding::ConvertOldBP_ToNativeCodeObject(AActor* BP_Building)
     // Create a new ChildActorComponent
     UChildActorComponent* ChildActorComp = NewObject<UChildActorComponent>(this,
       FName(*FString::Printf(TEXT("ChildActorComp_%d"), ChildActorComps.Num() )));
-    ChildActorComp->SetMobility(EComponentMobility::Type::Static);
     ChildActorComp->SetupAttachment(RootComponent);
 
     // Set the class that it will use
@@ -530,7 +521,6 @@ float AProceduralBuilding::AddChunck(
     // Create a new ChildActorComponent
     UChildActorComponent* ChildActorComp = NewObject<UChildActorComponent>(this,
       FName(*FString::Printf(TEXT("ChildActorComp_%d"), ChildActorComps.Num() )));
-    ChildActorComp->SetMobility(EComponentMobility::Type::Static);
     ChildActorComp->SetupAttachment(RootComponent);
 
     // Set the class that it will use

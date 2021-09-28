@@ -1,5 +1,6 @@
 Build
 Dist
+cmake-build-debug
 Doxygen
 Deprecated/PythonClient/dist
 TrafficManager/build
@@ -7,10 +8,18 @@ Util/Build
 Install
 Plugins
 !Unreal/CarlaUE4/Plugins
+Unreal/CarlaUE4/Plugins/SRanipal
+Unreal/CarlaUE4/Plugins/LogitechWheelPlugin
+Unreal/CarlaUE4/Plugins/SteamVRInputPlugin
+!Unreal/CarlaUE4/Content/Carla/Blueprints/Vehicles/DReyeVR
+PythonAPI/carla/build
+PythonAPI/carla/data
+PythonAPI/carla/~ist
 
 /ExportedMaps
 /Import/*
 !/Import/README.md
+
 
 *.VC.db
 *.VC.opendb

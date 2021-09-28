@@ -116,19 +116,19 @@ void FCarlaExporterModule::PluginButtonClicked()
       FString ActorName = TempActor->GetName();
 
       // check type by nomenclature
-      if (ActorName.Find("Road_Road") != -1 || ActorName.Find("Roads_Road") != -1)
+      if (ActorName.StartsWith("Road_Road"))
         areaType = AreaType::ROAD;
-      else if (ActorName.Find("Road_Marking") != -1 || ActorName.Find("Roads_Marking") != -1)
+      else if (ActorName.StartsWith("Road_Marking"))
         areaType = AreaType::ROAD;
-      else if (ActorName.Find("Road_Curb") != -1 || ActorName.Find("Roads_Curb") != -1)
+      else if (ActorName.StartsWith("Road_Curb"))
         areaType = AreaType::ROAD;
-      else if (ActorName.Find("Road_Gutter") != -1 || ActorName.Find("Roads_Gutter") != -1)
+      else if (ActorName.StartsWith("Road_Gutter"))
         areaType = AreaType::ROAD;
-      else if (ActorName.Find("Road_Sidewalk") != -1 || ActorName.Find("Roads_Sidewalk") != -1)
+      else if (ActorName.StartsWith("Road_Sidewalk"))
         areaType = AreaType::SIDEWALK;
-      else if (ActorName.Find("Road_Crosswalk") != -1 || ActorName.Find("Roads_Crosswalk") != -1)
+      else if (ActorName.StartsWith("Road_Crosswalk"))
         areaType = AreaType::CROSSWALK;
-      else if (ActorName.Find("Road_Grass") != -1 || ActorName.Find("Roads_Grass") != -1)
+      else if (ActorName.StartsWith("Road_Grass"))
         areaType = AreaType::GRASS;
       else
         areaType = AreaType::BLOCK;

@@ -49,7 +49,6 @@ void UVehicleVelocityControl::Deactivate()
 
 void UVehicleVelocityControl::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
-  TRACE_CPUPROFILER_EVENT_SCOPE(UVehicleVelocityControl::TickComponent);
   FTransform Transf = OwnerVehicle->GetActorTransform();
   const FVector LocVel = Transf.TransformVector(TargetVelocity);
   PrimitiveComponent->SetPhysicsLinearVelocity(LocVel, false, "None");

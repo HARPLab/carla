@@ -34,6 +34,9 @@ protected:
 private:
 
   UPROPERTY()
+  TArray<ARoutePlanner *> RoutePlanners;
+
+  UPROPERTY()
   TArray<AVehicleSpawnPoint *> VehicleSpawners;
 
 #if WITH_EDITORONLY_DATA
@@ -108,6 +111,4 @@ public:
 
   void RemoveSpawners();
 
-  UPROPERTY()
-  TArray<ARoutePlanner *> RoutePlanners;
 };

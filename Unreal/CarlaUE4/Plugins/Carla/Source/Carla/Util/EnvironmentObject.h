@@ -5,12 +5,9 @@
 
 #pragma once
 
-#include "Carla/Util/BoundingBox.h"
 #include <compiler/disable-ue4-macros.h>
 #include <carla/rpc/ObjectLabel.h>
 #include <compiler/enable-ue4-macros.h>
-
-#include "BoundingBox.h"
 
 #include "EnvironmentObject.generated.h"
 

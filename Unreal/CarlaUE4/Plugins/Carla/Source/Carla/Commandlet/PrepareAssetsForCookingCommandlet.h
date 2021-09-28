@@ -9,13 +9,9 @@
 #include "Carla/OpenDrive/OpenDriveActor.h"
 #include "Commandlets/Commandlet.h"
 #include "Runtime/Engine/Classes/Engine/ObjectLibrary.h"
+
 #include "Runtime/Engine/Classes/Engine/StaticMeshActor.h"
 #include "PrepareAssetsForCookingCommandlet.generated.h"
-
-// undef this API to avoid conflict with UE 4.26
-// (see UE_4.26\Engine\Source\Runtime\Core\Public\Windows\HideWindowsPlatformAtomics.h)
-#undef InterlockedCompareExchange
-#undef _InterlockedCompareExchange
 
 /// Struct containing Package with @a Name and @a bOnlyPrepareMaps flag used to
 /// separate the cooking of maps and props across the different stages (Maps
@@ -74,12 +70,6 @@ public:
   /// structure.
   void LoadWorld(FAssetData &AssetData);
 
-  /// Loads a UWorld object contained in Carla BaseTile into @a AssetData data
-  /// structure.
-  void LoadWorldTile(FAssetData &AssetData);
-
-  void LoadLargeMapWorld(FAssetData &AssetData);
-
   /// Spawns all the static meshes located in @a AssetsPaths inside the World.
   /// There is an option to use Carla materials by setting @a bUseCarlaMaterials
   /// to true, otherwise it will use RoadRunner materials.
@@ -88,9 +78,7 @@ public:
   /// @pre World is expected to be previously loaded
   TArray<AStaticMeshActor *> SpawnMeshesToWorld(
       const TArray<FString> &AssetsPaths,
-      bool bUseCarlaMaterials,
-      int i = -1,
-      int j = -1);
+      bool bUseCarlaMaterials);
 
   /// Saves the current World, contained in @a AssetData, into @a DestPath
   /// composed of @a PackageName and with @a WorldName.
@@ -98,8 +86,7 @@ public:
       FAssetData &AssetData,
       const FString &PackageName,
       const FString &DestPath,
-      const FString &WorldName,
-      bool bGenerateSpawnPoints = true);
+      const FString &WorldName);
 
   /// Destroys all the previously spawned actors stored in @a SpawnedActors
   void DestroySpawnedActorsInWorld(TArray<AStaticMeshActor *> &SpawnedActors);
@@ -124,9 +111,6 @@ public:
   /// all the props inside the world and saves it in .umap format
   /// in a destination path built from @a PackageName and @a MapDestPath.
   void PreparePropsForCooking(FString &PackageName, const TArray<FString> &PropsPaths, FString &MapDestPath);
-
-  /// Return if there is any tile between the assets to cook
-  bool IsMapInTiles(const TArray<FString> &AssetsPaths);
 
 public:
 
@@ -160,33 +144,25 @@ private:
   UPROPERTY()
   UWorld *World;
 
+  /// Workaround material for MarkingNodes mesh
+  UPROPERTY()
+  UMaterial *MarkingNodeMaterial;
+
   /// Workaround material for the RoadNode mesh
   UPROPERTY()
-  UMaterialInstance *RoadNodeMaterial;
+  UMaterial *RoadNodeMaterial;
 
-  /// Material to apply to curbs on the road
+  /// Workaround material for the second material for the MarkingNodes
   UPROPERTY()
-  UMaterialInstance *CurbNodeMaterialInstance;
-
-  /// Material to apply to gutters on the road
-  UPROPERTY()
-  UMaterialInstance *GutterNodeMaterialInstance;
-
-  /// Workaround material for the center lane markings
-  UPROPERTY()
-  UMaterialInstance *MarkingNodeYellow;
-
-  /// Workaround material for exterior lane markings
-  UPROPERTY()
-  UMaterialInstance *MarkingNodeWhite;
+  UMaterial *MarkingNodeMaterialAux;
 
   /// Workaround material for the TerrainNodes
   UPROPERTY()
-  UMaterialInstance *TerrainNodeMaterialInstance;
+  UMaterial *TerrainNodeMaterial;
 
   /// Workaround material for the SidewalkNodes
   UPROPERTY()
-  UMaterialInstance *SidewalkNodeMaterialInstance;
+  UMaterial *SidewalkNodeMaterial;
 
   /// Saves @a Package in .umap format in path @a PackagePath inside Unreal
   /// Content folder

@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "4.24",
+	"EngineAssociation": "{A72794B7-4BB9-211F-2750-01854A8E18CC}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -94,19 +94,20 @@
 		},
 		{
 			"Name": "SteamVR",
-			"Enabled": false
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win32",
+				"Win64",
+				"Linux",
+				"Mac"
+			]
 		},
 		{
 			"Name": "RenderDocPlugin",
 			"Enabled": true
 		},
 		{
-			"Name": "CarSim",
-			"Enabled": false,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/2d712649ca864c80812da7b5252f5608"
-		},
-		{
-			"Name": "EditorScriptingUtilities",
+			"Name": "LogitechWheelPlugin",
 			"Enabled": true
 		}
 	]

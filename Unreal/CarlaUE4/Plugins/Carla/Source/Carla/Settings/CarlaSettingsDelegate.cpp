@@ -95,7 +95,8 @@ void UCarlaSettingsDelegate::ApplyQualityLevelPostRestart()
       SetAllRoads(InWorld, CarlaSettings->LowRoadPieceMeshMaxDrawDistance, CarlaSettings->LowRoadMaterials);
       // Set all actors with static meshes a max disntace configured in the
       // global settings for the low quality
-      SetAllActorsDrawDistance(InWorld, CarlaSettings->LowStaticMeshMaxDrawDistance);
+      // SetAllActorsDrawDistance(InWorld, CarlaSettings->LowStaticMeshMaxDrawDistance);
+      SetAllActorsDrawDistance(InWorld, 0); // full render distance
       // Disable all post process volumes
       SetPostProcessEffectsEnabled(InWorld, false);
       break;
@@ -178,7 +179,7 @@ void UCarlaSettingsDelegate::LaunchLowQualityCommands(UWorld *world) const
   GEngine->Exec(world, TEXT("r.AmbientOcclusionLevels 0"));
   GEngine->Exec(world, TEXT("r.DefaultFeature.AmbientOcclusionStaticFraction 0"));
   GEngine->Exec(world, TEXT("r.RHICmdBypass 0"));
-  GEngine->Exec(world, TEXT("r.DefaultFeature.AntiAliasing 1"));
+  GEngine->Exec(world, TEXT("r.DefaultFeature.AntiAliasing 2"));
   GEngine->Exec(world, TEXT("r.Streaming.PoolSize 2000"));
   GEngine->Exec(world, TEXT("r.HZBOcclusion 0"));
   GEngine->Exec(world, TEXT("r.MinScreenRadiusForLights 0.01"));
@@ -375,7 +376,7 @@ void UCarlaSettingsDelegate::LaunchEpicQualityCommands(UWorld *world) const
 
   GEngine->Exec(world, TEXT("r.AmbientOcclusionLevels -1"));
   GEngine->Exec(world, TEXT("r.RHICmdBypass 1"));
-  GEngine->Exec(world, TEXT("r.DefaultFeature.AntiAliasing 1"));
+  GEngine->Exec(world, TEXT("r.DefaultFeature.AntiAliasing 2"));
   GEngine->Exec(world, TEXT("r.Streaming.PoolSize 2000"));
   GEngine->Exec(world, TEXT("r.MinScreenRadiusForLights 0.03"));
   GEngine->Exec(world, TEXT("r.SeparateTranslucency 1"));
