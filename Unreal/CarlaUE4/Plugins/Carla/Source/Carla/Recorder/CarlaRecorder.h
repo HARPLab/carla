@@ -30,6 +30,8 @@
 #include "CarlaRecorderQuery.h"
 #include "CarlaRecorderState.h"
 #include "CarlaReplayer.h"
+// DReyeVR packet
+#include "DReyeVRRecorder.h"
 
 #include "CarlaRecorder.generated.h"
 
@@ -59,7 +61,9 @@ enum class CarlaRecorderPacketId : uint8_t
   PlatformTime,
   PhysicsControl,
   TrafficLightTime,
-  TriggerVolume
+  TriggerVolume,
+  // "We suggest to use id over 100 for user custom packets, because this list will keep growing in the future"
+  DReyeVR = 139 // out custom DReyeVR packet
 };
 
 /// Recorder for the simulation
@@ -154,6 +158,13 @@ public:
 
   void Ticking(float DeltaSeconds);
 
+  // DReyeVR replayer functions
+  void RecPlayPause();
+  void RecFastForward();
+  void RecRewind();
+  void RecRestart();
+  void RecIncrTimestep(const float Amnt);
+  
 private:
 
   bool Enabled;   // enabled or not
@@ -187,10 +198,12 @@ private:
   CarlaRecorderPlatformTime PlatformTime;
   CarlaRecorderPhysicsControls PhysicsControls;
   CarlaRecorderTrafficLightTimes TrafficLightTimes;
+  DReyeVRDataRecorders DReyeVRData;
 
 
   // replayer
   CarlaReplayer Replayer;
+  float TimestepReplayer = 1.0;
 
   // query tools
   CarlaRecorderQuery Query;
@@ -203,4 +216,5 @@ private:
   void AddVehicleLight(FActorView &View);
   void AddActorKinematics(FActorView &View);
   void AddActorBoundingBox(FActorView &View);
+  void AddDReyeVRData();
 };

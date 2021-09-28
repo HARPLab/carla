@@ -8,10 +8,15 @@ Install
 Plugins
 !Unreal/CarlaUE4/Plugins
 
+PythonAPI/carla/build
+PythonAPI/carla/data
+PythonAPI/carla/~ist
+
 /ExportedMaps
 /Import/*
 !/Import/README.md
 
+venv/
 *.VC.db
 *.VC.opendb
 *.a

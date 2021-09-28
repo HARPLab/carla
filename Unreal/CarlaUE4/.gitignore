@@ -12,8 +12,12 @@ Plugins/Carla/Debug
 Plugins/Carla/DerivedDataCache
 Plugins/Carla/Intermediate
 Plugins/Carla/Saved
+Plugins/LogitechWheelPlugin
+Plugins/SRanipal
+Plugins/SteamVRInputPlugin
 
-/Content
+Content
+!Content/Carla/Blueprints/Vehicles/DReyeVR
 Config/CarlaSettings.ini
 Config/DefaultEditor.ini
 Config/CarSimConfig.ini

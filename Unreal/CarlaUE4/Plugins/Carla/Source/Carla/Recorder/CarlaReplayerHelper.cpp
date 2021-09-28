@@ -15,6 +15,28 @@
 #include "Carla/Lights/CarlaLight.h"
 #include "Carla/Lights/CarlaLightSubsystem.h"
 
+// DReyeVR include
+#include "Carla/Sensor/DReyeVRSensor.h"
+#include "Carla/Sensor/DReyeVRSensorData.h"
+
+bool CarlaReplayerHelper::FindSpectatorDReyeVR()
+{
+  UE_LOG(LogCarla, Log, TEXT("Looking for spectator in registry"));
+  auto Registry = Episode->GetActorRegistry();
+  for (auto It = Registry.begin(); It != Registry.end(); It++) 
+  {
+    FString ActorTag = It->GetActorInfo()->Description.Id;
+    if (ActorTag.Equals("spectator")) 
+    {
+      EgoVehicleID = It->GetActorId();
+      UE_LOG(LogCarla, Log, TEXT("Found spectator in registry with id: %d"), EgoVehicleID);
+      return true;
+    }
+  }
+  UE_LOG(LogCarla, Error, TEXT("ERROR: Spectator not found in registry!"));
+  return false;
+}
+
 // create or reuse an actor for replaying
 std::pair<int, FActorView>CarlaReplayerHelper::TryToCreateReplayerActor(
     FVector &Location,
@@ -49,6 +71,8 @@ std::pair<int, FActorView>CarlaReplayerHelper::TryToCreateReplayerActor(
     // check if an actor of that type already exist with same id
     if (Episode->GetActorRegistry().Contains(DesiredId))
     {
+      UE_LOG(LogCarla, Log, TEXT("Found actor in registry with id %d"), DesiredId);
+
       auto view = Episode->GetActorRegistry().Find(DesiredId);
       const FActorDescription *desc = &view.GetActorInfo()->Description;
       if (desc->Id == ActorDesc.Id)
@@ -60,6 +84,35 @@ std::pair<int, FActorView>CarlaReplayerHelper::TryToCreateReplayerActor(
         view.GetActor()->SetActorTransform(Trans2, false, nullptr, ETeleportType::TeleportPhysics);
         return std::pair<int, FActorView>(2, view);
       }
+    }
+    else {
+      UE_LOG(LogCarla, Log, TEXT("Did not find actor in registry with id %d"), DesiredId);
+    }
+    if (ActorDesc.Id.StartsWith("spectator")) 
+    {
+      if (FindSpectatorDReyeVR())
+      {
+        check(EgoVehicleID >= 0); // should have been assigned in FindSpectatorDReyeVR()
+        DesiredId = EgoVehicleID;
+      }
+      else
+      {
+        UE_LOG(LogCarla, Error, TEXT("ERROR: Spectator not found in registry!"));
+        return std::pair<int, FActorView>(0, Episode->GetActorRegistry().Find(DesiredId)); // error value
+      }
+      auto view = Episode->GetActorRegistry().Find(DesiredId);
+      const FActorDescription *desc = &view.GetActorInfo()->Description;
+      if (desc->Id == ActorDesc.Id)
+      {
+        // we don't need to create, actor of same type already exist
+        // relocate
+        FRotator Rot = FRotator::MakeFromEuler(Rotation);
+        FTransform Trans2(Rot, Location, FVector(1, 1, 1));
+        view.GetActor()->SetActorTransform(Trans2, false, nullptr, ETeleportType::TeleportPhysics);
+        return std::pair<int, FActorView>(2, view);
+      }
+      UE_LOG(LogCarla, Error, TEXT("Should not have gotten here, spectator not found in registry"));
+      return std::pair<int, FActorView>(0, view); // error value
     }
     // create the transform
     FRotator Rot = FRotator::MakeFromEuler(Rotation);
@@ -265,7 +318,26 @@ bool CarlaReplayerHelper::ProcessReplayerPosition(CarlaRecorderPosition Pos1, Ca
     }
     // set new transform
     FTransform Trans(Rotation, Location, FVector(1, 1, 1));
-    Actor->SetActorTransform(Trans, false, nullptr, ETeleportType::None);
+    // check if this actor is the DReyeVR ego-vehicle, if so keep track of its current/prev locations
+    /// NOTE: if the EgoVehicleID == -1, then it has not been set before and we'll need to find it
+    if (EgoVehicleID < 0 || !Episode->GetActorRegistry().Contains(EgoVehicleID))
+    {
+      check(FindSpectatorDReyeVR());
+      check(EgoVehicleID >= 0); // assigned a valid number
+      check(Episode->GetActorRegistry().Contains(EgoVehicleID));
+    }
+
+    if (Pos1.DatabaseId == EgoVehicleID)
+    {
+      /// NOTE: for our DReyeVR ego-vehicle which is unique, apply its
+      // positional updates (transform & rotation) in EgoVehicle.cpp's tick
+      EgoTransform = Trans;
+      // not applying transform here
+    }
+    else
+    {
+      Actor->SetActorTransform(Trans, false, nullptr, ETeleportType::None);
+    }
     return true;
   }
   return false;
@@ -427,7 +499,32 @@ bool CarlaReplayerHelper::ProcessReplayerFinish(bool bApplyAutopilot, bool bIgno
         break;
     }
   }
+  // update the DReyeVR sensor to NOT continue replaying
+  if (EyeTrackerPtr != nullptr) {
+    ADReyeVRSensor *EyeTracker = Cast<ADReyeVRSensor>(EyeTrackerPtr);
+    EyeTracker->SetIsReplaying(false);
+  }
   return true;
+}
+
+void CarlaReplayerHelper::ProcessReplayerDReyeVRData(const DReyeVRDataRecorder &DReyeVRDataInstance, const double Per)
+{
+  check(Episode != nullptr);  
+  UWorld* World = Episode->GetWorld();
+  if(World) {
+    if (EyeTrackerPtr == nullptr) {
+      TArray<AActor*> FoundActors;
+      UGameplayStatics::GetAllActorsOfClass(World, ADReyeVRSensor::StaticClass(), FoundActors);
+      if (FoundActors.Num() > 0) {
+        EyeTrackerPtr = FoundActors[0];
+      }
+    }
+    else {
+      ADReyeVRSensor *EyeTracker = Cast<ADReyeVRSensor>(EyeTrackerPtr);
+      // hacky solution to not using a custom Carla Vehicle, instead just using a static global variable
+      EyeTracker->UpdateReplayData(DReyeVRDataInstance.Data, EgoTransform, Per);
+    }
+  }
 }
 
 void CarlaReplayerHelper::SetActorVelocity(const FActorView &ActorView, FVector Velocity)

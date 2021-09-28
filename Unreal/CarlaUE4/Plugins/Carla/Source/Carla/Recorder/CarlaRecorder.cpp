@@ -16,6 +16,9 @@
 #include "CarlaRecorder.h"
 #include "CarlaReplayerHelper.h"
 
+// DReyeVR include
+#include "Carla/Sensor/DReyeVRSensor.h"
+
 #include <ctime>
 #include <sstream>
 
@@ -88,11 +91,6 @@ void ACarlaRecorder::Ticking(float DeltaSeconds)
 
       switch (View.GetActorType())
       {
-        // save the transform for props
-        case FActorView::ActorType::Other:
-          AddActorPosition(View);
-          break;
-
         // save the transform of all vehicles
         case FActorView::ActorType::Vehicle:
           AddActorPosition(View);
@@ -120,6 +118,8 @@ void ACarlaRecorder::Ticking(float DeltaSeconds)
           break;
       }
     }
+    // Add the DReyeVR data
+    AddDReyeVRData();
 
     // write all data for this frame
     Write(DeltaSeconds);
@@ -298,6 +298,12 @@ void ACarlaRecorder::AddActorBoundingBox(FActorView &View)
   AddBoundingBox(BoundingBox);
 }
 
+void ACarlaRecorder::AddDReyeVRData()
+{
+  // Add the latest instance of the DReyeVR snapshot to our data
+  DReyeVRData.Add(DReyeVRDataRecorder(ADReyeVRSensor::Snapshot));
+}
+
 void ACarlaRecorder::AddTriggerVolume(const ATrafficSignBase &TrafficSign)
 {
   if (bAdditionalData)
@@ -418,6 +424,7 @@ void ACarlaRecorder::Clear(void)
   TriggerVolumes.Clear();
   PhysicsControls.Clear();
   TrafficLightTimes.Clear();
+  DReyeVRData.Clear();
 }
 
 void ACarlaRecorder::Write(double DeltaSeconds)
@@ -454,7 +461,9 @@ void ACarlaRecorder::Write(double DeltaSeconds)
     PhysicsControls.Write(File);
     TrafficLightTimes.Write(File);
   }
-
+  // custom DReyeVR data
+  DReyeVRData.Write(File);
+  
   // end
   Frames.WriteEnd(File);
 
@@ -685,4 +694,31 @@ void ACarlaRecorder::CreateRecorderEventAdd(
     // Bounding box in local coordinates
     AddActorBoundingBox(ActorView);
   }
+}
+
+// DReyeVR replayer functions
+void ACarlaRecorder::RecPlayPause()
+{
+  Replayer.PlayPause();
+}
+
+void ACarlaRecorder::RecFastForward()
+{
+  Replayer.Advance(TimestepReplayer);
+}
+
+void ACarlaRecorder::RecRewind()
+{
+  Replayer.Advance(-TimestepReplayer);
+}
+
+void ACarlaRecorder::RecRestart()
+{
+  Replayer.Restart();
+}
+
+void ACarlaRecorder::RecIncrTimestep(const float Amnt_s)
+{
+  TimestepReplayer = FMath::Clamp(TimestepReplayer + Amnt_s, 0.1f, 20.f);
+  UE_LOG(LogTemp, Log, TEXT("Timestep to: %.3f"), TimestepReplayer);
 }
