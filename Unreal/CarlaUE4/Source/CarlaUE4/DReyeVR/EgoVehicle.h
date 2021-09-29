@@ -1,16 +1,16 @@
 #pragma once
 
-#include "Camera/CameraComponent.h"            // UCameraComponent
-#include "Carla/Vehicle/CarlaWheeledVehicle.h" // Steering, Throttle, Brake, etc.
-#include "Components/AudioComponent.h"         // UAudioComponent
-#include "Components/InputComponent.h"         // InputComponent
-#include "Components/SceneComponent.h"         // USceneComponent
+#include "Camera/CameraComponent.h"               // UCameraComponent
+#include "Carla/Vehicle/CarlaWheeledVehicle.h"    // Steering, Throttle, Brake, etc.
+#include "Components/AudioComponent.h"            // UAudioComponent
+#include "Components/InputComponent.h"            // InputComponent
 #include "Components/PlanarReflectionComponent.h" // Planar Reflection
-#include "CoreMinimal.h"                       // Unreal functions
-#include "DReyeVRHUD.h"                        // ADReyeVRHUD
-#include "EyeTracker.h"                        // AEyeTracker
-#include "ImageUtils.h"                        // CreateTexture2D
-#include "WheeledVehicle.h"                    // VehicleMovementComponent
+#include "Components/SceneComponent.h"            // USceneComponent
+#include "CoreMinimal.h"                          // Unreal functions
+#include "DReyeVRHUD.h"                           // ADReyeVRHUD
+#include "EyeTracker.h"                           // AEyeTracker
+#include "ImageUtils.h"                           // CreateTexture2D
+#include "WheeledVehicle.h"                       // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
 
@@ -45,7 +45,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     FVector GetCameraOffset() const;
 
-
     FVector GetFPSPosn() const;
     FRotator GetFPSRot() const;
 
@@ -76,7 +75,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class UCameraComponent *FirstPersonCam;
 
     const FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // tunable per vehicle
-    const FVector HMDOffset{0.0f, 0.0f, 0.0f}; // tunable per all humans, default to zero-vector
+    const FVector HMDOffset{0.0f, 0.0f, 0.0f};                // tunable per all humans, default to zero-vector
     void InitCamera();
     void CameraPositionAdjust(const FVector displacement);
     void CameraPositionZp();
@@ -148,9 +147,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     UPROPERTY(Category = BoundingBox, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     UBoxComponent *Bounds;
     UFUNCTION()
-    void OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
-                        UPrimitiveComponent *OtherComp, int32 OtherBodyIndex,
-                        bool bFromSweep, const FHitResult &SweepResult);
+    void OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor, UPrimitiveComponent *OtherComp,
+                        int32 OtherBodyIndex, bool bFromSweep, const FHitResult &SweepResult);
 
     // Audio components
     void InitDReyeVRSounds();

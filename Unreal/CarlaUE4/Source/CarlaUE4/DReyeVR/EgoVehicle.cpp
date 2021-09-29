@@ -61,9 +61,9 @@ void AEgoVehicle::InitVehicleMovement()
     Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->Reset();
     Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(0.0f, 0.0f);
     Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(7000.0f, 0.0f);
-//    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(0.0f, 10.0f);
-//    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(1890.0f, 100.0f);
-//    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(5730.0f, 50.0f);
+    //    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(0.0f, 10.0f);
+    //    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(1890.0f, 100.0f);
+    //    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(5730.0f, 50.0f);
 
     // Adjust the steering
     Vehicle4W->SteeringCurve.GetRichCurve()->Reset();
@@ -144,13 +144,12 @@ void AEgoVehicle::InitDReyeVRCollisions()
     Bounds->OnComponentBeginOverlap.AddDynamic(this, &AEgoVehicle::OnOverlapBegin);
 }
 
-void AEgoVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp,
-                                 AActor *OtherActor,
-                                 UPrimitiveComponent *OtherComp,
-                                 int32 OtherBodyIndex, bool bFromSweep,
+void AEgoVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
+                                 UPrimitiveComponent *OtherComp, int32 OtherBodyIndex, bool bFromSweep,
                                  const FHitResult &SweepResult)
 {
-    if (OtherActor != nullptr && OtherActor != this) {
+    if (OtherActor != nullptr && OtherActor != this)
+    {
         FString actor_name = OtherActor->GetName();
         UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
     }
@@ -179,14 +178,12 @@ void AEgoVehicle::InitDReyeVRSounds()
     TurnSignalSound->SetSound(TurnSignalSoundWave.Object);
 }
 
-
 void AEgoVehicle::InitDReyeVRMirrors()
 {
     static ConstructorHelpers::FObjectFinder<UMaterial> MirrorTexture(
         TEXT("Material'/Game/Carla/Blueprints/Vehicles/DReyeVR/"
-            "Mirror_DReyeVR.Mirror_DReyeVR'"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneSM(
-        TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
+             "Mirror_DReyeVR.Mirror_DReyeVR'"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneSM(TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
     RearMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RearMirror"));
     RearMirror->SetStaticMesh(PlaneSM.Object);
     RearMirror->SetMaterial(0, MirrorTexture.Object);
@@ -241,7 +238,7 @@ FRotator AEgoVehicle::GetFPSRot() const
 
 FVector AEgoVehicle::GetCameraOffset() const
 {
-//    return VRCameraRoot->GetRelativeLocation();
+    //    return VRCameraRoot->GetRelativeLocation();
     return CameraLocnInVehicle;
 }
 
@@ -297,7 +294,7 @@ void AEgoVehicle::BeginPlay()
         ReticleTexture->UpdateResource();
         // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
         //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
-//        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
+        //        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
     }
@@ -649,7 +646,6 @@ void AEgoVehicle::CameraPositionYm()
     AEgoVehicle::CameraPositionAdjust(displacement);
 }
 
-
 /// NOTE: the CarlaVehicle does not actually move the vehicle, only its state/animations
 // to actually move the vehicle we'll use GetVehicleMovementComponent() which is part of AWheeledVehicle
 void AEgoVehicle::SetSteering(const float SteeringInput)
@@ -919,11 +915,9 @@ void AEgoVehicle::LogitechWheelUpdate()
     SetBrake(BrakePedal);
 
     //    UE_LOG(LogTemp, Log, TEXT("Dpad value %f"), Dpad);
-//    if (WheelState->rgdwPOV[0] == 0) // should work now
-    if (WheelState->rgbButtons[0] ||
-        WheelState->rgbButtons[1] ||
-        WheelState->rgbButtons[2] ||
-        WheelState->rgbButtons[3] ) // replace reverse with face buttons
+    //    if (WheelState->rgdwPOV[0] == 0) // should work now
+    if (WheelState->rgbButtons[0] || WheelState->rgbButtons[1] || WheelState->rgbButtons[2] ||
+        WheelState->rgbButtons[3]) // replace reverse with face buttons
     {
         UE_LOG(LogTemp, Log, TEXT("Reversing: Dpad value %f"), Dpad);
         ToggleReverse();
@@ -938,27 +932,31 @@ void AEgoVehicle::LogitechWheelUpdate()
     }
 
     // VRCamerRoot base position adjustment
-    if (WheelState->rgdwPOV[0]==0){
+    if (WheelState->rgdwPOV[0] == 0)
+    {
         CameraPositionXp();
     }
-    else if (WheelState->rgdwPOV[0]==18000){
+    else if (WheelState->rgdwPOV[0] == 18000)
+    {
         CameraPositionXm();
     }
-    else if (WheelState->rgdwPOV[0]==27000){
+    else if (WheelState->rgdwPOV[0] == 27000)
+    {
         CameraPositionYm();
     }
-    else if (WheelState->rgdwPOV[0]==9000){
+    else if (WheelState->rgdwPOV[0] == 9000)
+    {
         CameraPositionYp();
     }
     // VRCamerRoot base height adjustment
-    if (WheelState->rgbButtons[19]){
+    if (WheelState->rgbButtons[19])
+    {
         CameraPositionZp();
     }
-    else if (WheelState->rgbButtons[20]){
+    else if (WheelState->rgbButtons[20])
+    {
         CameraPositionZm();
     }
-
-
 }
 
 void AEgoVehicle::ApplyForceFeedback() const
@@ -970,7 +968,7 @@ void AEgoVehicle::ApplyForceFeedback() const
     /// TODO: move outside this function (in tick()) to avoid redundancy
     if (LogiHasForceFeedback(WheelIndex))
     {
-        const int OffsetPercentage = 0;             // "Specifies the center of the spring force effect"
+        const int OffsetPercentage = 0;      // "Specifies the center of the spring force effect"
         const int SaturationPercentage = 30; // "Level of saturation... comparable to a magnitude"
         const int CoeffPercentage = 100; // "Slope of the effect strength increase relative to deflection from Offset"
         LogiPlaySpringForce(WheelIndex, OffsetPercentage, SaturationPercentage, CoeffPercentage);
