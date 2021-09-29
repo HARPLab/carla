@@ -59,13 +59,13 @@ std::tuple<float, float> AEgoVehicle::GetAngles(FVector UnitGazeVec, FVector Rot
 	// Get Yaw
 	float yaw = atan2(Rot_y2, Rot_x2);
 	//UE_LOG(LogTemp, Log, TEXT("yaw log: %f"), yaw);
-	VehicleInputs.yaw = yaw;
+	//VehicleInputs.yaw = yaw;
 	
 
 	// Get Pitch
 	float pitch = atan2(Rot_z2, Rot_x2);
 	//UE_LOG(LogTemp, Log, TEXT("pitch log: %f"), pitch);
-	VehicleInputs.pitch = pitch;
+	//VehicleInputs.pitch = pitch;
 
 	return { pitch, yaw };
 }

@@ -13,8 +13,9 @@ Plugins/Carla/DerivedDataCache
 Plugins/Carla/Intermediate
 Plugins/Carla/Saved
 
-/Content
-!Content/LightBallMaterial
+Content/Carla
+Content/Collections
+Content/Developers
 Config/CarlaSettings.ini
 Config/DefaultEditor.ini
 Config/CarSimConfig.ini

@@ -311,7 +311,7 @@ void AEgoVehicle::Tick(float DeltaTime)
 	// Draw stimuli
 	const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
 	const FVector WorldPos = FirstPersonCam->GetComponentLocation();
-	FVector HeadDirection = WorldRot.Vector();
+	FVector HeadDirection = FirstPersonCam->GetRelativeRotation().Vector();
 	FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
 	GenerateSphere(HeadDirection, CombinedGazePosn, WorldRot, WorldPos, LightBallObject, DeltaTime);
 
@@ -320,6 +320,7 @@ void AEgoVehicle::Tick(float DeltaTime)
 	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
 	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
 	*/
+	UE_LOG(LogTemp, Log, TEXT("HeadDirection logging %s"), *HeadDirection.ToString());
 	UE_LOG(LogTemp, Log, TEXT("ButtonPress, %d"), VehicleInputs.ButtonPressed);
 
 #if USE_LOGITECH_WHEEL
@@ -777,15 +778,17 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 			// turn light on 
 			LightBallObject->TurnLightOn();
 			TimeSinceIntervalStart += DeltaTime;
-			//UE_LOG(LogTemp, Log, TEXT("Light On"));
+			
 			VehicleInputs.LightOn = true;
+			//UE_LOG(LogTemp, Log, TEXT("Light On: %d"), VehicleInputs.LightOn);
 		}
 		else if (FMath::IsNearlyEqual(TimeSinceIntervalStart, TimeStart + FlashDuration, 0.05f)) {
 			// turn light off
 			LightBallObject->TurnLightOff();
 			TimeSinceIntervalStart += DeltaTime;
-			//UE_LOG(LogTemp, Log, TEXT("Light Off"));
+		
 			VehicleInputs.LightOn = false;
+			//UE_LOG(LogTemp, Log, TEXT("Light Off: %d"), VehicleInputs.LightOn);
 		}
 		else {
 			TimeSinceIntervalStart += DeltaTime;
@@ -814,10 +817,13 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 	gaze_pitch = std::get<0>(gaze_angles);
 	gaze_yaw = std::get<1>(gaze_angles);
 
-	UE_LOG(LogTemp, Log, TEXT("curr_pitch, %f"), curr_pitch);
-	UE_LOG(LogTemp, Log, TEXT("curr_yaw, %f"), curr_yaw);
-	UE_LOG(LogTemp, Log, TEXT("gaze_pitch, %f"), gaze_pitch);
-	UE_LOG(LogTemp, Log, TEXT("gaze_yaw, %f"), gaze_yaw);
+	//UE_LOG(LogTemp, Log, TEXT("curr_pitch, %f"), curr_pitch);
+	//UE_LOG(LogTemp, Log, TEXT("curr_yaw, %f"), curr_yaw);
+	VehicleInputs.pitch = gaze_pitch;
+	VehicleInputs.yaw = gaze_yaw;
+	UE_LOG(LogTemp, Log, TEXT("pitch, %f"), VehicleInputs.pitch);
+	UE_LOG(LogTemp, Log, TEXT("yaw, %f"), VehicleInputs.yaw);
+	UE_LOG(LogTemp, Log, TEXT("Light On: %d"), VehicleInputs.LightOn);
 	
 	// Draw debug border markers
 	FVector TopLeftLimit = GenerateRotVecGivenAngles(UnitGazeVec, -yawMax, pitchMax+vert_offset) * DistanceFromDriver;
