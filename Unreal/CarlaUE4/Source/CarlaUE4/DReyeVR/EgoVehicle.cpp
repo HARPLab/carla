@@ -311,7 +311,7 @@ void AEgoVehicle::Tick(float DeltaTime)
 	// Draw stimuli
 	const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
 	const FVector WorldPos = FirstPersonCam->GetComponentLocation();
-	FVector HeadDirection = FirstPersonCam->GetRelativeRotation().Vector();
+	FVector HeadDirection = WorldRot.Vector();
 	FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
 	GenerateSphere(HeadDirection, CombinedGazePosn, WorldRot, WorldPos, LightBallObject, DeltaTime);
 
@@ -322,6 +322,7 @@ void AEgoVehicle::Tick(float DeltaTime)
 	*/
 	UE_LOG(LogTemp, Log, TEXT("HeadDirection logging %s"), *HeadDirection.ToString());
 	UE_LOG(LogTemp, Log, TEXT("ButtonPress, %d"), VehicleInputs.ButtonPressed);
+	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
 
 #if USE_LOGITECH_WHEEL
     if (IsLogiConnected)
