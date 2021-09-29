@@ -72,8 +72,8 @@ if ${BUILD_OSM2ODR} ; then
   [ ! -d ${OSM2ODR_BUILD_FOLDER} ] && mkdir ${OSM2ODR_BUILD_FOLDER}
   cd ${OSM2ODR_BUILD_FOLDER}
   # define clang compiler
-  export CC=/usr/bin/clang-8
-  export CXX=/usr/bin/clang++-8
+  export CC=/usr/bin/clang
+  export CXX=/usr/bin/clang++
 
   cmake ${OSM2ODR_ROOT_FOLDER} \
       -G "Eclipse CDT4 - Ninja" \
