@@ -442,22 +442,22 @@
 		},
 		{
 			"name": "Calibrator",
-      "path": "/Game/Carla/Static/Static/Calibrator/SM_calibration.SM_calibration",
+			"path": "/Game/Carla/Static/Static/Calibrator/SM_calibration.SM_calibration",
 			"size": "Small"
 		},
 		{
 			"name": "DReyeVR_sign_left",
-			"path": "/Game/Carla/Static/TrafficSign/DReyeVR_Signs/FullSign/SM_DReyeVR_sign_left.SM_DReyeVR_sign_left",
+			"path": "/Game/DReyeVR/DReyeVR_Signs/FullSign/SM_DReyeVR_sign_left.SM_DReyeVR_sign_left",
 			"size": "Big"
 		},
 		{
 			"name": "DReyeVR_sign_straight",
-			"path": "/Game/Carla/Static/TrafficSign/DReyeVR_Signs/FullSign/SM_DReyeVR_sign_straight.SM_DReyeVR_sign_straight",
+			"path": "/Game/DReyeVR/DReyeVR_Signs/FullSign/SM_DReyeVR_sign_straight.SM_DReyeVR_sign_straight",
 			"size": "Big"
 		},
 		{
 			"name": "DReyeVR_sign_right",
-			"path": "/Game/Carla/Static/TrafficSign/DReyeVR_Signs/FullSign/SM_DReyeVR_sign_right.SM_DReyeVR_sign_right",
+			"path": "/Game/DReyeVR/DReyeVR_Signs/FullSign/SM_DReyeVR_sign_right.SM_DReyeVR_sign_right",
 			"size": "Big"
 		}
 	]
