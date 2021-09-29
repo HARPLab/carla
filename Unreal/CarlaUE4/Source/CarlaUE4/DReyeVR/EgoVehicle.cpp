@@ -152,6 +152,15 @@ void AEgoVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *Ot
     {
         FString actor_name = OtherActor->GetName();
         UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
+        // emit the car collision sound at the midpoint between the vehicles' collision
+        const FVector MidPoint = (OtherActor->GetActorLocation() - GetActorLocation()) / 2.f;
+        const FRotator Rotation(0.f, 0.f, 0.f);
+        const float VolMult = 1.f;
+        const float PitchMult = 1.f;
+        const float SoundStartTime = 0.f; // how far in to the sound to begin playback
+        // "fire and forget" sound function
+        UGameplayStatics::PlaySoundAtLocation(GetWorld(), CrashSound->Sound, MidPoint, Rotation, VolMult, PitchMult,
+                                              SoundStartTime, CrashSound->AttenuationSettings, nullptr, this);
     }
 }
 
@@ -176,6 +185,13 @@ void AEgoVehicle::InitDReyeVRSounds()
     TurnSignalSound->SetupAttachment(GetRootComponent());
     // TurnSignalSound->Activate(true);
     TurnSignalSound->SetSound(TurnSignalSoundWave.Object);
+
+    /// TODO: compose an actual car crash sound
+    static ConstructorHelpers::FObjectFinder<USoundWave> CarCrashSound(
+        TEXT("SoundWave'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/GearShift.GearShift'"));
+    CrashSound = CreateDefaultSubobject<UAudioComponent>(TEXT("CarCrash"));
+    CrashSound->SetupAttachment(GetRootComponent());
+    CrashSound->SetSound(CarCrashSound.Object);
 }
 
 void AEgoVehicle::InitDReyeVRMirrors()

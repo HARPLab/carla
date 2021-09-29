@@ -156,6 +156,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void SetVolume(const float Mult) override; // allow us to mute all our extra sounds (gear/signals)
     class UAudioComponent *GearShiftSound;     // nice for toggling reverse
     class UAudioComponent *TurnSignalSound;    // good for turn signals
+    class UAudioComponent *CrashSound;         // crashing with another actor
 
     // Eye gaze variables
     FVector CombinedGaze, CombinedOrigin;
