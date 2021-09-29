@@ -33,8 +33,14 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
     // Initialize text render components
     InitDReyeVRText();
 
+    // Initialize collision event functions
+    InitDReyeVRCollisions();
+
     // Initialize audio components
     InitDReyeVRSounds();
+
+    // Initialize mirrors
+    InitDReyeVRMirrors();
 }
 
 void AEgoVehicle::InitVehicleMovement()
@@ -118,6 +124,38 @@ void AEgoVehicle::InitDReyeVRText()
     TurnSignals->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
 }
 
+void AEgoVehicle::InitDReyeVRCollisions()
+{
+    // using Carla's GetVehicleBoundingBox function
+    UE_LOG(LogTemp, Log, TEXT("Initializing collisions"));
+    // AActor::GetActorBounds(false, Origin, BoxExtent); // not sure why incorrect
+    // UBoxComponent *Bounds = ACarlaWheeledVehicle::GetVehicleBoundingBox();
+    FVector Origin(3.07, -0.59, 74.74); // obtained by looking at blueprint values
+    FVector Scale3D(7.51, 3.38, 2.37);  // obtained by looking at blueprint values
+    FVector BoxExtent(32, 32, 32);      // obtained by looking at blueprint values
+    Bounds = CreateDefaultSubobject<UBoxComponent>(TEXT("DReyeVRBoundingBox"));
+    Bounds->SetupAttachment(GetRootComponent());
+    Bounds->SetBoxExtent(BoxExtent);
+    Bounds->SetRelativeScale3D(Scale3D);
+    Bounds->SetRelativeLocation(Origin);
+    Bounds->SetGenerateOverlapEvents(true);
+    Bounds->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    Bounds->SetCollisionProfileName(TEXT("Trigger"));
+    Bounds->OnComponentBeginOverlap.AddDynamic(this, &AEgoVehicle::OnOverlapBegin);
+}
+
+void AEgoVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp,
+                                 AActor *OtherActor,
+                                 UPrimitiveComponent *OtherComp,
+                                 int32 OtherBodyIndex, bool bFromSweep,
+                                 const FHitResult &SweepResult)
+{
+    if (OtherActor != nullptr && OtherActor != this) {
+        FString actor_name = OtherActor->GetName();
+        UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
+    }
+}
+
 void AEgoVehicle::InitDReyeVRSounds()
 {
     // retarget the engine cue
@@ -139,6 +177,47 @@ void AEgoVehicle::InitDReyeVRSounds()
     TurnSignalSound->SetupAttachment(GetRootComponent());
     // TurnSignalSound->Activate(true);
     TurnSignalSound->SetSound(TurnSignalSoundWave.Object);
+}
+
+
+void AEgoVehicle::InitDReyeVRMirrors()
+{
+    static ConstructorHelpers::FObjectFinder<UMaterial> MirrorTexture(
+        TEXT("Material'/Game/Carla/Blueprints/Vehicles/DReyeVR/"
+            "Mirror_DReyeVR.Mirror_DReyeVR'"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneSM(
+        TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
+    RearMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RearMirror"));
+    RearMirror->SetStaticMesh(PlaneSM.Object);
+    RearMirror->SetMaterial(0, MirrorTexture.Object);
+    RearMirror->AttachTo(GetMesh());
+    const FVector RearMirrorPos(76, 0, 127);
+    const FRotator RearMirrorAngle(90, 0, -15); // Y Z X (euler angles)
+    const FVector RearMirrorScale(0.13, 0.2775, 1.0);
+    RearMirror->SetRelativeLocation(RearMirrorPos);
+    RearMirror->SetRelativeRotation(RearMirrorAngle);
+    RearMirror->SetRelativeScale3D(RearMirrorScale);
+    RearMirror->SetGenerateOverlapEvents(false); // don't collide with itself
+    RearMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    RearReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("RearReflection"));
+    RearReflection->AttachTo(RearMirror);
+    const FVector RearReflectionPos(0, 0, 2);
+    const FRotator RearReflectionAngle(5, 0, -5);
+    const FVector RearReflectionScale(0.0625, 0.035, 1.0);
+    RearReflection->SetRelativeLocation(RearReflectionPos);
+    RearReflection->SetRelativeRotation(RearReflectionAngle);
+    RearReflection->SetRelativeScale3D(RearReflectionScale);
+    RearReflection->NormalDistortionStrength = 0.0f;
+    RearReflection->PrefilterRoughness = 0.0f;
+    RearReflection->DistanceFromPlaneFadeoutStart = 1500.f;
+    RearReflection->DistanceFromPlaneFadeoutEnd = 0.f;
+    RearReflection->AngleFromPlaneFadeStart = 90.f;
+    RearReflection->AngleFromPlaneFadeEnd = 90.f;
+    RearReflection->PrefilterRoughnessDistance = 10000.f;
+    RearReflection->ScreenPercentage = 100;
+    RearReflection->bShowPreviewPlane = false;
+    RearReflection->HideComponent(GetMesh());
 }
 
 void AEgoVehicle::ErrMsg(const FString &message, const bool isFatal = false)

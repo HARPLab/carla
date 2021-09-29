@@ -5,6 +5,7 @@
 #include "Components/AudioComponent.h"         // UAudioComponent
 #include "Components/InputComponent.h"         // InputComponent
 #include "Components/SceneComponent.h"         // USceneComponent
+#include "Components/PlanarReflectionComponent.h" // Planar Reflection
 #include "CoreMinimal.h"                       // Unreal functions
 #include "DReyeVRHUD.h"                        // ADReyeVRHUD
 #include "EyeTracker.h"                        // AEyeTracker
@@ -113,6 +114,13 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void ApplyForceFeedback() const; // for logitech wheel integration
 #endif
 
+    // Mirrors
+    void InitDReyeVRMirrors();
+    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RearMirror;
+    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *RearReflection;
+
     // Cosmetic
     void DrawReticle();                     // on Tick(), draw new reticle in eye-gaze posn
     void InitReticleTexture();              // initializes the spectator-reticle texture
@@ -134,6 +142,15 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UTextRenderComponent *TurnSignals;
     void UpdateText();
+
+    // Collision w/ other vehicles
+    void InitDReyeVRCollisions();
+    UPROPERTY(Category = BoundingBox, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    UBoxComponent *Bounds;
+    UFUNCTION()
+    void OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
+                        UPrimitiveComponent *OtherComp, int32 OtherBodyIndex,
+                        bool bFromSweep, const FHitResult &SweepResult);
 
     // Audio components
     void InitDReyeVRSounds();
