@@ -35,7 +35,8 @@ void ALightBall::BeginPlay()
 	Super::BeginPlay();
 
 	dynamicMaterial = UMaterialInstanceDynamic::Create(SphereMesh->GetMaterial(0), this);
-	dynamicMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor::Red);
+	//dynamicMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor::Red);
+	dynamicMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(1,0,0));
 	dynamicMaterial->SetScalarParameterValue(TEXT("Emission"), emission);
 
 	SetActorScale3D(FVector(radius, radius, radius));
@@ -78,5 +79,11 @@ void ALightBall::TurnLightOn()
 void ALightBall::TurnLightOff()
 {
 	SphereMesh->SetVisibility(false);
+}
+
+void ALightBall::SetColor(float R, float G, float B)
+{
+	dynamicMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(R, G, B));
+	SphereMesh->SetMaterial(0, dynamicMaterial);
 }
 

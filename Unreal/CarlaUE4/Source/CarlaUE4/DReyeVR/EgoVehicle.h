@@ -69,6 +69,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 	FVector RotVec = FVector(1, 0, 0);
 	FVector DiffVec = FVector(0, 0, 0);
 
+	float RunningTime = 0.f;
+
 	// define the func
 	/*
 	Input

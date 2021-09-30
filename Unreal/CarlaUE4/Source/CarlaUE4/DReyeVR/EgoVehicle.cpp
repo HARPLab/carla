@@ -316,6 +316,14 @@ void AEgoVehicle::Tick(float DeltaTime)
 	GenerateSphere(HeadDirection, CombinedGazePosn, WorldRot, WorldPos, LightBallObject, DeltaTime);
 
 	/*
+	RunningTime += DeltaTime;
+	float R = FMath::Sin(RunningTime);
+	float G = 0.f;
+	float B = 0.f;
+	LightBallObject->SetColor(R, G, B);
+	*/
+
+	/*
 	UE_LOG(LogTemp, Log, TEXT("CombinedGazePosn logging %s"), *CombinedGazePosn.ToString());
 	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
 	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
@@ -760,7 +768,7 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 	//UE_LOG(LogTemp, Log, TEXT("UnitGazVec, %s"), *UnitGazeVec.ToString());
 
 	// generate stimuli every 5 second chunks, and log that time
-	if (TimeSinceIntervalStart < 5) {
+	if (TimeSinceIntervalStart < 10) {
 		if (TimeSinceIntervalStart == 0.f) {
 			// Generate light posn wrt head direction
 			RotVec = GenerateRotVec(HeadDirection, yawMax, pitchMax, vert_offset);
@@ -771,7 +779,7 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 			curr_yaw = std::get<1>(angles);
 
 			// Generate random time to start flashing during the interval
-			TimeStart = FMath::RandRange(1.f, 4.f);
+			TimeStart = FMath::RandRange(1.f, 9.f);
 			TimeSinceIntervalStart += DeltaTime;
 
 		} 
@@ -806,6 +814,7 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 	float DistanceFromDriver = CenterMagnitude*3;
 	FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, curr_yaw, curr_pitch);
 	FVector RotVecDirectionPosn = CombinedOrigin + RotVecDirection * DistanceFromDriver;
+
 	LightBallObject->SetLocation(RotVecDirectionPosn);
 
 	/*
