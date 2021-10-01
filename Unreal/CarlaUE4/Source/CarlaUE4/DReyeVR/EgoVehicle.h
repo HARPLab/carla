@@ -122,7 +122,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Cosmetic
     bool bDisableSpectatorScreen = false;   // don't spent time rendering the spectator screen
-    void ToggleSpectatorScreen();           // enable or disable the spectator screen at runtime
     void DrawReticle();                     // on Tick(), draw new reticle in eye-gaze posn
     void InitReticleTexture();              // initializes the spectator-reticle texture
     const FVector2D ReticleThickness{8, 8}; // 8px horizontal line and 8px vertical line

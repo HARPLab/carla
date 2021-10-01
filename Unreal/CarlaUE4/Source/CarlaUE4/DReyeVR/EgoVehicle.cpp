@@ -152,15 +152,19 @@ void AEgoVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *Ot
     {
         FString actor_name = OtherActor->GetName();
         UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
-        // emit the car collision sound at the midpoint between the vehicles' collision
-        const FVector MidPoint = (OtherActor->GetActorLocation() - GetActorLocation()) / 2.f;
-        const FRotator Rotation(0.f, 0.f, 0.f);
-        const float VolMult = 1.f;
-        const float PitchMult = 1.f;
-        const float SoundStartTime = 0.f; // how far in to the sound to begin playback
-        // "fire and forget" sound function
-        UGameplayStatics::PlaySoundAtLocation(GetWorld(), CrashSound->Sound, MidPoint, Rotation, VolMult, PitchMult,
-                                              SoundStartTime, CrashSound->AttenuationSettings, nullptr, this);
+        // can be more flexible, such as having collisions with static props or people too
+        if (OtherActor->IsA(ACarlaWheeledVehicle::StaticClass())) {
+            // emit the car collision sound at the midpoint between the vehicles' collision
+            const FVector Location = (OtherActor->GetActorLocation() - GetActorLocation()) / 2.f;
+            // const FVector Location = OtherActor->GetActorLocation(); // more pronounced spacial audio
+            const FRotator Rotation(0.f, 0.f, 0.f);
+            const float VolMult = 1.f; //((OtherActor->GetVelocity() - GetVelocity()) / 40.f).Size();
+            const float PitchMult = 1.f;
+            const float SoundStartTime = 0.f; // how far in to the sound to begin playback
+            // "fire and forget" sound function
+            UGameplayStatics::PlaySoundAtLocation(GetWorld(), CrashSound->Sound, Location, Rotation, VolMult, PitchMult,
+                                                  SoundStartTime, CrashSound->AttenuationSettings, nullptr, this);
+        }
     }
 }
 
@@ -186,9 +190,8 @@ void AEgoVehicle::InitDReyeVRSounds()
     // TurnSignalSound->Activate(true);
     TurnSignalSound->SetSound(TurnSignalSoundWave.Object);
 
-    /// TODO: compose an actual car crash sound
     static ConstructorHelpers::FObjectFinder<USoundWave> CarCrashSound(
-        TEXT("SoundWave'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/GearShift.GearShift'"));
+        TEXT("SoundWave'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/Crash.Crash'"));
     CrashSound = CreateDefaultSubobject<UAudioComponent>(TEXT("CarCrash"));
     CrashSound->SetupAttachment(GetRootComponent());
     CrashSound->SetSound(CarCrashSound.Object);
@@ -297,9 +300,28 @@ void AEgoVehicle::BeginPlay()
     EyeTrackerSensor->SetPlayer(Player);
     EyeTrackerSensor->SetCamera(FirstPersonCam);
 
-    // Draw the Eye reticle on the screen
-    bDisableSpectatorScreen = true; // temporarily disable
-    ToggleSpectatorScreen();        // re-enable spectator screen by default
+    // Enable VR spectator screen & eye reticle
+    if (bDisableSpectatorScreen)
+    {
+        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
+    }
+    else if (DrawSpectatorReticle && IsHMDConnected)
+    {
+        if (!ReticleTexture) {
+            InitReticleTexture(); // generate array of pixel values
+            /// NOTE: need to create transient like this bc of a UE4 bug in release mode
+            // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
+            ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
+            void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+            FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
+            ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
+            ReticleTexture->UpdateResource();
+            // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
+            //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
+        }
+        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
+        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
+    }
 
     // Initialize logitech steering wheel
 #if USE_LOGITECH_WHEEL
@@ -456,34 +478,6 @@ void AEgoVehicle::ToggleGazeHUD()
     DrawGazeOnHUD = !DrawGazeOnHUD;
 }
 
-
-void AEgoVehicle::ToggleSpectatorScreen()
-{
-    bDisableSpectatorScreen = !bDisableSpectatorScreen;
-
-    if (bDisableSpectatorScreen)
-    {
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
-    }
-    else if (DrawSpectatorReticle && IsHMDConnected)
-    {
-        if (ReticleTexture == nullptr) {
-            InitReticleTexture(); // generate array of pixel values
-            /// NOTE: need to create transient like this bc of a UE4 bug in release mode
-            // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
-            ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
-            void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-            FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
-            ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
-            ReticleTexture->UpdateResource();
-            // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
-            //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
-        }
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
-    }
-}
-
 void AEgoVehicle::InitReticleTexture()
 {
     // Used to initialize any bitmap-based image that will be used as a reticle
@@ -633,8 +627,7 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
     // Record button to log the EyeTracker data to the python client
     PlayerInputComponent->BindAction("TogglePyRecord_DReyeVR", IE_Pressed, this, &AEgoVehicle::TogglePythonRecording);
     // Draw gaze rays on HUD
-    // PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleGazeHUD);
-    PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleSpectatorScreen);
+    PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleGazeHUD);
 }
 
 void AEgoVehicle::CameraPositionAdjust(const FVector displacement)
@@ -644,6 +637,7 @@ void AEgoVehicle::CameraPositionAdjust(const FVector displacement)
     VRCameraRoot->SetRelativeLocation(NewRelLocation);
 }
 
+/// TODO: clean up
 void AEgoVehicle::CameraPositionZm()
 {
     const FVector displacement = FVector(0, 0, -1);
@@ -954,6 +948,7 @@ void AEgoVehicle::LogitechWheelUpdate()
         WheelState->rgbButtons[3]) // replace reverse with face buttons
     {
         UE_LOG(LogTemp, Log, TEXT("Reversing: Dpad value %f"), Dpad);
+        /// TODO: only trigger on a press, not "while it is held"
         ToggleReverse();
     }
     if (WheelState->rgbButtons[4])
