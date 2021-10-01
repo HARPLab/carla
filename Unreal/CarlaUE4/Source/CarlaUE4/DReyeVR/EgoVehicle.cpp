@@ -298,22 +298,8 @@ void AEgoVehicle::BeginPlay()
     EyeTrackerSensor->SetCamera(FirstPersonCam);
 
     // Draw the Eye reticle on the screen
-    if (DrawSpectatorReticle && IsHMDConnected)
-    {
-        InitReticleTexture(); // generate array of pixel values
-        /// NOTE: need to create transient like this bc of a UE4 bug in release mode
-        // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
-        ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
-        void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-        FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
-        ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
-        ReticleTexture->UpdateResource();
-        // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
-        //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
-        //        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
-    }
+    bDisableSpectatorScreen = true; // temporarily disable
+    ToggleSpectatorScreen();        // re-enable spectator screen by default
 
     // Initialize logitech steering wheel
 #if USE_LOGITECH_WHEEL
@@ -470,6 +456,34 @@ void AEgoVehicle::ToggleGazeHUD()
     DrawGazeOnHUD = !DrawGazeOnHUD;
 }
 
+
+void AEgoVehicle::ToggleSpectatorScreen()
+{
+    bDisableSpectatorScreen = !bDisableSpectatorScreen;
+
+    if (bDisableSpectatorScreen)
+    {
+        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
+    }
+    else if (DrawSpectatorReticle && IsHMDConnected)
+    {
+        if (ReticleTexture == nullptr) {
+            InitReticleTexture(); // generate array of pixel values
+            /// NOTE: need to create transient like this bc of a UE4 bug in release mode
+            // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
+            ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
+            void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+            FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
+            ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
+            ReticleTexture->UpdateResource();
+            // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
+            //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
+        }
+        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
+        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
+    }
+}
+
 void AEgoVehicle::InitReticleTexture()
 {
     // Used to initialize any bitmap-based image that will be used as a reticle
@@ -492,6 +506,9 @@ void AEgoVehicle::InitReticleTexture()
 
 void AEgoVehicle::DrawReticle()
 {
+    if (bDisableSpectatorScreen) {
+        return;
+    }
     const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
     // 1m away from the origin
     const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
@@ -616,7 +633,8 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
     // Record button to log the EyeTracker data to the python client
     PlayerInputComponent->BindAction("TogglePyRecord_DReyeVR", IE_Pressed, this, &AEgoVehicle::TogglePythonRecording);
     // Draw gaze rays on HUD
-    PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleGazeHUD);
+    // PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleGazeHUD);
+    PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleSpectatorScreen);
 }
 
 void AEgoVehicle::CameraPositionAdjust(const FVector displacement)
