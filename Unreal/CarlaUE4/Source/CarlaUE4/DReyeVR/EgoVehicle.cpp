@@ -113,7 +113,7 @@ void AEgoVehicle::InitDReyeVRText()
     // Create turn signals
     TurnSignals = CreateDefaultSubobject<UTextRenderComponent>(TEXT("TurnSignals"));
     TurnSignals->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-    TurnSignals->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, -40, 0));
+    TurnSignals->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, -40.f, 0));
     TurnSignals->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
     TurnSignals->SetTextRenderColor(FColor::Red);
     TurnSignals->SetText(FText::FromString(""));
@@ -126,7 +126,7 @@ void AEgoVehicle::InitDReyeVRText()
     // Create speedometer
     GearShifter = CreateDefaultSubobject<UTextRenderComponent>(TEXT("GearShifter"));
     GearShifter->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-    GearShifter->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, 15, 0));
+    GearShifter->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, 15.f, 0));
     GearShifter->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
     GearShifter->SetTextRenderColor(FColor::Red);
     GearShifter->SetText(FText::FromString("D"));
@@ -143,9 +143,9 @@ void AEgoVehicle::InitDReyeVRCollisions()
     UE_LOG(LogTemp, Log, TEXT("Initializing collisions"));
     // AActor::GetActorBounds(false, Origin, BoxExtent); // not sure why incorrect
     // UBoxComponent *Bounds = ACarlaWheeledVehicle::GetVehicleBoundingBox();
-    FVector Origin(3.07, -0.59, 74.74); // obtained by looking at blueprint values
-    FVector Scale3D(7.51, 3.38, 2.37);  // obtained by looking at blueprint values
-    FVector BoxExtent(32, 32, 32);      // obtained by looking at blueprint values
+    FVector Origin(3.07f, -0.59f, 74.74f); // obtained by looking at blueprint values
+    FVector Scale3D(7.51f, 3.38f, 2.37f);  // obtained by looking at blueprint values
+    FVector BoxExtent(32.f, 32.f, 32.f);   // obtained by looking at blueprint values
     Bounds = CreateDefaultSubobject<UBoxComponent>(TEXT("DReyeVRBoundingBox"));
     Bounds->SetupAttachment(GetRootComponent());
     Bounds->SetBoxExtent(BoxExtent);
@@ -482,7 +482,7 @@ void AEgoVehicle::DebugLines() const
     if (DrawGazeOnHUD)
     {
         // Draw line components in HUD
-        HUD->DrawDynamicLine(CombinedOrigin, CombinedOrigin + 10 * WorldRot.RotateVector(CombinedGaze), FColor::Red,
+        HUD->DrawDynamicLine(CombinedOrigin, CombinedOrigin + 10.f * WorldRot.RotateVector(CombinedGaze), FColor::Red,
                              3.0f);
     }
 }
@@ -652,48 +652,11 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
     PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleGazeHUD);
 }
 
-void AEgoVehicle::CameraPositionAdjust(const FVector displacement)
+void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
 {
     FVector CurrRelLocation = VRCameraRoot->GetRelativeLocation();
     FVector NewRelLocation = CurrRelLocation + displacement;
     VRCameraRoot->SetRelativeLocation(NewRelLocation);
-}
-
-/// TODO: clean up
-void AEgoVehicle::CameraPositionZm()
-{
-    const FVector displacement = FVector(0, 0, -1);
-    AEgoVehicle::CameraPositionAdjust(displacement);
-}
-
-void AEgoVehicle::CameraPositionZp()
-{
-    const FVector displacement = FVector(0, 0, 1);
-    AEgoVehicle::CameraPositionAdjust(displacement);
-}
-
-void AEgoVehicle::CameraPositionXp()
-{
-    const FVector displacement = FVector(1, 0, 0);
-    AEgoVehicle::CameraPositionAdjust(displacement);
-}
-
-void AEgoVehicle::CameraPositionXm()
-{
-    const FVector displacement = FVector(-1, 0, 0);
-    AEgoVehicle::CameraPositionAdjust(displacement);
-}
-
-void AEgoVehicle::CameraPositionYp()
-{
-    const FVector displacement = FVector(0, 1, 0);
-    AEgoVehicle::CameraPositionAdjust(displacement);
-}
-
-void AEgoVehicle::CameraPositionYm()
-{
-    const FVector displacement = FVector(0, -1, 0);
-    AEgoVehicle::CameraPositionAdjust(displacement);
 }
 
 /// NOTE: the CarlaVehicle does not actually move the vehicle, only its state/animations
@@ -969,9 +932,16 @@ void AEgoVehicle::LogitechWheelUpdate()
     if (WheelState->rgbButtons[0] || WheelState->rgbButtons[1] || WheelState->rgbButtons[2] ||
         WheelState->rgbButtons[3]) // replace reverse with face buttons
     {
-        UE_LOG(LogTemp, Log, TEXT("Reversing: Dpad value %f"), Dpad);
-        /// TODO: only trigger on a press, not "while it is held"
-        ToggleReverse();
+        if (isPressRisingEdgeRev == true) // only toggle reverse on rising edge of button press
+        {
+            isPressRisingEdgeRev = false; // not rising edge while the button is pressed
+            UE_LOG(LogTemp, Log, TEXT("Reversing: Dpad value %f"), Dpad);
+            ToggleReverse();
+        }
+    }
+    else
+    {
+        isPressRisingEdgeRev = true;
     }
     if (WheelState->rgbButtons[4])
     {
@@ -983,31 +953,19 @@ void AEgoVehicle::LogitechWheelUpdate()
     }
 
     // VRCamerRoot base position adjustment
-    if (WheelState->rgdwPOV[0] == 0)
-    {
-        CameraPositionXp();
-    }
-    else if (WheelState->rgdwPOV[0] == 18000)
-    {
-        CameraPositionXm();
-    }
-    else if (WheelState->rgdwPOV[0] == 27000)
-    {
-        CameraPositionYm();
-    }
-    else if (WheelState->rgdwPOV[0] == 9000)
-    {
-        CameraPositionYp();
-    }
+    if (WheelState->rgdwPOV[0] == 0) // positive in X
+        AEgoVehicle::CameraPositionAdjust(FVector(1.f, 0.f, 0.f));
+    else if (WheelState->rgdwPOV[0] == 18000) // negative in X
+        AEgoVehicle::CameraPositionAdjust(FVector(-1.f, 0.f, 0.f));
+    else if (WheelState->rgdwPOV[0] == 9000) // positive in Y
+        AEgoVehicle::CameraPositionAdjust(FVector(0.f, 1.f, 0.f));
+    else if (WheelState->rgdwPOV[0] == 27000) // negative in Y
+        AEgoVehicle::CameraPositionAdjust(FVector(0.f, -1.f, 0.f));
     // VRCamerRoot base height adjustment
-    if (WheelState->rgbButtons[19])
-    {
-        CameraPositionZp();
-    }
-    else if (WheelState->rgbButtons[20])
-    {
-        CameraPositionZm();
-    }
+    else if (WheelState->rgbButtons[19]) // positive in Z
+        AEgoVehicle::CameraPositionAdjust(FVector(0.f, 0.f, 1.f));
+    else if (WheelState->rgbButtons[20]) // negative in Z
+        AEgoVehicle::CameraPositionAdjust(FVector(0.f, 0.f, -1.f));
 }
 
 void AEgoVehicle::ApplyForceFeedback() const

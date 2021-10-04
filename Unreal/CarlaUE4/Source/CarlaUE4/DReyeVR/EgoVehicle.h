@@ -77,13 +77,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     const FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // tunable per vehicle
     const FVector HMDOffset{0.0f, 0.0f, 0.0f};                // tunable per all humans, default to zero-vector
     void InitCamera();
-    void CameraPositionAdjust(const FVector displacement);
-    void CameraPositionZp();
-    void CameraPositionZm();
-    void CameraPositionXp();
-    void CameraPositionXm();
-    void CameraPositionYp();
-    void CameraPositionYm();
+    void CameraPositionAdjust(const FVector &displacement);
 
     // Sensor Components
     UPROPERTY(Category = DReyeVR, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -97,6 +91,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void SetThrottle(const float ThrottleInput);
     void SetBrake(const float BrakeInput);
     bool bReverse;
+    bool isPressRisingEdgeRev = true; // first press is a rising edge
     void ToggleReverse();
     float RightSignalTimeToDie, LeftSignalTimeToDie; // how long the blinkers last
     void TurnSignalLeft();
