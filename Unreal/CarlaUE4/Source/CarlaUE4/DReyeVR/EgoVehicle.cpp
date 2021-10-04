@@ -305,6 +305,16 @@ void AEgoVehicle::ErrMsg(const FString &message, const bool isFatal = false)
     return;
 }
 
+void AEgoVehicle::ChangePixelDensity(const float NewDensity) const
+{
+    const float OldDensity = UHeadMountedDisplayFunctionLibrary::GetPixelDensity();
+    const FString PixelDensityCommand = "vr.PixelDensity " + FString::SanitizeFloat(NewDensity);
+    GetWorld()->Exec(GetWorld(), *PixelDensityCommand);
+    /// TODO: try also changing the r.SetRes resolution as shown here:
+    // https://answers.unrealengine.com/questions/225195/how-do-i-run-a-console-command-in-c.html
+    UE_LOG(LogTemp, Log, TEXT("VR resolution density changed from %.3f to %.3f"), OldDensity, NewDensity);
+}
+
 FVector AEgoVehicle::GetFPSPosn() const
 {
     return FirstPersonCam->GetComponentLocation();
@@ -754,6 +764,7 @@ void AEgoVehicle::ToggleReverse()
     // negate to toggle bw 1 (forwards) and -1 (backwards)
     int NewGear = -1 * GetVehicleMovementComponent()->GetTargetGear();
     bReverse = !bReverse;
+    AEgoVehicle::ChangePixelDensity(1.f - int(bReverse) * 0.5f);
     GetVehicleMovementComponent()->SetTargetGear(NewGear, true); // UE4 control
     SetReverse(bReverse);                                        // Carla control
 
