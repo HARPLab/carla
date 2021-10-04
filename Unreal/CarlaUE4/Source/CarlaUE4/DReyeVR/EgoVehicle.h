@@ -141,6 +141,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class UTextRenderComponent *Speedometer;
     UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UTextRenderComponent *TurnSignals;
+    UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UTextRenderComponent *GearShifter;
     void UpdateText();
 
     // Collision w/ other vehicles

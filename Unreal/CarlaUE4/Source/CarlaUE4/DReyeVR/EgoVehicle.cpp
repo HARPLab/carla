@@ -122,6 +122,19 @@ void AEgoVehicle::InitDReyeVRText()
     TurnSignals->SetWorldSize(10); // scale the font with this
     TurnSignals->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
     TurnSignals->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+
+    // Create speedometer
+    GearShifter = CreateDefaultSubobject<UTextRenderComponent>(TEXT("GearShifter"));
+    GearShifter->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+    GearShifter->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, 15, 0));
+    GearShifter->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
+    GearShifter->SetTextRenderColor(FColor::Red);
+    GearShifter->SetText(FText::FromString("D"));
+    GearShifter->SetXScale(1.f);
+    GearShifter->SetYScale(1.f);
+    GearShifter->SetWorldSize(10); // scale the font with this
+    GearShifter->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
+    GearShifter->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
 }
 
 void AEgoVehicle::InitDReyeVRCollisions()
@@ -153,7 +166,8 @@ void AEgoVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *Ot
         FString actor_name = OtherActor->GetName();
         UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
         // can be more flexible, such as having collisions with static props or people too
-        if (OtherActor->IsA(ACarlaWheeledVehicle::StaticClass())) {
+        if (OtherActor->IsA(ACarlaWheeledVehicle::StaticClass()))
+        {
             // emit the car collision sound at the midpoint between the vehicles' collision
             const FVector Location = (OtherActor->GetActorLocation() - GetActorLocation()) / 2.f;
             // const FVector Location = OtherActor->GetActorLocation(); // more pronounced spacial audio
@@ -307,7 +321,8 @@ void AEgoVehicle::BeginPlay()
     }
     else if (DrawSpectatorReticle && IsHMDConnected)
     {
-        if (!ReticleTexture) {
+        if (!ReticleTexture)
+        {
             InitReticleTexture(); // generate array of pixel values
             /// NOTE: need to create transient like this bc of a UE4 bug in release mode
             // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
@@ -500,7 +515,8 @@ void AEgoVehicle::InitReticleTexture()
 
 void AEgoVehicle::DrawReticle()
 {
-    if (bDisableSpectatorScreen) {
+    if (bDisableSpectatorScreen)
+    {
         return;
     }
     const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
@@ -563,7 +579,7 @@ void AEgoVehicle::DrawHUD()
     {
         /// NOTE: this only really works in a non-vr setting!!
         // Draw text components
-        const float MPH = GetVehicleForwardSpeed() * 0.0223694; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
+        const float MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
         FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
         // found this position via the BP editor
         const FVector DashboardPosn = GetActorLocation() + GetActorRotation().RotateVector(FVector(120, 0, 105));
@@ -586,7 +602,7 @@ void AEgoVehicle::DrawHUD()
 void AEgoVehicle::UpdateText()
 {
     // Draw text components
-    const float MPH = GetVehicleForwardSpeed() * 0.0223694; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
+    const float MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
     FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
     Speedometer->SetText(FText::FromString(Data));
 
@@ -598,6 +614,12 @@ void AEgoVehicle::UpdateText()
         TurnSignals->SetText(FText::FromString("<<<"));
     else
         TurnSignals->SetText(FText::FromString("")); // nothing
+
+    // Draw the gear shifter
+    if (bReverse)
+        GearShifter->SetText(FText::FromString("R"));
+    else
+        GearShifter->SetText(FText::FromString("D"));
 }
 
 /// ========================================== ///
