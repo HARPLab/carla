@@ -221,23 +221,17 @@ void AEgoVehicle::InitDReyeVRMirrors()
     RearMirror->SetStaticMesh(PlaneSM.Object);
     RearMirror->SetMaterial(0, MirrorTexture.Object);
     RearMirror->AttachTo(GetMesh());
-    const FVector RearMirrorPos(76, 0, 127);
-    const FRotator RearMirrorAngle(90, 0, -15); // Y Z X (euler angles)
-    const FVector RearMirrorScale(0.13, 0.2775, 1.0);
-    RearMirror->SetRelativeLocation(RearMirrorPos);
-    RearMirror->SetRelativeRotation(RearMirrorAngle);
-    RearMirror->SetRelativeScale3D(RearMirrorScale);
+    RearMirror->SetRelativeLocation(FVector(76.f, 0.f, 127.f));
+    RearMirror->SetRelativeRotation(FRotator(90.f, 0.f, -15.f)); // Y Z X (euler angles)
+    RearMirror->SetRelativeScale3D(FVector(0.13f, 0.2775f, 1.f));
     RearMirror->SetGenerateOverlapEvents(false); // don't collide with itself
     RearMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     RearReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("RearReflection"));
     RearReflection->AttachTo(RearMirror);
-    const FVector RearReflectionPos(0, 0, 2);
-    const FRotator RearReflectionAngle(5, 0, -5);
-    const FVector RearReflectionScale(0.0625, 0.035, 1.0);
-    RearReflection->SetRelativeLocation(RearReflectionPos);
-    RearReflection->SetRelativeRotation(RearReflectionAngle);
-    RearReflection->SetRelativeScale3D(RearReflectionScale);
+    RearReflection->SetRelativeLocation(FVector(0.f, 0.f, 2.f));
+    RearReflection->SetRelativeRotation(FRotator(5.f, 0.f, -5.f));
+    RearReflection->SetRelativeScale3D(FVector(0.0625f, 0.035f, 1.f));
     RearReflection->NormalDistortionStrength = 0.0f;
     RearReflection->PrefilterRoughness = 0.0f;
     RearReflection->DistanceFromPlaneFadeoutStart = 1500.f;
@@ -245,9 +239,61 @@ void AEgoVehicle::InitDReyeVRMirrors()
     RearReflection->AngleFromPlaneFadeStart = 90.f;
     RearReflection->AngleFromPlaneFadeEnd = 90.f;
     RearReflection->PrefilterRoughnessDistance = 10000.f;
-    RearReflection->ScreenPercentage = 100;
+    RearReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
     RearReflection->bShowPreviewPlane = false;
     RearReflection->HideComponent(GetMesh());
+
+    LeftMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftMirror"));
+    LeftMirror->SetStaticMesh(PlaneSM.Object);
+    LeftMirror->SetMaterial(0, MirrorTexture.Object);
+    LeftMirror->AttachTo(GetMesh());
+    LeftMirror->SetRelativeLocation(FVector(58.f, -98.f, 104.f));
+    LeftMirror->SetRelativeRotation(FRotator(90.f, 0.f, 25.4f)); // Y Z X (euler angles)
+    LeftMirror->SetRelativeScale3D(FVector(0.13f, 0.2475f, 1.f));
+    LeftMirror->SetGenerateOverlapEvents(false); // don't collide with itself
+    LeftMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    LeftReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("LeftReflection"));
+    LeftReflection->AttachTo(LeftMirror);
+    LeftReflection->SetRelativeLocation(FVector(0.f, -15.f, 12.2f));
+    LeftReflection->SetRelativeRotation(FRotator(-5.f, 0.f, -7.f));
+    LeftReflection->SetRelativeScale3D(FVector(0.035f, 0.043f, 1.f));
+    LeftReflection->NormalDistortionStrength = 0.0f;
+    LeftReflection->PrefilterRoughness = 0.0f;
+    LeftReflection->DistanceFromPlaneFadeoutStart = 1500.f;
+    LeftReflection->DistanceFromPlaneFadeoutEnd = 0.f;
+    LeftReflection->AngleFromPlaneFadeStart = 90.f;
+    LeftReflection->AngleFromPlaneFadeEnd = 90.f;
+    LeftReflection->PrefilterRoughnessDistance = 10000.f;
+    LeftReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
+    LeftReflection->bShowPreviewPlane = false;
+    LeftReflection->HideComponent(GetMesh());
+
+    RightMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RightMirror"));
+    RightMirror->SetStaticMesh(PlaneSM.Object);
+    RightMirror->SetMaterial(0, MirrorTexture.Object);
+    RightMirror->AttachTo(GetMesh());
+    RightMirror->SetRelativeLocation(FVector(58.f, 98.f, 104.f));
+    RightMirror->SetRelativeRotation(FRotator(90.f, 0.f, -25.4f)); // Y Z X (euler angles)
+    RightMirror->SetRelativeScale3D(FVector(0.13f, 0.2475f, 1.f));
+    RightMirror->SetGenerateOverlapEvents(false); // don't collide with itself
+    RightMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    RightReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("RightReflection"));
+    RightReflection->AttachTo(RightMirror);
+    RightReflection->SetRelativeLocation(FVector(11.f, -4.f, 6.13f));
+    RightReflection->SetRelativeRotation(FRotator(-5.f, 0.f, -7.f));
+    RightReflection->SetRelativeScale3D(FVector(0.03f, 0.05f, 1.f));
+    RightReflection->NormalDistortionStrength = 0.0f;
+    RightReflection->PrefilterRoughness = 0.0f;
+    RightReflection->DistanceFromPlaneFadeoutStart = 1500.f;
+    RightReflection->DistanceFromPlaneFadeoutEnd = 0.f;
+    RightReflection->AngleFromPlaneFadeStart = 90.f;
+    RightReflection->AngleFromPlaneFadeEnd = 90.f;
+    RightReflection->PrefilterRoughnessDistance = 10000.f;
+    RightReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
+    RightReflection->bShowPreviewPlane = false;
+    RightReflection->HideComponent(GetMesh());
 }
 
 void AEgoVehicle::ErrMsg(const FString &message, const bool isFatal = false)

@@ -110,10 +110,21 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Mirrors
     void InitDReyeVRMirrors();
+    // rear view mirror
     UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UStaticMeshComponent *RearMirror;
     UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UPlanarReflectionComponent *RearReflection;
+    // left view mirror
+    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *LeftMirror;
+    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *LeftReflection;
+    // right view mirror
+    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RightMirror;
+    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *RightReflection;
 
     // Cosmetic
     bool bDisableSpectatorScreen = false;   // don't spent time rendering the spectator screen
