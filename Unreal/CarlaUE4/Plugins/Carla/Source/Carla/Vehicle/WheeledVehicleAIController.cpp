@@ -141,6 +141,18 @@ void AWheeledVehicleAIController::Tick(const float DeltaTime)
   }
 
   Vehicle->FlushVehicleControl();
+  
+  // ensure no collisions with obstacle ahead
+  if (IsThereAnObstacleAhead(*Vehicle, 
+                              Vehicle->GetVehicleForwardSpeed() * 0.0223694f, // convert to MPH
+                              Vehicle->GetVehicleOrientation())) // forwards direction
+  {
+    FVehicleControl BrakeNow;
+    BrakeNow.Brake = 100.f;
+    BrakeNow.bHandBrake = true;
+    Vehicle->ApplyVehicleControl(BrakeNow, EVehicleInputPriority::Highest);
+    Vehicle->FlushVehicleControl();
+  }
 }
 
 // =============================================================================

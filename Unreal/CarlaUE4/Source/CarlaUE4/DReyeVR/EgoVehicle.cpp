@@ -146,6 +146,13 @@ void AEgoVehicle::InitDReyeVRCollisions()
     FVector Origin(3.07f, -0.59f, 74.74f); // obtained by looking at blueprint values
     FVector Scale3D(7.51f, 3.38f, 2.37f);  // obtained by looking at blueprint values
     FVector BoxExtent(32.f, 32.f, 32.f);   // obtained by looking at blueprint values
+    // FVector BoxExtent2 = this->GetVehicleBoundingBoxExtent();
+    // FTransform BoxTransform = this->GetVehicleTransform(); // this->GetVehicleBoundingBoxTransform();
+    // UE_LOG(LogTemp, Log, TEXT("Detected origin %.3f %.3f %.3f"), BoxTransform.GetLocation().X,
+    //        BoxTransform.GetLocation().Y, BoxTransform.GetLocation().Z);
+    // UE_LOG(LogTemp, Log, TEXT("Detected scale %.3f %.3f %.3f"), BoxTransform.GetScale3D().X,
+    //        BoxTransform.GetScale3D().Y, BoxTransform.GetScale3D().Z);
+    // UE_LOG(LogTemp, Log, TEXT("Detected extent %.3f %.3f %.3f"), BoxExtent2.X, BoxExtent2.Y, BoxExtent2.Z);
     Bounds = CreateDefaultSubobject<UBoxComponent>(TEXT("DReyeVRBoundingBox"));
     Bounds->SetupAttachment(GetRootComponent());
     Bounds->SetBoxExtent(BoxExtent);
