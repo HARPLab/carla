@@ -91,7 +91,7 @@ static void AvoidRearEndingDReyeVR(ACarlaWheeledVehicle *Vehicle, const float Di
     const bool LineTripped = Vehicle->GetWorld()->LineTraceSingleByObjectType(
         OutHit, LeftPt, RightPt, FCollisionObjectQueryParams(FCollisionObjectQueryParams::AllDynamicObjects),
         CollisionParams);
-    DrawDebugLine(Vehicle->GetWorld(), LeftPt, RightPt, LineTripped ? FColor(255, 0, 0) : FColor(0, 255, 0), false);
+    // DrawDebugLine(Vehicle->GetWorld(), LeftPt, RightPt, LineTripped ? FColor(255, 0, 0) : FColor(0, 255, 0), false);
     if (LineTripped)
     {
         const AActor *EgoVehicle = OutHit.Actor.Get();

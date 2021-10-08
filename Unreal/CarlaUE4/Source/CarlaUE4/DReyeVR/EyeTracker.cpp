@@ -145,9 +145,9 @@ void AEyeTracker::Tick(float DeltaSeconds)
         SensorData->TimestampSR++; // iterate the fake "SRanipal" timestamp
         // Generate dummy values for Gaze Ray based off time, goes in circles in front of the user
         auto Combined = &(SensorData->Combined);
-        Combined->GazeRay.X = 5.0;
-        Combined->GazeRay.Y = UKismetMathLibrary::Cos(ftime_s);
-        Combined->GazeRay.Z = UKismetMathLibrary::Sin(ftime_s);
+        Combined->GazeRay.X = 500.0f;
+        Combined->GazeRay.Y = 365.0f;
+        Combined->GazeRay.Z = 170.0f;
         UKismetMathLibrary::Vector_Normalize(Combined->GazeRay, 0.0001);
 
         // Assign the origin position to the (3D space) origin

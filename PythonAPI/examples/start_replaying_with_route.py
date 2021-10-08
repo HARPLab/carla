@@ -24,6 +24,7 @@ import argparse
 import os
 SCENARIO_RUNNER_ROOT = os.environ.get('SCENARIO_RUNNER_ROOT')
 import sys
+print(SCENARIO_RUNNER_ROOT)
 sys.path.append(SCENARIO_RUNNER_ROOT)
 
 from srunner.tools.route_parser import RouteParser

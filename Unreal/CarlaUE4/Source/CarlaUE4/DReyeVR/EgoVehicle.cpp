@@ -246,7 +246,7 @@ void AEgoVehicle::InitDReyeVRMirrors()
     RearReflection->AngleFromPlaneFadeStart = 90.f;
     RearReflection->AngleFromPlaneFadeEnd = 90.f;
     RearReflection->PrefilterRoughnessDistance = 10000.f;
-    RearReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
+    RearReflection->ScreenPercentage = 80.f; // change this to reduce quality & improve performance
     RearReflection->bShowPreviewPlane = false;
     RearReflection->HideComponent(GetMesh());
 
@@ -272,7 +272,7 @@ void AEgoVehicle::InitDReyeVRMirrors()
     LeftReflection->AngleFromPlaneFadeStart = 90.f;
     LeftReflection->AngleFromPlaneFadeEnd = 90.f;
     LeftReflection->PrefilterRoughnessDistance = 10000.f;
-    LeftReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
+    LeftReflection->ScreenPercentage = 60.f; // change this to reduce quality & improve performance
     LeftReflection->bShowPreviewPlane = false;
     LeftReflection->HideComponent(GetMesh());
 
@@ -298,7 +298,7 @@ void AEgoVehicle::InitDReyeVRMirrors()
     RightReflection->AngleFromPlaneFadeStart = 90.f;
     RightReflection->AngleFromPlaneFadeEnd = 90.f;
     RightReflection->PrefilterRoughnessDistance = 10000.f;
-    RightReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
+    RightReflection->ScreenPercentage = 20.f; // change this to reduce quality & improve performance
     RightReflection->bShowPreviewPlane = false;
     RightReflection->HideComponent(GetMesh());
 }
@@ -518,19 +518,19 @@ void AEgoVehicle::DebugLines() const
     // Rotate and add the gaze ray to the origin
     FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
 
-    // Use Absolute Ray Position to draw debug information
-//    DrawDebugSphere(World, CombinedGazePosn, 4.0f, 12, FColor::Blue);
-//
-//    // Draw individual rays for left and right eye
-//    DrawDebugLine(World,
-//                  LeftOrigin,                                        // start line
-//                  LeftOrigin + 10 * WorldRot.RotateVector(LeftGaze), // end line
-//                  FColor::Green, false, -1, 0, 1);
-//
-//    DrawDebugLine(World,
-//                  RightOrigin,                                         // start line
-//                  RightOrigin + 10 * WorldRot.RotateVector(RightGaze), // end line
-//                  FColor::Yellow, false, -1, 0, 1);
+    // // // Use Absolute Ray Position to draw debug information
+    // // DrawDebugSphere(World, CombinedGazePosn, 4.0f, 12, FColor::Blue);
+
+    // Draw individual rays for left and right eye
+    // DrawDebugLine(World,
+    //               LeftOrigin,                                        // start line
+    //               LeftOrigin + 10 * WorldRot.RotateVector(LeftGaze), // end line
+    //               FColor::Green, false, -1, 0, 1);
+
+    // DrawDebugLine(World,
+    //               RightOrigin,                                         // start line
+    //               RightOrigin + 10 * WorldRot.RotateVector(RightGaze), // end line
+    //               FColor::Yellow, false, -1, 0, 1);
 #endif
     if (DrawGazeOnHUD)
     {
@@ -610,8 +610,8 @@ void AEgoVehicle::DrawReticle()
         if (DrawFlatReticle)
         {
             // Draw on user HUD (only for flat-view)
-            HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
-            HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
+            // HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
+            HUD->DrawDynamicSquare(CombinedGazePosn, 2, FColor(255, 0, 0, 255), 2);
         }
     }
 }
