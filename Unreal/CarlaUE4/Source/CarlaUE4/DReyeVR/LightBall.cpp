@@ -78,7 +78,7 @@ void ALightBall::TurnLightOn()
 
 void ALightBall::TurnLightOff()
 {
-	SphereMesh->SetVisibility(false);
+	SphereMesh->SetVisibility(true);
 }
 
 void ALightBall::SetColor(float R, float G, float B)

@@ -312,6 +312,7 @@ void AEgoVehicle::Tick(float DeltaTime)
 	const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
 	const FVector WorldPos = FirstPersonCam->GetComponentLocation();
 	FVector HeadDirection = WorldRot.Vector();
+
 	FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
 	GenerateSphere(HeadDirection, CombinedGazePosn, WorldRot, WorldPos, LightBallObject, DeltaTime);
 
@@ -331,6 +332,8 @@ void AEgoVehicle::Tick(float DeltaTime)
 	UE_LOG(LogTemp, Log, TEXT("HeadDirection logging %s"), *HeadDirection.ToString());
 	UE_LOG(LogTemp, Log, TEXT("ButtonPress, %d"), VehicleInputs.ButtonPressed);
 	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
+	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
+	UE_LOG(LogTemp, Log, TEXT("WorldPos logging %s"), *WorldPos.ToString());
 
 #if USE_LOGITECH_WHEEL
     if (IsLogiConnected)
@@ -813,7 +816,8 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 	// Generate the posn of the light given current angles
 	float DistanceFromDriver = CenterMagnitude*3;
 	FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, curr_yaw, curr_pitch);
-	FVector RotVecDirectionPosn = CombinedOrigin + RotVecDirection * DistanceFromDriver;
+	FVector HeadPos = FirstPersonCam->GetComponentLocation();
+	FVector RotVecDirectionPosn = HeadPos + RotVecDirection * DistanceFromDriver;
 
 	LightBallObject->SetLocation(RotVecDirectionPosn);
 
@@ -826,20 +830,30 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 	auto gaze_angles = AEgoVehicle::GetAngles(UnitGazeVec, RotVecDirection);
 	gaze_pitch = std::get<0>(gaze_angles);
 	gaze_yaw = std::get<1>(gaze_angles);
+	VehicleInputs.pitch = gaze_pitch;
+	VehicleInputs.yaw = gaze_yaw;
+
+	// Calculate gaze angles of eye gaze wrt head direction
+	/*
+	auto gaze_from_head_angles = AEgoVehicle::GetAngles(HeadDirection, UnitGazeVec);
+	gaze_from_head_pitch = std::get<0>(gaze_from_head_angles);
+	gaze_from_head_yaw = std::get<1>(gaze_from_head_angles);
+	VehicleInputs.gazeHeadPitch = gaze_from_head_pitch;
+	VehicleInputs.gazeHeadYaw = gaze_from_head_yaw;
+	*/
 
 	//UE_LOG(LogTemp, Log, TEXT("curr_pitch, %f"), curr_pitch);
 	//UE_LOG(LogTemp, Log, TEXT("curr_yaw, %f"), curr_yaw);
-	VehicleInputs.pitch = gaze_pitch;
-	VehicleInputs.yaw = gaze_yaw;
+	
 	UE_LOG(LogTemp, Log, TEXT("pitch, %f"), VehicleInputs.pitch);
 	UE_LOG(LogTemp, Log, TEXT("yaw, %f"), VehicleInputs.yaw);
 	UE_LOG(LogTemp, Log, TEXT("Light On: %d"), VehicleInputs.LightOn);
 	
 	// Draw debug border markers
-	FVector TopLeftLimit = GenerateRotVecGivenAngles(UnitGazeVec, -yawMax, pitchMax+vert_offset) * DistanceFromDriver;
-	FVector TopRightLimit = GenerateRotVecGivenAngles(UnitGazeVec, yawMax, pitchMax+vert_offset) * DistanceFromDriver;
-	FVector BotLeftLimit = GenerateRotVecGivenAngles(UnitGazeVec, -yawMax, -pitchMax+vert_offset) * DistanceFromDriver;
-	FVector BotRightLimit = GenerateRotVecGivenAngles(UnitGazeVec, yawMax, -pitchMax+vert_offset) * DistanceFromDriver;
+	FVector TopLeftLimit = GenerateRotVecGivenAngles(HeadDirection, -yawMax, pitchMax+vert_offset) * DistanceFromDriver;
+	FVector TopRightLimit = GenerateRotVecGivenAngles(HeadDirection, yawMax, pitchMax+vert_offset) * DistanceFromDriver;
+	FVector BotLeftLimit = GenerateRotVecGivenAngles(HeadDirection, -yawMax, -pitchMax+vert_offset) * DistanceFromDriver;
+	FVector BotRightLimit = GenerateRotVecGivenAngles(HeadDirection, yawMax, -pitchMax+vert_offset) * DistanceFromDriver;
 	DrawDebugSphere(World, CombinedOrigin + TopLeftLimit, 4.0f, 12, FColor::Blue);
 	DrawDebugSphere(World, CombinedOrigin + TopRightLimit, 4.0f, 12, FColor::Blue);
 	DrawDebugSphere(World, CombinedOrigin + BotLeftLimit, 4.0f, 12, FColor::Blue);

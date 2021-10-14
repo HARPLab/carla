@@ -32,7 +32,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	UMaterialInstanceDynamic* dynamicMaterial;
 
-	float radius = 0.05;
+	float radius = 0.1;
 	float emission = 500.f;
 
 	void SetLocation(FVector Posn);

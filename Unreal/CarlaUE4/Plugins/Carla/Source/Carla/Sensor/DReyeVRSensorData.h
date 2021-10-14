@@ -42,6 +42,8 @@ struct UserInputs
 	bool ButtonPressed = false;
 	float pitch = 0.f;
 	float yaw = 0.f;
+	//float gazeHeadPitch = 0.f;
+	//float gazeHeadYaw = 0.f;
 
     // helper functions
     void Clear()
