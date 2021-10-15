@@ -549,19 +549,50 @@ void AEgoVehicle::ToggleGazeHUD()
 void AEgoVehicle::InitReticleTexture()
 {
     // Used to initialize any bitmap-based image that will be used as a reticle
-    // draw a box with line thickness 2px
+    const bool bRectangularReticle = false;          // TODO: parametrize
     ReticleSrc.Reserve(ReticleDim.X * ReticleDim.Y); // allocate width*height space
     for (int i = 0; i < ReticleDim.X; i++)
     {
         for (int j = 0; j < ReticleDim.Y; j++)
         {
             // RGBA colours
-            bool LeftOrRight = (i < ReticleThickness.X || i > ReticleDim.X - ReticleThickness.X);
-            bool TopOrBottom = (j < ReticleThickness.Y || j > ReticleDim.Y - ReticleThickness.Y);
-            if (LeftOrRight || TopOrBottom)
-                ReticleSrc.Add(FColor(255, 0, 0, 128)); // (semi-opaque red)
+            FColor Colour;
+            if (bRectangularReticle)
+            {
+                bool LeftOrRight = (i < ReticleThickness.X || i > ReticleDim.X - ReticleThickness.X);
+                bool TopOrBottom = (j < ReticleThickness.Y || j > ReticleDim.Y - ReticleThickness.Y);
+                if (LeftOrRight || TopOrBottom)
+                    Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                else
+                    Colour = FColor(0, 0, 0, 0); // (fully transparent inside)
+            }
             else
-                ReticleSrc.Add(FColor(0, 0, 0, 0)); // (fully transparent inside)
+            {
+                const int x = i - ReticleDim.X / 2;
+                const int y = j - ReticleDim.Y / 2;
+                const float Radius = ReticleDim.X / 3.f;
+                const int RadThickness = 3;
+                const int LineLen = 4 * RadThickness;
+                const float RadLo = Radius + LineLen;
+                const float RadHi = Radius - LineLen;
+                bool BelowRadius = (FMath::Square(x) + FMath::Square(y) <= FMath::Square(Radius + RadThickness));
+                bool AboveRadius = (FMath::Square(x) + FMath::Square(y) >= FMath::Square(Radius - RadThickness));
+                if (BelowRadius && AboveRadius)
+                    Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                else
+                {
+                    // Draw little rectangular markers
+                    const bool RightMarker = (RadLo < x && x < RadHi) && std::fabs(y) < RadThickness;
+                    const bool LeftMarker = (RadLo < -x && -x < RadHi) && std::fabs(y) < RadThickness;
+                    const bool TopMarker = (RadLo < y && y < RadHi) && std::fabs(x) < RadThickness;
+                    const bool BottomMarker = (RadLo < -y && -y < RadHi) && std::fabs(x) < RadThickness;
+                    if (RightMarker || LeftMarker || TopMarker || BottomMarker)
+                        Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                    else
+                        Colour = FColor(0, 0, 0, 0); // (fully transparent inside)
+                }
+            }
+            ReticleSrc.Add(Colour);
         }
     }
 }
