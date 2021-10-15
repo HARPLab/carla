@@ -646,7 +646,9 @@ void AEgoVehicle::DrawReticle()
             // HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
             if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
             {
-                HUD->DrawDynamicTexture(ReticleTexture, ReticlePos); // TODO add scale
+                /// TODO: add scale
+                HUD->DrawDynamicTexture(ReticleTexture,
+                                        ReticlePos + FVector2D(-ReticleDim.X * 0.5f, -ReticleDim.Y * 0.5f));
                 // see here for guide on DrawTexture
                 // https://answers.unrealengine.com/questions/41214/how-do-you-use-draw-texture.html
                 // HUD->DrawTextureSimple(ReticleTexture, ReticlePos.X, ReticlePos.Y, 10.f, false);
