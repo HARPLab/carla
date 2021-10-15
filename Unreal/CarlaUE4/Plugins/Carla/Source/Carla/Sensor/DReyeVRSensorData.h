@@ -69,6 +69,8 @@ struct SensorData // everything being held by this sensor
     // HMD position and orientation
     FVector HMDLocation = FVector::ZeroVector;    // initialized as {0,0,0}
     FRotator HMDRotation = FRotator::ZeroRotator; // initialized to {0,0,0}
+    // Ego variables
+    float Velocity;
     // FFocusInfo data
     FString FocusActorName;                        // Tag of the actor being focused on
     FVector FocusActorPoint = FVector::ZeroVector; // Hit point of the Focus Actor

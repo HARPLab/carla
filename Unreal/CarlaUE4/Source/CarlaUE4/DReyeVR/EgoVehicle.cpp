@@ -467,6 +467,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
     // Compute World positions and orientations
     EyeTrackerSensor->SetInputs(VehicleInputs);
+    EyeTrackerSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
     EyeTrackerSensor->Tick(DeltaSeconds);
     // clear inputs to be updated on the next tick
     VehicleInputs.Clear();
@@ -719,8 +720,16 @@ void AEgoVehicle::DrawHUD()
 void AEgoVehicle::UpdateText()
 {
     // Draw text components
-    const float MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
-    FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
+    float MPH;
+    if (ADReyeVRSensor::GetIsReplaying())
+    {
+        MPH = ADReyeVRSensor::EgoReplayVelocity * 0.0223694f; // cm/s to mph
+        UE_LOG(LogTemp, Log, TEXT("Velocity %.3f"), MPH);
+    }
+    else
+        MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
+
+    const FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
     Speedometer->SetText(FText::FromString(Data));
 
     // Draw the signals

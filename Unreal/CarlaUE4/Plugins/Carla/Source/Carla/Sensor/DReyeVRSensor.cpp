@@ -137,6 +137,7 @@ void ADReyeVRSensor::Update(const DReyeVR::SensorData *NewData)
 //  replaying files to animate gaze ray data
 bool ADReyeVRSensor::IsReplaying = false; // not replaying initially
 FTransform ADReyeVRSensor::EgoReplayTransform = FTransform(FRotator(0, 0, 0), FVector(0, 0, 0), FVector(1, 1, 1));
+float ADReyeVRSensor::EgoReplayVelocity = 0;
 
 void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &R_Snapshot, const FTransform &EgoTrans,
                                       const double Per)
@@ -144,6 +145,7 @@ void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &R_Snapshot, con
     // updates a bunch of local values
     ADReyeVRSensor::SetIsReplaying(true);
     ADReyeVRSensor::EgoReplayTransform = EgoTrans;
+    ADReyeVRSensor::EgoReplayVelocity = R_Snapshot.Velocity;
     if (ADReyeVRSensor::Snapshot != nullptr)
     {
         FVector NewCameraPose;
