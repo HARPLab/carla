@@ -593,6 +593,9 @@ void AEgoVehicle::InitReticleTexture()
     ReticleTexture->UpdateResource();
     // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
     //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
+
+    check(ReticleTexture);
+    check(ReticleTexture->Resource);
 }
 
 void AEgoVehicle::DrawReticle()
@@ -644,6 +647,10 @@ void AEgoVehicle::DrawReticle()
             // Draw on user HUD (only for flat-view)
             // HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
             // HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
+            if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
+            {
+                InitReticleTexture();
+            }
             if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
             {
                 /// TODO: add scale
