@@ -83,6 +83,11 @@ void AEyeTracker::SetInputs(const DReyeVR::UserInputs &inputs)
     SensorData->Inputs = inputs;
 }
 
+void AEyeTracker::UpdateEgoVelocity(const float Velocity)
+{
+    EgoVelocity = Velocity;
+}
+
 void AEyeTracker::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
@@ -159,6 +164,8 @@ void AEyeTracker::Tick(float DeltaSeconds)
         SensorData->Right.GazeRay = Combined->GazeRay;
 
 #endif
+        // Update the ego velocity
+        SensorData->Velocity = EgoVelocity;
         // Update the Carla tick timestamp
         SensorData->TimestampCarla = int64_t(ftime_s * 1000);
         if (FirstPersonCam != nullptr)

@@ -73,6 +73,7 @@ void DReyeVRDataRecorder::Read(std::ifstream &InFile)
     ReadFRotator(InFile, this->Data.HMDRotation);
     ReadFocusActor(InFile, this->Data);
     ReadInputs(InFile, this->Data.Inputs);
+    ReadValue<float>(InFile, this->Data.Velocity);
 }
 
 /// ========================================== ///
@@ -140,6 +141,7 @@ void DReyeVRDataRecorder::Write(std::ofstream &OutFile) const
     WriteFRotator(OutFile, this->Data.HMDRotation);
     WriteFocusActor(OutFile, this->Data);
     WriteInputs(OutFile, this->Data.Inputs);
+    WriteValue<float>(OutFile, this->Data.Velocity);
 }
 
 /// ========================================== ///
@@ -179,6 +181,7 @@ std::string DReyeVRDataRecorder::Print() const
         << "Vergence: " << Data.Combined.Vergence << delim                // Calculated vergence
         << "HMDLoc: " << VecToString(Data.HMDLocation) << delim           // HMD location
         << "HMDRot: " << VecToString(Data.HMDRotation) << delim           // HMD rotation
+        << "EgoVel: " << Data.Velocity << delim                           // Ego Velocity
         << "LGazeRay: " << VecToString(Data.Left.GazeRay) << delim        // LEFT gaze ray
         << "LEyeOrigin: " << VecToString(Data.Left.Origin) << delim       // LEFT gaze ray
         << "RGazeRay: " << VecToString(Data.Right.GazeRay) << delim       // RIGHT gaze ray

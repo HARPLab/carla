@@ -1,6 +1,7 @@
 #include "EgoVehicle.h"
 #include "Carla/Vehicle/VehicleControl.h"      // FVehicleControl
 #include "DrawDebugHelpers.h"                  // Debug Line/Sphere
+#include "Engine/EngineTypes.h"                // EBlendMode
 #include "Engine/World.h"                      // GetWorld
 #include "GameFramework/Actor.h"               // Destroy
 #include "HeadMountedDisplayFunctionLibrary.h" // SetTrackingOrigin, GetWorldToMetersScale
@@ -146,6 +147,13 @@ void AEgoVehicle::InitDReyeVRCollisions()
     FVector Origin(3.07f, -0.59f, 74.74f); // obtained by looking at blueprint values
     FVector Scale3D(7.51f, 3.38f, 2.37f);  // obtained by looking at blueprint values
     FVector BoxExtent(32.f, 32.f, 32.f);   // obtained by looking at blueprint values
+    // FVector BoxExtent2 = this->GetVehicleBoundingBoxExtent();
+    // FTransform BoxTransform = this->GetVehicleTransform(); // this->GetVehicleBoundingBoxTransform();
+    // UE_LOG(LogTemp, Log, TEXT("Detected origin %.3f %.3f %.3f"), BoxTransform.GetLocation().X,
+    //        BoxTransform.GetLocation().Y, BoxTransform.GetLocation().Z);
+    // UE_LOG(LogTemp, Log, TEXT("Detected scale %.3f %.3f %.3f"), BoxTransform.GetScale3D().X,
+    //        BoxTransform.GetScale3D().Y, BoxTransform.GetScale3D().Z);
+    // UE_LOG(LogTemp, Log, TEXT("Detected extent %.3f %.3f %.3f"), BoxExtent2.X, BoxExtent2.Y, BoxExtent2.Z);
     Bounds = CreateDefaultSubobject<UBoxComponent>(TEXT("DReyeVRBoundingBox"));
     Bounds->SetupAttachment(GetRootComponent());
     Bounds->SetBoxExtent(BoxExtent);
@@ -373,25 +381,13 @@ void AEgoVehicle::BeginPlay()
     EyeTrackerSensor->SetCamera(FirstPersonCam);
 
     // Enable VR spectator screen & eye reticle
+    InitReticleTexture(); // generate array of pixel values
     if (bDisableSpectatorScreen)
     {
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
     }
     else if (DrawSpectatorReticle && IsHMDConnected)
     {
-        if (!ReticleTexture)
-        {
-            InitReticleTexture(); // generate array of pixel values
-            /// NOTE: need to create transient like this bc of a UE4 bug in release mode
-            // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
-            ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
-            void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-            FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
-            ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
-            ReticleTexture->UpdateResource();
-            // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
-            //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
-        }
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
     }
@@ -483,6 +479,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
     // Compute World positions and orientations
     EyeTrackerSensor->SetInputs(VehicleInputs);
+    EyeTrackerSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
     EyeTrackerSensor->Tick(DeltaSeconds);
     // clear inputs to be updated on the next tick
     VehicleInputs.Clear();
@@ -554,21 +551,64 @@ void AEgoVehicle::ToggleGazeHUD()
 void AEgoVehicle::InitReticleTexture()
 {
     // Used to initialize any bitmap-based image that will be used as a reticle
-    // draw a box with line thickness 2px
+    const bool bRectangularReticle = false;          // TODO: parametrize
     ReticleSrc.Reserve(ReticleDim.X * ReticleDim.Y); // allocate width*height space
     for (int i = 0; i < ReticleDim.X; i++)
     {
         for (int j = 0; j < ReticleDim.Y; j++)
         {
             // RGBA colours
-            bool LeftOrRight = (i < ReticleThickness.X || i > ReticleDim.X - ReticleThickness.X);
-            bool TopOrBottom = (j < ReticleThickness.Y || j > ReticleDim.Y - ReticleThickness.Y);
-            if (LeftOrRight || TopOrBottom)
-                ReticleSrc.Add(FColor(255, 0, 0, 128)); // (semi-opaque red)
+            FColor Colour;
+            if (bRectangularReticle)
+            {
+                bool LeftOrRight = (i < ReticleThickness.X || i > ReticleDim.X - ReticleThickness.X);
+                bool TopOrBottom = (j < ReticleThickness.Y || j > ReticleDim.Y - ReticleThickness.Y);
+                if (LeftOrRight || TopOrBottom)
+                    Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                else
+                    Colour = FColor(0, 0, 0, 0); // (fully transparent inside)
+            }
             else
-                ReticleSrc.Add(FColor(0, 0, 0, 0)); // (fully transparent inside)
+            {
+                const int x = i - ReticleDim.X / 2;
+                const int y = j - ReticleDim.Y / 2;
+                const float Radius = ReticleDim.X / 3.f;
+                const int RadThickness = 3;
+                const int LineLen = 4 * RadThickness;
+                const float RadLo = Radius - LineLen;
+                const float RadHi = Radius + LineLen;
+                bool BelowRadius = (FMath::Square(x) + FMath::Square(y) <= FMath::Square(Radius + RadThickness));
+                bool AboveRadius = (FMath::Square(x) + FMath::Square(y) >= FMath::Square(Radius - RadThickness));
+                if (BelowRadius && AboveRadius)
+                    Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                else
+                {
+                    // Draw little rectangular markers
+                    const bool RightMarker = (RadLo < x && x < RadHi) && std::fabs(y) < RadThickness;
+                    const bool LeftMarker = (RadLo < -x && -x < RadHi) && std::fabs(y) < RadThickness;
+                    const bool TopMarker = (RadLo < y && y < RadHi) && std::fabs(x) < RadThickness;
+                    const bool BottomMarker = (RadLo < -y && -y < RadHi) && std::fabs(x) < RadThickness;
+                    if (RightMarker || LeftMarker || TopMarker || BottomMarker)
+                        Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                    else
+                        Colour = FColor(0, 0, 0, 0); // (fully transparent inside)
+                }
+            }
+            ReticleSrc.Add(Colour);
         }
     }
+    /// NOTE: need to create transient like this bc of a UE4 bug in release mode
+    // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
+    ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
+    void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+    FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
+    ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
+    ReticleTexture->UpdateResource();
+    // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
+    //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
+
+    check(ReticleTexture);
+    check(ReticleTexture->Resource);
 }
 
 void AEgoVehicle::DrawReticle()
@@ -580,25 +620,28 @@ void AEgoVehicle::DrawReticle()
     const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
     // 1m away from the origin
     const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
+
+    if (Player) // Get size of the viewport
+        Player->GetViewportSize(ViewSize.X, ViewSize.Y);
+    /// NOTE: this is the better way to get the ViewportSize
+    const FVector2D ViewportSize = FVector2D(GEngine->GameViewport->Viewport->GetSizeXY());
+    FVector2D ReticlePos;
+    if (Player)
+        UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
+    /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
+    /// NOTE: to get the best drawing, the texture is offset slightly by this vector
+    const FVector2D ScreenOffset(ReticleDim.X * 0.5f,
+                                 -ReticleDim.Y); // move X right by Dim.X/2, move Y up by Dim.Y
+    /// TODO: clamp to be within [0,1]
+    FVector2D TextureRectMin((ReticlePos.X + ScreenOffset.X) / ViewSize.X,
+                             (ReticlePos.Y + ScreenOffset.Y) / ViewSize.Y);
+    // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
+    FVector2D TextureRectMax((ReticlePos.X + ScreenOffset.X + ReticleDim.X) / ViewSize.X,
+                             (ReticlePos.Y + ScreenOffset.Y + ReticleDim.Y) / ViewSize.Y);
     if (IsHMDConnected)
     {
         if (DrawSpectatorReticle)
         {
-            if (Player) // Get size of the viewport
-                Player->GetViewportSize(ViewSize.X, ViewSize.Y);
-            FVector2D ReticlePos;
-            if (Player)
-                UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
-            /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
-            /// NOTE: to get the best drawing, the texture is offset slightly by this vector
-            const FVector2D ScreenOffset(ReticleDim.X * 0.5f,
-                                         -ReticleDim.Y); // move X right by Dim.X/2, move Y up by Dim.Y
-            /// TODO: clamp to be within [0,1]
-            FVector2D TextureRectMin((ReticlePos.X + ScreenOffset.X) / ViewSize.X,
-                                     (ReticlePos.Y + ScreenOffset.Y) / ViewSize.Y);
-            // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
-            FVector2D TextureRectMax((ReticlePos.X + ScreenOffset.X + ReticleDim.X) / ViewSize.X,
-                                     (ReticlePos.Y + ScreenOffset.Y + ReticleDim.Y) / ViewSize.Y);
             UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
                 FVector2D{0.f, 0.f}, // whole window (top left)
                 FVector2D{1.f, 1.f}, // whole window (top ->*bottom? right)
@@ -615,8 +658,37 @@ void AEgoVehicle::DrawReticle()
         if (DrawFlatReticle)
         {
             // Draw on user HUD (only for flat-view)
-            HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
-            HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
+            // HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
+            // HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
+            if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
+            {
+                InitReticleTexture();
+            }
+            if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+            {
+                /// TODO: add scale
+                HUD->DrawDynamicTexture(ReticleTexture,
+                                        ReticlePos + FVector2D(-ReticleDim.X * 0.5f, -ReticleDim.Y * 0.5f));
+                // see here for guide on DrawTexture
+                // https://answers.unrealengine.com/questions/41214/how-do-you-use-draw-texture.html
+                // HUD->DrawTextureSimple(ReticleTexture, ReticlePos.X, ReticlePos.Y, 10.f, false);
+                // HUD->DrawTexture(ReticleTexture,
+                //                  ReticlePos.X, // screen space X coord
+                //                  ReticlePos.Y, // screen space Y coord
+                //                  96,           // screen space width
+                //                  96,           // screen space height
+                //                  0,            // top left X of texture
+                //                  0,            // top left Y of texture
+                //                  1,            // bottom right X of texture
+                //                  1             // bottom right Y of texture
+                //                                //  FLinearColor::White,           // tint colour
+                //                                //  EBlendMode::BLEND_Translucent, // blend mode
+                //                                //  1.f,                           // scale
+                //                                //  false,                         // scale position
+                //                                //  0.f,                           // rotation
+                //                                //  FVector2D::ZeroVector          // rotation pivot
+                // );
+            }
         }
     }
 }
@@ -660,8 +732,16 @@ void AEgoVehicle::DrawHUD()
 void AEgoVehicle::UpdateText()
 {
     // Draw text components
-    const float MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
-    FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
+    float MPH;
+    if (ADReyeVRSensor::GetIsReplaying())
+    {
+        MPH = ADReyeVRSensor::EgoReplayVelocity * 0.0223694f; // cm/s to mph
+        UE_LOG(LogTemp, Log, TEXT("Velocity %.3f"), MPH);
+    }
+    else
+        MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
+
+    const FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
     Speedometer->SetText(FText::FromString(Data));
 
     // Draw the signals

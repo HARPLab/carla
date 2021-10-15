@@ -57,6 +57,7 @@ class CARLAUE4_API AEyeTracker : public AActor
     void SetPlayer(APlayerController *P);
     void SetCamera(UCameraComponent *FPSCamInEgoVehicle);
     void SetInputs(const DReyeVR::UserInputs &inputs);
+    void UpdateEgoVelocity(const float Velocity);
 
   protected:
     void BeginPlay();
@@ -80,6 +81,9 @@ class CARLAUE4_API AEyeTracker : public AActor
 
     // everything stored in the sensor is held in this struct
     struct DReyeVR::SensorData *SensorData;
+
+    // Ego velocity is tracked bc it is hard to reprouce with a variable timestamp
+    float EgoVelocity = 0.f;
 
     // Helper functions
     float CalculateVergenceFromDirections() const; // Calculating Vergence
