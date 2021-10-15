@@ -22,6 +22,12 @@ struct TimedText
     float TimeToDie;
 };
 
+struct HUDTexture
+{
+    UTexture *U;
+    FVector2D Screen;
+};
+
 struct HUDLine
 {
     FVector2D Start; // start pt (2d) of line
@@ -58,6 +64,9 @@ UCLASS() class ADReyeVRHUD : public ACarlaHUD
     void DrawDynamicText(const FString &Str, const FVector &Loc, const FColor &Colour, const float Scale,
                          const bool bIsRelative, const UFont *Font = nullptr);
 
+    // drawing textures
+    void DrawDynamicTexture(UTexture *U, const FVector2D &Screen);
+
     // static (lifetime based) text
     void DrawStaticText(const FString &Str, const FVector2D &Loc, const FColor &Colour, const float Scale,
                         const float LifeTime, const UFont *Font = nullptr);
@@ -77,6 +86,7 @@ UCLASS() class ADReyeVRHUD : public ACarlaHUD
   private:
     /// TODO: figure out a better way than this to dynamically render
     TArray<HUDText> DynamicTextList;     // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicText
+    TArray<HUDTexture> DynamicTextures;  // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicTextures
     TArray<HUDLine> DynamicLineList;     // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicLine
     TArray<HUDRect> DynamicRectList;     // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicLine
     TArray<TimedText> StaticTextList;    // get added and remain until lifetime ends

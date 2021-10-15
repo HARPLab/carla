@@ -39,6 +39,13 @@ void ADReyeVRHUD::DrawHUD()
     }
     DynamicTextList.Empty(); // clear to reuse on next DrawHUD
 
+    // Draw texture components
+    for (const HUDTexture &HT : DynamicTextures)
+    {
+        DrawTextureSimple(HT.U, HT.Screen.X, HT.Screen.Y, 1.f, false);
+    }
+    DynamicTextures.Empty(); // clear to reuse on next DrawHUD
+
     // Draw line components
     for (const HUDLine &L : DynamicLineList)
     {
@@ -83,6 +90,12 @@ void ADReyeVRHUD::DrawDynamicText(const FString &Str, const FVector2D &Screen, c
 {
     HUDText DText{Str, Screen, Colour, Scale, const_cast<UFont *>(Font)};
     DynamicTextList.Add(std::move(DText));
+}
+
+void ADReyeVRHUD::DrawDynamicTexture(UTexture *U, const FVector2D &Screen)
+{
+    HUDTexture HTexture{U, Screen};
+    DynamicTextures.Add(std::move(HTexture));
 }
 
 void ADReyeVRHUD::DrawStaticText(const FString &Str, const FVector &Loc, const FColor &Colour, const float Scale,

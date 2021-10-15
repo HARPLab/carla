@@ -1,6 +1,7 @@
 #include "EgoVehicle.h"
 #include "Carla/Vehicle/VehicleControl.h"      // FVehicleControl
 #include "DrawDebugHelpers.h"                  // Debug Line/Sphere
+#include "Engine/EngineTypes.h"                // EBlendMode
 #include "Engine/World.h"                      // GetWorld
 #include "GameFramework/Actor.h"               // Destroy
 #include "HeadMountedDisplayFunctionLibrary.h" // SetTrackingOrigin, GetWorldToMetersScale
@@ -368,25 +369,13 @@ void AEgoVehicle::BeginPlay()
     EyeTrackerSensor->SetCamera(FirstPersonCam);
 
     // Enable VR spectator screen & eye reticle
+    InitReticleTexture(); // generate array of pixel values
     if (bDisableSpectatorScreen)
     {
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
     }
     else if (DrawSpectatorReticle && IsHMDConnected)
     {
-        if (!ReticleTexture)
-        {
-            InitReticleTexture(); // generate array of pixel values
-            /// NOTE: need to create transient like this bc of a UE4 bug in release mode
-            // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
-            ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
-            void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-            FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
-            ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
-            ReticleTexture->UpdateResource();
-            // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
-            //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
-        }
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
     }
@@ -573,8 +562,8 @@ void AEgoVehicle::InitReticleTexture()
                 const float Radius = ReticleDim.X / 3.f;
                 const int RadThickness = 3;
                 const int LineLen = 4 * RadThickness;
-                const float RadLo = Radius + LineLen;
-                const float RadHi = Radius - LineLen;
+                const float RadLo = Radius - LineLen;
+                const float RadHi = Radius + LineLen;
                 bool BelowRadius = (FMath::Square(x) + FMath::Square(y) <= FMath::Square(Radius + RadThickness));
                 bool AboveRadius = (FMath::Square(x) + FMath::Square(y) >= FMath::Square(Radius - RadThickness));
                 if (BelowRadius && AboveRadius)
@@ -595,6 +584,15 @@ void AEgoVehicle::InitReticleTexture()
             ReticleSrc.Add(Colour);
         }
     }
+    /// NOTE: need to create transient like this bc of a UE4 bug in release mode
+    // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
+    ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
+    void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+    FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
+    ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
+    ReticleTexture->UpdateResource();
+    // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
+    //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
 }
 
 void AEgoVehicle::DrawReticle()
@@ -606,25 +604,28 @@ void AEgoVehicle::DrawReticle()
     const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
     // 1m away from the origin
     const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
+
+    if (Player) // Get size of the viewport
+        Player->GetViewportSize(ViewSize.X, ViewSize.Y);
+    /// NOTE: this is the better way to get the ViewportSize
+    const FVector2D ViewportSize = FVector2D(GEngine->GameViewport->Viewport->GetSizeXY());
+    FVector2D ReticlePos;
+    if (Player)
+        UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
+    /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
+    /// NOTE: to get the best drawing, the texture is offset slightly by this vector
+    const FVector2D ScreenOffset(ReticleDim.X * 0.5f,
+                                 -ReticleDim.Y); // move X right by Dim.X/2, move Y up by Dim.Y
+    /// TODO: clamp to be within [0,1]
+    FVector2D TextureRectMin((ReticlePos.X + ScreenOffset.X) / ViewSize.X,
+                             (ReticlePos.Y + ScreenOffset.Y) / ViewSize.Y);
+    // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
+    FVector2D TextureRectMax((ReticlePos.X + ScreenOffset.X + ReticleDim.X) / ViewSize.X,
+                             (ReticlePos.Y + ScreenOffset.Y + ReticleDim.Y) / ViewSize.Y);
     if (IsHMDConnected)
     {
         if (DrawSpectatorReticle)
         {
-            if (Player) // Get size of the viewport
-                Player->GetViewportSize(ViewSize.X, ViewSize.Y);
-            FVector2D ReticlePos;
-            if (Player)
-                UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
-            /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
-            /// NOTE: to get the best drawing, the texture is offset slightly by this vector
-            const FVector2D ScreenOffset(ReticleDim.X * 0.5f,
-                                         -ReticleDim.Y); // move X right by Dim.X/2, move Y up by Dim.Y
-            /// TODO: clamp to be within [0,1]
-            FVector2D TextureRectMin((ReticlePos.X + ScreenOffset.X) / ViewSize.X,
-                                     (ReticlePos.Y + ScreenOffset.Y) / ViewSize.Y);
-            // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
-            FVector2D TextureRectMax((ReticlePos.X + ScreenOffset.X + ReticleDim.X) / ViewSize.X,
-                                     (ReticlePos.Y + ScreenOffset.Y + ReticleDim.Y) / ViewSize.Y);
             UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
                 FVector2D{0.f, 0.f}, // whole window (top left)
                 FVector2D{1.f, 1.f}, // whole window (top ->*bottom? right)
@@ -641,8 +642,31 @@ void AEgoVehicle::DrawReticle()
         if (DrawFlatReticle)
         {
             // Draw on user HUD (only for flat-view)
-            HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
-            HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
+            // HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
+            // HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
+            if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+            {
+                HUD->DrawDynamicTexture(ReticleTexture, ReticlePos); // TODO add scale
+                // see here for guide on DrawTexture
+                // https://answers.unrealengine.com/questions/41214/how-do-you-use-draw-texture.html
+                // HUD->DrawTextureSimple(ReticleTexture, ReticlePos.X, ReticlePos.Y, 10.f, false);
+                // HUD->DrawTexture(ReticleTexture,
+                //                  ReticlePos.X, // screen space X coord
+                //                  ReticlePos.Y, // screen space Y coord
+                //                  96,           // screen space width
+                //                  96,           // screen space height
+                //                  0,            // top left X of texture
+                //                  0,            // top left Y of texture
+                //                  1,            // bottom right X of texture
+                //                  1             // bottom right Y of texture
+                //                                //  FLinearColor::White,           // tint colour
+                //                                //  EBlendMode::BLEND_Translucent, // blend mode
+                //                                //  1.f,                           // scale
+                //                                //  false,                         // scale position
+                //                                //  0.f,                           // rotation
+                //                                //  FVector2D::ZeroVector          // rotation pivot
+                // );
+            }
         }
     }
 }
