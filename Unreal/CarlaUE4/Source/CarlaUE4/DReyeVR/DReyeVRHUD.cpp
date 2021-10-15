@@ -46,6 +46,9 @@ void ADReyeVRHUD::DrawHUD()
     }
     DynamicTextures.Empty(); // clear to reuse on next DrawHUD
 
+    // Draw reticle texture
+    DrawTextureSimple(ReticleTexture.U, ReticleTexture.Screen.X, ReticleTexture.Screen.Y, 1.f, false);
+
     // Draw line components
     for (const HUDLine &L : DynamicLineList)
     {
@@ -90,6 +93,12 @@ void ADReyeVRHUD::DrawDynamicText(const FString &Str, const FVector2D &Screen, c
 {
     HUDText DText{Str, Screen, Colour, Scale, const_cast<UFont *>(Font)};
     DynamicTextList.Add(std::move(DText));
+}
+
+void ADReyeVRHUD::DrawReticle(UTexture *U, const FVector2D &Screen)
+{
+    ReticleTexture.U = U;
+    ReticleTexture.Screen = Screen;
 }
 
 void ADReyeVRHUD::DrawDynamicTexture(UTexture *U, const FVector2D &Screen)

@@ -65,6 +65,7 @@ UCLASS() class ADReyeVRHUD : public ACarlaHUD
                          const bool bIsRelative, const UFont *Font = nullptr);
 
     // drawing textures
+    void DrawReticle(UTexture *U, const FVector2D &Screen);
     void DrawDynamicTexture(UTexture *U, const FVector2D &Screen);
 
     // static (lifetime based) text
@@ -85,6 +86,7 @@ UCLASS() class ADReyeVRHUD : public ACarlaHUD
 
   private:
     /// TODO: figure out a better way than this to dynamically render
+    HUDTexture ReticleTexture;
     TArray<HUDText> DynamicTextList;     // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicText
     TArray<HUDTexture> DynamicTextures;  // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicTextures
     TArray<HUDLine> DynamicLineList;     // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicLine
