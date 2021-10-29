@@ -1,7 +1,8 @@
 #pragma once
 
-#include "Carla/Sensor/DReyeVRSensor.h" // DReyeVRSensor
-#include "Carla/Sensor/DReyeVRSensorData.h"
+#include "Carla/Sensor/DReyeVRSensor.h"     // DReyeVRSensor
+#include "Carla/Sensor/DReyeVRSensorData.h" // DReyeVRSensorData
+#include "Components/SceneCaptureComponent2D.h"
 #include "CoreMinimal.h"
 #include <cstdint>
 /// NOTE: Can only use SRanipal on Windows machines
@@ -66,6 +67,8 @@ class CARLAUE4_API AEyeTracker : public AActor
     UWorld *World;                          // to get info about the world: time, frames, etc.
     APlayerController *Player;              // for APlayerCameraManager
     class UCameraComponent *FirstPersonCam; // for moving the camera upon recording
+    class UTextureRenderTarget2D *CaptureRenderTarget = nullptr;
+    class USceneCaptureComponent2D *FrameCap = nullptr;
 
   private:
     // Eye Tracker Variables

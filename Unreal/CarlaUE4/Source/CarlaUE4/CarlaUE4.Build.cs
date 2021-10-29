@@ -34,6 +34,9 @@ public class CarlaUE4 : ModuleRules
 			PrivateIncludePathModuleNames.AddRange(new string[] { "SRanipalEye" });
 		}
 
+
+		PrivateDependencyModuleNames.AddRange( new string[] {"ImageWriteQueue"});
+		
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 
