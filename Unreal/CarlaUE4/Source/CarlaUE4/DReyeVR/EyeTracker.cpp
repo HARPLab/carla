@@ -22,13 +22,13 @@ void throw_exception(const std::exception &e)
 AEyeTracker::AEyeTracker()
 {
     SensorData = new struct DReyeVR::SensorData;
-    /// NOTE: ConfigFile is defined in DReyeVRUtils.h
-    UE_LOG(LogTemp, Warning, TEXT("Reading config from %s"), *ConfigFile);
-    ReadConfigValue(ConfigFile, "CaptureFrameData", bCaptureFrameData);
-    ReadConfigValue(ConfigFile, "FrameCapWidth", FrameCapWidth);
-    ReadConfigValue(ConfigFile, "FrameCapHeight", FrameCapHeight);
-    ReadConfigValue(ConfigFile, "FrameCapLocation", FrameCapLocation);
-    ReadConfigValue(ConfigFile, "FrameCapFilename", FrameCapFilename);
+    ReadDReyeVRConfig();
+    ReadConfigValue("EyeTracker", "RecordFrames", bCaptureFrameData);
+    ReadConfigValue("EyeTracker", "FrameWidth", FrameCapWidth);
+    ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
+    ReadConfigValue("EyeTracker", "FrameDir", FrameCapLocation);
+    ReadConfigValue("EyeTracker", "FrameName", FrameCapFilename);
+
     if (bCaptureFrameData)
     {
         // Frame capture

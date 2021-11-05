@@ -16,6 +16,8 @@
 // Sets default values
 AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
+    ReadConfigVariables();
+
     // Initialize vehicle movement component
     InitVehicleMovement();
 
@@ -42,6 +44,21 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 
     // Initialize mirrors
     InitDReyeVRMirrors();
+}
+
+void AEgoVehicle::ReadConfigVariables()
+{
+    ReadDReyeVRConfig();
+    ReadConfigValue("EgoVehicle", "CameraInit", CameraLocnInVehicle);      // FVector
+    ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle); // FVector
+    ReadConfigValue("EgoVehicle", "ReticleThicknessX", ReticleThickness.X);
+    ReadConfigValue("EgoVehicle", "ReticleThicknessY", ReticleThickness.Y);
+    ReadConfigValue("EgoVehicle", "ReticleDimX", ReticleDim.X);
+    ReadConfigValue("EgoVehicle", "ReticleDimY", ReticleDim.Y);
+    ReadConfigValue("EgoVehicle", "InvertY", InvertY);
+    ReadConfigValue("EgoVehicle", "DrawSpectatorReticle", DrawSpectatorReticle);
+    ReadConfigValue("EgoVehicle", "DrawFlatReticle", DrawFlatReticle);
+    ReadConfigValue("EgoVehicle", "DrawGazeOnHUD", DrawGazeOnHUD);
 }
 
 void AEgoVehicle::InitVehicleMovement()
@@ -347,14 +364,13 @@ void AEgoVehicle::BeginPlay()
     IsHMDConnected = UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled();
     if (IsHMDConnected)
     {
-        UE_LOG(LogTemp, Log, TEXT("HMD detected"));
+        UE_LOG(LogTemp, Warning, TEXT("HMD detected"));
         // Now we'll begin with setting up the VR Origin logic
         UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Level
-        FirstPersonCam->SetRelativeLocation(HMDOffset);                                 // Offset Camera
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("NO HMD detected"));
+        UE_LOG(LogTemp, Warning, TEXT("NO HMD detected"));
     }
 
     // Spawn the EyeTracker Carla sensor and attach to Ego-Vehicle:

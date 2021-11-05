@@ -8,6 +8,7 @@
 #include "Components/SceneComponent.h"            // USceneComponent
 #include "CoreMinimal.h"                          // Unreal functions
 #include "DReyeVRHUD.h"                           // ADReyeVRHUD
+#include "DReyeVRUtils.h"                         // ReadConfigValue
 #include "EyeTracker.h"                           // AEyeTracker
 #include "ImageUtils.h"                           // CreateTexture2D
 #include "WheeledVehicle.h"                       // VehicleMovementComponent
@@ -74,8 +75,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
     class UCameraComponent *FirstPersonCam;
 
-    const FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // tunable per vehicle
-    const FVector HMDOffset{0.0f, 0.0f, 0.0f};                // tunable per all humans, default to zero-vector
+    FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // tunable per vehicle
     void InitCamera();
     void CameraPositionAdjust(const FVector &displacement);
 
@@ -127,14 +127,14 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class UPlanarReflectionComponent *RightReflection;
 
     // Cosmetic
-    bool bDisableSpectatorScreen = false;   // don't spent time rendering the spectator screen
-    void DrawReticle();                     // on Tick(), draw new reticle in eye-gaze posn
-    void InitReticleTexture();              // initializes the spectator-reticle texture
-    const FVector2D ReticleThickness{8, 8}; // 8px horizontal line and 8px vertical line
-    const FIntPoint ReticleDim{96, 96};     // size (px) of reticle texture (x, y)
-    TArray<FColor> ReticleSrc;              // pixel values array for eye reticle texture
-    UTexture2D *ReticleTexture;             // UE4 texture for eye reticle
-    FIntPoint ViewSize{1920, 1080};         // Size of the open window (viewport) not resolution (default to 1080p)
+    bool bDisableSpectatorScreen = false; // don't spent time rendering the spectator screen
+    void DrawReticle();                   // on Tick(), draw new reticle in eye-gaze posn
+    void InitReticleTexture();            // initializes the spectator-reticle texture
+    FVector2D ReticleThickness{8, 8};     // horizontal line and vertical line
+    FIntPoint ReticleDim{96, 96};         // size (px) of reticle texture (x, y)
+    TArray<FColor> ReticleSrc;            // pixel values array for eye reticle texture
+    UTexture2D *ReticleTexture;           // UE4 texture for eye reticle
+    FIntPoint ViewSize;                   // Size of the open window (viewport) not resolution (default to 1080p)
 
     // HUD variables (NOTE: ONLY FOR NON VR)
     class ADReyeVRHUD *HUD;
@@ -142,7 +142,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Text Render components (Like the HUD but works in VR)
     void InitDReyeVRText();
-    const FVector DashboardLocnInVehicle{110, 0, 105};
+    FVector DashboardLocnInVehicle{110, 0, 105};
     UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UTextRenderComponent *Speedometer;
     UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -173,8 +173,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     FVector RightGaze, RightOrigin;
 
     // Other variables
+    void ReadConfigVariables();
     void InitVehicleMovement();
-    /// TODO: present these to a user
     bool IsHMDConnected = false;      // checks for HMD connection on BeginPlay
     bool InvertY = false;             // whether or not to invert the mouse-camera movement
     bool DrawGazeOnHUD = false;       // whether or not to draw a line for gaze-ray on HUD

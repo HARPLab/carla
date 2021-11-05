@@ -5,64 +5,108 @@
 #include "HighResScreenshot.h" // FHighResScreenshotConfig
 #include "ImageWriteQueue.h"   // TImagePixelData
 #include "ImageWriteTask.h"    // FImageWriteTask
+#include <fstream>             // std::ifstream
+#include <sstream>             // std::istringstream
 #include <string>
+#include <unordered_map>
 
 /// this is the file where we'll read all DReyeVR specific configs
-static const FString ConfigFile =
+static const FString ConfigFilePath =
     FPaths::Combine(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()), TEXT("Config"), TEXT("DReyeVRConfig.ini"));
 
-static FString ReadKeyInConfig(const FString &FileNameWithPath, const FString &Key)
+static std::unordered_map<std::string, FString> Params = {};
+
+static std::string CreateVariableName(const std::string &Section, const std::string &Variable)
 {
-    FString value("");
-    std::string stdKey = std::string(TCHAR_TO_UTF8(*Key));
-    std::ifstream ConfigFile(TCHAR_TO_ANSI(*FileNameWithPath));
+    return Section + "/" + Variable; // encoding the variable alongside its section
+}
+static std::string CreateVariableName(const FString &Section, const FString &Variable)
+{
+    return CreateVariableName(std::string(TCHAR_TO_UTF8(*Section)), std::string(TCHAR_TO_UTF8(*Variable)));
+}
+
+static void ReadDReyeVRConfig()
+{
+    UE_LOG(LogTemp, Warning, TEXT("Reading config from %s"), *ConfigFilePath);
+    /// performs a single pass over the config file to collect all variables into Params
+    std::ifstream ConfigFile(TCHAR_TO_ANSI(*ConfigFilePath));
     if (ConfigFile)
     {
         std::string Line;
+        std::string Section = "";
         while (std::getline(ConfigFile, Line))
         {
+            // std::string stdKey = std::string(TCHAR_TO_UTF8(*Key));
+            if (Line[0] == ';') // ignore comments
+                continue;
             std::istringstream iss_Line(Line);
-            std::string FileKey;
-            if (std::getline(iss_Line, FileKey, '=')) // gets left side of '=' into FileKey
+            if (Line[0] == '[') // test section
             {
-                if (FileKey.compare(stdKey) == 0)
+                std::getline(iss_Line, Section, ']');
+                Section = Section.substr(1); // skip leading '['
+                continue;
+            }
+            std::string Key;
+            if (std::getline(iss_Line, Key, '=')) // gets left side of '=' into FileKey
+            {
+                std::string Value;
+                if (std::getline(iss_Line, Value, ';')) // gets left side of ';' for comments
                 {
-                    std::string value;
-                    if (std::getline(iss_Line, value))
-                    {
-                        return FString(value.c_str());
-                    }
+                    std::string VariableName = CreateVariableName(Section, Key);
+                    FString VariableValue = FString(Value.c_str());
+                    Params[VariableName] = VariableValue;
                 }
             }
         }
     }
     else
     {
-        std::cerr << "Unable to open the config file " << std::string(TCHAR_TO_UTF8(*FileNameWithPath)) << std::endl;
+        UE_LOG(LogTemp, Error, TEXT("Unable to open the config file %s"), *ConfigFilePath);
     }
-    std::cerr << "Coult not find key \"" << stdKey << "\"" << std::endl;
-    return value;
+    // for (auto &e : Params){
+    //     UE_LOG(LogTemp, Warning, TEXT("%s: %s"), *FString(e.first.c_str()), *e.second);
+    // }
 }
 
-static void ReadConfigValue(const FString &FileNameWithPath, const FString &VariableName, bool &Value)
+static void ReadConfigValue(const FString &Section, const FString &Variable, bool &Value)
 {
-    const FString ReadValue = ReadKeyInConfig(FileNameWithPath, VariableName);
-    Value = ReadValue.ToBool();
+    std::string VariableName = CreateVariableName(Section, Variable);
+    if (Params.find(VariableName) != Params.end())
+        Value = Params[VariableName].ToBool();
+    else
+        UE_LOG(LogTemp, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
 }
-static void ReadConfigValue(const FString &FileNameWithPath, const FString &VariableName, int &Value)
+static void ReadConfigValue(const FString &Section, const FString &Variable, int &Value)
 {
-    const FString ReadValue = ReadKeyInConfig(FileNameWithPath, VariableName);
-    Value = FCString::Atoi(*ReadValue);
+    std::string VariableName = CreateVariableName(Section, Variable);
+    if (Params.find(VariableName) != Params.end())
+        Value = FCString::Atoi(*Params[VariableName]);
+    else
+        UE_LOG(LogTemp, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
 }
-static void ReadConfigValue(const FString &FileNameWithPath, const FString &VariableName, float &Value)
+static void ReadConfigValue(const FString &Section, const FString &Variable, float &Value)
 {
-    const FString ReadValue = ReadKeyInConfig(FileNameWithPath, VariableName);
-    Value = FCString::Atof(*ReadValue);
+    std::string VariableName = CreateVariableName(Section, Variable);
+    if (Params.find(VariableName) != Params.end())
+        Value = FCString::Atof(*Params[VariableName]);
+    else
+        UE_LOG(LogTemp, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
 }
-static void ReadConfigValue(const FString &FileNameWithPath, const FString &VariableName, FString &Value)
+static void ReadConfigValue(const FString &Section, const FString &Variable, FVector &Value)
 {
-    const FString ReadValue = ReadKeyInConfig(FileNameWithPath, VariableName);
-    Value = ReadValue;
+    float ValueX, ValueY, ValueZ;
+    ReadConfigValue(Section, Variable + "X", ValueX);
+    ReadConfigValue(Section, Variable + "Y", ValueY);
+    ReadConfigValue(Section, Variable + "Z", ValueZ);
+    Value = FVector(ValueX, ValueY, ValueZ);
+}
+static void ReadConfigValue(const FString &Section, const FString &Variable, FString &Value)
+{
+    std::string VariableName = CreateVariableName(Section, Variable);
+    if (Params.find(VariableName) != Params.end())
+        Value = Params[VariableName];
+    else
+        UE_LOG(LogTemp, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
 }
 
 static void SaveFrameToDisk(UTextureRenderTarget2D &RenderTarget, const FString &FilePath)
