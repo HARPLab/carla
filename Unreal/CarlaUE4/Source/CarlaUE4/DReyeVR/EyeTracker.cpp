@@ -1,8 +1,4 @@
 #include "EyeTracker.h"
-#include "HighResScreenshot.h" // FHighResScreenshotConfig
-#include "HighResScreenshot.h" // HighResScreenshotConfig
-#include "ImageWriteQueue.h"   // TImagePixelData
-#include "ImageWriteTask.h"    // FImageWriteTask
 
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "UObject/UObjectBaseUtility.h" // GetName
@@ -26,71 +22,43 @@ void throw_exception(const std::exception &e)
 AEyeTracker::AEyeTracker()
 {
     SensorData = new struct DReyeVR::SensorData;
+    /// NOTE: ConfigFile is defined in DReyeVRUtils.h
+    UE_LOG(LogTemp, Warning, TEXT("Reading config from %s"), *ConfigFile);
+    ReadConfigValue(ConfigFile, "CaptureFrameData", bCaptureFrameData);
+    ReadConfigValue(ConfigFile, "FrameCapWidth", FrameCapWidth);
+    ReadConfigValue(ConfigFile, "FrameCapHeight", FrameCapHeight);
+    ReadConfigValue(ConfigFile, "FrameCapLocation", FrameCapLocation);
+    ReadConfigValue(ConfigFile, "FrameCapFilename", FrameCapFilename);
+    if (bCaptureFrameData)
+    {
+        // Frame capture
+        CaptureRenderTarget = CreateDefaultSubobject<UTextureRenderTarget2D>(TEXT("CaptureRenderTarget_DReyeVR"));
+        CaptureRenderTarget->CompressionSettings = TextureCompressionSettings::TC_Default;
+        CaptureRenderTarget->SRGB = false;
+        CaptureRenderTarget->bAutoGenerateMips = false;
+        CaptureRenderTarget->bGPUSharedFlag = true;
+        CaptureRenderTarget->ClearColor = FLinearColor::Black;
+        CaptureRenderTarget->UpdateResourceImmediate(true);
+        // CaptureRenderTarget->OverrideFormat = EPixelFormat::PF_FloatRGB;
+        CaptureRenderTarget->AddressX = TextureAddress::TA_Clamp;
+        CaptureRenderTarget->AddressY = TextureAddress::TA_Clamp;
+        const bool bInForceLinearGamma = false;
+        CaptureRenderTarget->InitCustomFormat(FrameCapWidth, FrameCapHeight, PF_B8G8R8A8, bInForceLinearGamma);
+        check(CaptureRenderTarget->GetSurfaceWidth() > 0 && CaptureRenderTarget->GetSurfaceHeight() > 0);
 
-    // Frame capture
-    CaptureRenderTarget = CreateDefaultSubobject<UTextureRenderTarget2D>(TEXT("CaptureRenderTarget_DReyeVR"));
-    CaptureRenderTarget->CompressionSettings = TextureCompressionSettings::TC_Default;
-    CaptureRenderTarget->SRGB = false;
-    CaptureRenderTarget->bAutoGenerateMips = false;
-    CaptureRenderTarget->bGPUSharedFlag = true;
-    CaptureRenderTarget->ClearColor = FLinearColor::Black;
-    CaptureRenderTarget->UpdateResourceImmediate(true);
-    // CaptureRenderTarget->OverrideFormat = EPixelFormat::PF_FloatRGB;
-    CaptureRenderTarget->AddressX = TextureAddress::TA_Clamp;
-    CaptureRenderTarget->AddressY = TextureAddress::TA_Clamp;
-    const bool bInForceLinearGamma = false;
-    CaptureRenderTarget->InitCustomFormat(400u, 300u, PF_B8G8R8A8, bInForceLinearGamma);
-    check(CaptureRenderTarget->GetSurfaceWidth() > 0 && CaptureRenderTarget->GetSurfaceHeight() > 0);
+        FrameCap = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("FrameCap"));
+        FrameCap->SetupAttachment(FirstPersonCam);
+        FrameCap->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+        FrameCap->bCaptureOnMovement = false;
+        FrameCap->bCaptureEveryFrame = false;
+        FrameCap->bAlwaysPersistRenderingState = true;
+        FrameCap->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
-    FrameCap = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("FrameCap"));
-    FrameCap->SetupAttachment(FirstPersonCam);
-    FrameCap->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
-    FrameCap->bCaptureOnMovement = false;
-    FrameCap->bCaptureEveryFrame = false;
-    FrameCap->bAlwaysPersistRenderingState = true;
-    FrameCap->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-
-    FrameCap->Deactivate();
-    FrameCap->TextureTarget = CaptureRenderTarget;
-    FrameCap->UpdateContent();
-    FrameCap->Activate();
-}
-
-void SaveFrameToDisk(UTextureRenderTarget2D &RenderTarget, const FString &FilePath)
-{
-    FTextureRenderTargetResource *RTResource = RenderTarget.GameThread_GetRenderTargetResource();
-    const size_t H = RenderTarget.GetSurfaceHeight();
-    const size_t W = RenderTarget.GetSurfaceWidth();
-    const FIntPoint DestSize(W, H);
-    TImagePixelData<FColor> PixelData(DestSize);
-    TArray<FColor> Pixels;
-    Pixels.AddUninitialized(H * W);
-    FReadSurfaceDataFlags ReadPixelFlags(RCM_MinMax); // RCM_UNorm);
-    ReadPixelFlags.SetLinearToGamma(false);
-    bool Success = RTResource->ReadPixels(Pixels, ReadPixelFlags);
-    PixelData.Pixels = Pixels;
-    TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
-    ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(PixelData);
-    ImageTask->Filename = FilePath;
-    ImageTask->Format = EImageFormat::PNG;
-    ImageTask->CompressionQuality = (int32)EImageCompressionQuality::Default;
-    ImageTask->bOverwriteFile = true;
-    ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
-    FHighResScreenshotConfig &HighResScreenshotConfig = GetHighResScreenshotConfig();
-    HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
-
-    /// TODO: write the OutBMP to disk via some ppm faniciness??
-    // might need to buffer several images then write all at once
-
-    // std::ofstream ofs(TCHAR_TO_ANSI(*FilePath), std::ios_base::out | std::ios_base::binary);
-    // ofs << "P6" << std::endl << W << ' ' << H << std::endl << "255" << std::endl;
-
-    // for (size_t i = 0u; i < Pixels.Num(); ++i)
-    // {
-    //     const FColor &RGB = Pixels[i];
-    //     ofs << char(RGB.R) << char(RGB.G) << char(RGB.B);
-    // }
-    // ofs.close();
+        FrameCap->Deactivate();
+        FrameCap->TextureTarget = CaptureRenderTarget;
+        FrameCap->UpdateContent();
+        FrameCap->Activate();
+    }
 }
 
 void AEyeTracker::BeginPlay()
@@ -122,6 +90,18 @@ void AEyeTracker::BeginPlay()
     cppDReyeVRSensor = World->SpawnActor<ADReyeVRSensor>(GetActorLocation(), GetActorRotation(), SpawnInfo);
     // Attach the DReyeVRSensor as a child to self
     cppDReyeVRSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+
+    // Set up frame capture
+    if (bCaptureFrameData)
+    {
+        // create out dir
+        /// TODO: add check for absolute paths
+        FrameCapLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() + FrameCapLocation);
+        UE_LOG(LogTemp, Log, TEXT("Outputting frame capture data to %s"), *FrameCapLocation);
+        IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+        if (!PlatformFile.DirectoryExists(*FrameCapLocation))
+            PlatformFile.CreateDirectory(*FrameCapLocation);
+    }
 }
 
 void AEyeTracker::BeginDestroy()
@@ -260,16 +240,16 @@ void AEyeTracker::Tick(float DeltaSeconds)
         FirstPersonCam->SetRelativeLocation(SensorData->HMDLocation, false, nullptr, ETeleportType::None);
     }
     // frame capture
-    if (FrameCap && FirstPersonCam)
+    if (bCaptureFrameData && FrameCap && FirstPersonCam)
     {
         FMinimalViewInfo DesiredView;
         FirstPersonCam->GetCameraView(0, DesiredView);
         FrameCap->SetCameraView(DesiredView); // move camera to the FirstPersonCam view
         FrameCap->CaptureScene();             // also available: CaptureSceneDeferred()
-        const FString FileName =
-            FString::Printf(TEXT("/mnt/DReyeVR/carla/FrameCap/DReyeVR_%04d.png"), SensorData->TimestampSR);
-        SaveFrameToDisk(*CaptureRenderTarget, FileName);
+        const FString Suffix = FString::Printf(TEXT("%04d.png"), TickCount);
+        SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix));
     }
+    TickCount++;
 }
 
 /// ========================================== ///
