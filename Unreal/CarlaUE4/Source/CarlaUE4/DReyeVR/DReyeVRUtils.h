@@ -94,11 +94,24 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, flo
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FVector &Value)
 {
-    float ValueX, ValueY, ValueZ;
-    ReadConfigValue(Section, Variable + "X", ValueX);
-    ReadConfigValue(Section, Variable + "Y", ValueY);
-    ReadConfigValue(Section, Variable + "Z", ValueZ);
-    Value = FVector(ValueX, ValueY, ValueZ);
+    std::string VariableName = CreateVariableName(Section, Variable);
+    if (Params.find(VariableName) != Params.end())
+    {
+        if (Value.InitFromString(Params[VariableName]) == false)
+        {
+            UE_LOG(LogTemp, Error, TEXT("Unable to construct FVector for %s from %s"), *FString(VariableName.c_str()),
+                   *(Params[VariableName]));
+        }
+    }
+    else
+        UE_LOG(LogTemp, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+}
+static void ReadConfigValue(const FString &Section, const FString &Variable, FRotator &Value)
+{
+    // simplu uses the same format as with FVector
+    FVector Tmp;
+    ReadConfigValue(Section, Variable, Tmp);
+    Value = FRotator(Tmp.X, Tmp.Y, Tmp.Z);
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FString &Value)
 {
@@ -130,7 +143,6 @@ static void SaveFrameToDisk(UTextureRenderTarget2D &RenderTarget, const FString 
     ImageTask->bOverwriteFile = true;
     ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
     FHighResScreenshotConfig &HighResScreenshotConfig = GetHighResScreenshotConfig();
-    UE_LOG(LogTemp, Log, TEXT("saving image"));
     HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
 
     /// TODO: write the OutBMP to disk via some ppm faniciness??

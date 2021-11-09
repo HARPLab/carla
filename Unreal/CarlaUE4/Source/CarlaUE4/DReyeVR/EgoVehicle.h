@@ -74,6 +74,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class USceneComponent *VRCameraRoot;
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
     class UCameraComponent *FirstPersonCam;
+    float FieldOfView = 90.f;
+    float PixelDensity = 1.f;
 
     FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // tunable per vehicle
     void InitCamera();
@@ -110,21 +112,21 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Mirrors
     void InitDReyeVRMirrors();
-    // rear view mirror
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UStaticMeshComponent *RearMirror;
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UPlanarReflectionComponent *RearReflection;
-    // left view mirror
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UStaticMeshComponent *LeftMirror;
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UPlanarReflectionComponent *LeftReflection;
-    // right view mirror
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UStaticMeshComponent *RightMirror;
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UPlanarReflectionComponent *RightReflection;
+    class Mirror
+    {
+      public:
+        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+        class UStaticMeshComponent *MirrorSM;
+        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+        class UPlanarReflectionComponent *Reflection;
+        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
+        FRotator MirrorRot, ReflectionRot;
+        float ScreenPercentage;
+        FString Name;
+        friend class EgoVehicle;
+    };
+    void InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM);
+    Mirror RightMirror, LeftMirror, RearMirror;
 
     // Cosmetic
     bool bDisableSpectatorScreen = false; // don't spent time rendering the spectator screen
@@ -152,6 +154,9 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void UpdateText();
 
     // Collision w/ other vehicles
+    FVector BBOrigin{3.07f, -0.59f, 74.74f}; // obtained by looking at blueprint values
+    FVector BBScale3D{7.51f, 3.38f, 2.37f};  // obtained by looking at blueprint values
+    FVector BBBoxExtent{32.f, 32.f, 32.f};   // obtained by looking at blueprint values
     void InitDReyeVRCollisions();
     UPROPERTY(Category = BoundingBox, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     UBoxComponent *Bounds;

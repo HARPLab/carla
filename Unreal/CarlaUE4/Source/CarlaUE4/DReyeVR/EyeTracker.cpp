@@ -59,6 +59,10 @@ AEyeTracker::AEyeTracker()
         FrameCap->UpdateContent();
         FrameCap->Activate();
     }
+    if (FrameCap && !bCaptureFrameData)
+    {
+        FrameCap->Deactivate();
+    }
 }
 
 void AEyeTracker::BeginPlay()
