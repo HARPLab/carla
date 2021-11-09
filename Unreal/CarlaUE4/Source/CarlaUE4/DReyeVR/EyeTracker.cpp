@@ -19,6 +19,8 @@ void throw_exception(const std::exception &e)
 } // namespace carla
 #endif
 
+#pragma region Main Thread Code
+
 AEyeTracker::AEyeTracker()
 {
     SensorData = new struct DReyeVR::SensorData;
@@ -28,6 +30,7 @@ AEyeTracker::AEyeTracker()
     ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
     ReadConfigValue("EyeTracker", "FrameDir", FrameCapLocation);
     ReadConfigValue("EyeTracker", "FrameName", FrameCapFilename);
+    DataCollector = new EyeTrackerThread(); /// TODO: start running upon begin play
 
     if (bCaptureFrameData)
     {
@@ -63,6 +66,11 @@ AEyeTracker::AEyeTracker()
     {
         FrameCap->Deactivate();
     }
+}
+
+AEyeTracker::~AEyeTracker()
+{
+    delete DataCollector;
 }
 
 void AEyeTracker::BeginPlay()
@@ -442,4 +450,42 @@ float AEyeTracker::CalculateVergenceFromDirections() const
     // Not calculating vergence without real values
     return 1.0f;
 #endif
+}
+
+#pragma endregion
+
+EyeTrackerThread::EyeTrackerThread()
+{
+    Thread = FRunnableThread::Create(this, TEXT("SRanipal Data Collection Thread"));
+}
+
+EyeTrackerThread::~EyeTrackerThread()
+{
+    if (Thread)
+    {
+        Thread->Kill();
+        delete Thread;
+    }
+}
+
+bool EyeTrackerThread::Init()
+{
+    UE_LOG(LogTemp, Warning, TEXT("Starting eye tracker collection logger"));
+    bRunThread = true;
+    return true;
+}
+
+uint32 EyeTrackerThread::Run()
+{
+    while (bRunThread)
+    {
+        // do SRanipal data collection here
+        FPlatformProcess::Sleep(0.00833f); // 120hz
+    }
+    return 0;
+}
+
+void EyeTrackerThread::Stop()
+{
+    bRunThread = false;
 }

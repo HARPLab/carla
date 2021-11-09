@@ -343,7 +343,7 @@ void AEgoVehicle::BeginPlay()
     {
         UE_LOG(LogTemp, Warning, TEXT("HMD detected"));
         // Now we'll begin with setting up the VR Origin logic
-        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eygoose); // Also have Floor & Stage Level
+        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Level
     }
     else
     {
