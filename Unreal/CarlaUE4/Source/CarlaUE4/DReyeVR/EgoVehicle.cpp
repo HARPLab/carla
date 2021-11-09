@@ -328,6 +328,8 @@ void AEgoVehicle::BeginPlay()
 
     // Get information about the world
     World = GetWorld();
+    const FString SetVRPixelDensity = "vr.PixelDensity " + FString::SanitizeFloat(PixelDensity);
+    World->Exec(World, *SetVRPixelDensity);
     Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
 
     // Setup the HUD
@@ -341,7 +343,7 @@ void AEgoVehicle::BeginPlay()
     {
         UE_LOG(LogTemp, Warning, TEXT("HMD detected"));
         // Now we'll begin with setting up the VR Origin logic
-        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Level
+        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eygoose); // Also have Floor & Stage Level
     }
     else
     {
