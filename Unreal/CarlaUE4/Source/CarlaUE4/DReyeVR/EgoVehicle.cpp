@@ -73,10 +73,12 @@ void AEgoVehicle::ReadConfigVariables()
     InitMirrorParams("Left", LeftMirror);
     InitMirrorParams("Rear", RearMirror);
     // cosmetic
+    ReadConfigValue("EgoVehicle", "UseRectangularReticle", bRectangularReticle);
     ReadConfigValue("EgoVehicle", "ReticleThicknessX", ReticleThickness.X);
     ReadConfigValue("EgoVehicle", "ReticleThicknessY", ReticleThickness.Y);
     ReadConfigValue("EgoVehicle", "ReticleDimX", ReticleDim.X);
     ReadConfigValue("EgoVehicle", "ReticleDimY", ReticleDim.Y);
+    ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
     ReadConfigValue("EgoVehicle", "InvertY", InvertY);
     ReadConfigValue("EgoVehicle", "DrawSpectatorReticle", DrawSpectatorReticle);
     ReadConfigValue("EgoVehicle", "DrawFlatReticle", DrawFlatReticle);
@@ -504,18 +506,21 @@ void AEgoVehicle::DebugLines() const
     FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
 
     // Use Absolute Ray Position to draw debug information
-//    DrawDebugSphere(World, CombinedGazePosn, 4.0f, 12, FColor::Blue);
-//
-//    // Draw individual rays for left and right eye
-//    DrawDebugLine(World,
-//                  LeftOrigin,                                        // start line
-//                  LeftOrigin + 10 * WorldRot.RotateVector(LeftGaze), // end line
-//                  FColor::Green, false, -1, 0, 1);
-//
-//    DrawDebugLine(World,
-//                  RightOrigin,                                         // start line
-//                  RightOrigin + 10 * WorldRot.RotateVector(RightGaze), // end line
-//                  FColor::Yellow, false, -1, 0, 1);
+    if (bDrawDebugEditor)
+    {
+        DrawDebugSphere(World, CombinedGazePosn, 4.0f, 12, FColor::Blue);
+
+        // Draw individual rays for left and right eye
+        DrawDebugLine(World,
+                      LeftOrigin,                                        // start line
+                      LeftOrigin + 10 * WorldRot.RotateVector(LeftGaze), // end line
+                      FColor::Green, false, -1, 0, 1);
+
+        DrawDebugLine(World,
+                      RightOrigin,                                         // start line
+                      RightOrigin + 10 * WorldRot.RotateVector(RightGaze), // end line
+                      FColor::Yellow, false, -1, 0, 1);
+    }
 #endif
     if (DrawGazeOnHUD)
     {
@@ -534,7 +539,6 @@ void AEgoVehicle::ToggleGazeHUD()
 void AEgoVehicle::InitReticleTexture()
 {
     // Used to initialize any bitmap-based image that will be used as a reticle
-    const bool bRectangularReticle = false;          // TODO: parametrize
     ReticleSrc.Reserve(ReticleDim.X * ReticleDim.Y); // allocate width*height space
     for (int i = 0; i < ReticleDim.X; i++)
     {
@@ -641,36 +645,45 @@ void AEgoVehicle::DrawReticle()
         if (DrawFlatReticle)
         {
             // Draw on user HUD (only for flat-view)
-            // HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
-            // HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
-            if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
+            if (bRectangularReticle)
             {
-                InitReticleTexture();
+                HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
             }
-            if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+            else
             {
-                /// TODO: add scale
-                HUD->DrawDynamicTexture(ReticleTexture,
-                                        ReticlePos + FVector2D(-ReticleDim.X * 0.5f, -ReticleDim.Y * 0.5f));
-                // see here for guide on DrawTexture
-                // https://answers.unrealengine.com/questions/41214/how-do-you-use-draw-texture.html
-                // HUD->DrawTextureSimple(ReticleTexture, ReticlePos.X, ReticlePos.Y, 10.f, false);
-                // HUD->DrawTexture(ReticleTexture,
-                //                  ReticlePos.X, // screen space X coord
-                //                  ReticlePos.Y, // screen space Y coord
-                //                  96,           // screen space width
-                //                  96,           // screen space height
-                //                  0,            // top left X of texture
-                //                  0,            // top left Y of texture
-                //                  1,            // bottom right X of texture
-                //                  1             // bottom right Y of texture
-                //                                //  FLinearColor::White,           // tint colour
-                //                                //  EBlendMode::BLEND_Translucent, // blend mode
-                //                                //  1.f,                           // scale
-                //                                //  false,                         // scale position
-                //                                //  0.f,                           // rotation
-                //                                //  FVector2D::ZeroVector          // rotation pivot
-                // );
+                // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
+                // crashes the thread its on by invalidating the ReticleTexture->Resource which is
+                // non-const (but should be!!) This has to be a bug in UE4 code that we unfortunately have
+                // to work around
+                if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
+                {
+                    InitReticleTexture();
+                }
+                if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+                {
+                    /// TODO: add scale
+                    HUD->DrawReticle(ReticleTexture,
+                                     ReticlePos + FVector2D(-ReticleDim.X * 0.5f, -ReticleDim.Y * 0.5f));
+                    // see here for guide on DrawTexture
+                    // https://answers.unrealengine.com/questions/41214/how-do-you-use-draw-texture.html
+                    // HUD->DrawTextureSimple(ReticleTexture, ReticlePos.X, ReticlePos.Y, 10.f, false);
+                    // HUD->DrawTexture(ReticleTexture,
+                    //                  ReticlePos.X, // screen space X coord
+                    //                  ReticlePos.Y, // screen space Y coord
+                    //                  96,           // screen space width
+                    //                  96,           // screen space height
+                    //                  0,            // top left X of texture
+                    //                  0,            // top left Y of texture
+                    //                  1,            // bottom right X of texture
+                    //                  1             // bottom right Y of texture
+                    //                                //  FLinearColor::White,           // tint colour
+                    //                                //  EBlendMode::BLEND_Translucent, // blend mode
+                    //                                //  1.f,                           // scale
+                    //                                //  false,                         // scale position
+                    //                                //  0.f,                           // rotation
+                    //                                //  FVector2D::ZeroVector          // rotation pivot
+                    // );
+                }
             }
         }
     }

@@ -130,6 +130,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Cosmetic
     bool bDisableSpectatorScreen = false; // don't spent time rendering the spectator screen
+    bool bRectangularReticle = false;     // Draw a simple box reticle instead of crosshairs
     void DrawReticle();                   // on Tick(), draw new reticle in eye-gaze posn
     void InitReticleTexture();            // initializes the spectator-reticle texture
     FVector2D ReticleThickness{8, 8};     // horizontal line and vertical line
@@ -173,6 +174,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class UAudioComponent *CrashSound;         // crashing with another actor
 
     // Eye gaze variables
+    bool bDrawDebugEditor = false;
     FVector CombinedGaze, CombinedOrigin;
     FVector LeftGaze, LeftOrigin;
     FVector RightGaze, RightOrigin;
