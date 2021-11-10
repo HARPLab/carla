@@ -111,7 +111,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FRo
     // simplu uses the same format as with FVector
     FVector Tmp;
     ReadConfigValue(Section, Variable, Tmp);
-    Value = FRotator(Tmp.X, Tmp.Y, Tmp.Z);
+    Value = FRotator(Tmp.Y, Tmp.Z, Tmp.X).Clamp(); // Convert to euler FRotators
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FString &Value)
 {

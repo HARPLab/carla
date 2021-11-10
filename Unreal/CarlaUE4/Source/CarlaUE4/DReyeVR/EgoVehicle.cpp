@@ -266,6 +266,7 @@ void AEgoVehicle::InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticM
     M.MirrorSM->SetRelativeScale3D(M.MirrorScale);
     M.MirrorSM->SetGenerateOverlapEvents(false); // don't collide with itself
     M.MirrorSM->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    M.MirrorSM->SetVisibility(true);
 
     M.Reflection = CreateDefaultSubobject<UPlanarReflectionComponent>(FName(*(M.Name + "Reflection")));
     M.Reflection->AttachTo(M.MirrorSM);
@@ -282,6 +283,7 @@ void AEgoVehicle::InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticM
     M.Reflection->ScreenPercentage = M.ScreenPercentage; // change this to reduce quality & improve performance
     M.Reflection->bShowPreviewPlane = false;
     M.Reflection->HideComponent(GetMesh());
+    M.Reflection->SetVisibility(true);
 }
 
 void AEgoVehicle::InitDReyeVRMirrors()
