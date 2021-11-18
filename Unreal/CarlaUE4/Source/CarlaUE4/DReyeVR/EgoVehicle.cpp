@@ -312,7 +312,9 @@ void AEgoVehicle::Tick(float DeltaTime)
 	const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
 	const FVector WorldPos = FirstPersonCam->GetComponentLocation();
 	FVector HeadDirection = WorldRot.Vector();
-
+	VehicleInputs.CombinedOrigin = CombinedOrigin;
+	VehicleInputs.WorldRot = WorldRot;
+	VehicleInputs.WorldPos = WorldPos;
 	FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
 	GenerateSphere(HeadDirection, CombinedGazePosn, WorldRot, WorldPos, LightBallObject, DeltaTime);
 
@@ -329,11 +331,13 @@ void AEgoVehicle::Tick(float DeltaTime)
 	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
 	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
 	*/
+	/*
 	UE_LOG(LogTemp, Log, TEXT("HeadDirection logging %s"), *HeadDirection.ToString());
 	UE_LOG(LogTemp, Log, TEXT("ButtonPress, %d"), VehicleInputs.ButtonPressed);
 	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
-	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
-	UE_LOG(LogTemp, Log, TEXT("WorldPos logging %s"), *WorldPos.ToString());
+	*/
+	//UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
+	//UE_LOG(LogTemp, Log, TEXT("WorldPos logging %s"), *WorldPos.ToString());
 
 #if USE_LOGITECH_WHEEL
     if (IsLogiConnected)
@@ -371,7 +375,14 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 
     // Both eyes
     CombinedGaze = Vergence * UE4MeterScale * EyeTrackerSensor->GetCenterGazeRay();
+	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
+	UE_LOG(LogTemp, Log, TEXT("EyeTrackerSensor->GetCenterGazeRay() logging %s"), *EyeTrackerSensor->GetCenterGazeRay().ToString());
     CombinedOrigin = WorldRot.RotateVector(EyeTrackerSensor->GetCenterOrigin()) + WorldPos;
+	UE_LOG(LogTemp, Log, TEXT("WorldPos logging %s"), *WorldPos.ToString());
+	UE_LOG(LogTemp, Log, TEXT("WorldRot logging %s"), *WorldRot.ToString());
+	UE_LOG(LogTemp, Log, TEXT("FirstPersonCam->GetRelativeLocation() logging %s"), *FirstPersonCam->GetRelativeLocation().ToString());
+	UE_LOG(LogTemp, Log, TEXT("FirstPersonCam->GetRelativeRotation() logging %s"), *FirstPersonCam->GetRelativeRotation().ToString());
+	UE_LOG(LogTemp, Log, TEXT("EyeTrackerSensor->GetCenterOrigin() logging %s"), *EyeTrackerSensor->GetCenterOrigin().ToString());
 
     // Left eye
     LeftGaze = UE4MeterScale * EyeTrackerSensor->GetLeftGazeRay();
@@ -768,7 +779,7 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 {
 	float CenterMagnitude = (CombinedGazePosn - CombinedOrigin).Size();
 	FVector UnitGazeVec = (CombinedGazePosn - CombinedOrigin) / CenterMagnitude;
-	//UE_LOG(LogTemp, Log, TEXT("UnitGazVec, %s"), *UnitGazeVec.ToString());
+	UE_LOG(LogTemp, Log, TEXT("UnitGazVec, %s"), *UnitGazeVec.ToString());
 
 	// generate stimuli every 5 second chunks, and log that time
 	if (TimeSinceIntervalStart < 10) {
@@ -777,9 +788,11 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 			RotVec = GenerateRotVec(HeadDirection, yawMax, pitchMax, vert_offset);
 
 			// Get angles between head direction and light posn
-			auto angles = AEgoVehicle::GetAngles(HeadDirection, RotVec);
-			curr_pitch = std::get<0>(angles);
-			curr_yaw = std::get<1>(angles);
+			auto head2light_angles = AEgoVehicle::GetAngles(HeadDirection, RotVec);
+			head2light_pitch = std::get<0>(head2light_angles);
+			head2light_yaw = std::get<1>(head2light_angles);
+			VehicleInputs.head2target_pitch = head2light_pitch;
+			VehicleInputs.head2target_yaw = head2light_yaw;
 
 			// Generate random time to start flashing during the interval
 			TimeStart = FMath::RandRange(1.f, 9.f);
@@ -815,7 +828,7 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 	
 	// Generate the posn of the light given current angles
 	float DistanceFromDriver = CenterMagnitude*3;
-	FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, curr_yaw, curr_pitch);
+	FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, head2light_yaw, head2light_pitch);
 	FVector HeadPos = FirstPersonCam->GetComponentLocation();
 	FVector RotVecDirectionPosn = HeadPos + RotVecDirection * DistanceFromDriver;
 
@@ -827,11 +840,11 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 	*/
 
 	// Calculate gaze angles of light posn wrt eye gaze
-	auto gaze_angles = AEgoVehicle::GetAngles(UnitGazeVec, RotVecDirection);
-	gaze_pitch = std::get<0>(gaze_angles);
-	gaze_yaw = std::get<1>(gaze_angles);
-	VehicleInputs.pitch = gaze_pitch;
-	VehicleInputs.yaw = gaze_yaw;
+	auto eye2light_angles = AEgoVehicle::GetAngles(UnitGazeVec, RotVecDirection);
+	eye2light_pitch = std::get<0>(eye2light_angles);
+	eye2light_yaw = std::get<1>(eye2light_angles);
+	VehicleInputs.gaze2target_pitch = eye2light_pitch;
+	VehicleInputs.gaze2target_yaw = eye2light_yaw;
 
 	// Calculate gaze angles of eye gaze wrt head direction
 	/*
@@ -842,11 +855,11 @@ void AEgoVehicle::GenerateSphere(FVector HeadDirection, FVector CombinedGazePosn
 	VehicleInputs.gazeHeadYaw = gaze_from_head_yaw;
 	*/
 
-	//UE_LOG(LogTemp, Log, TEXT("curr_pitch, %f"), curr_pitch);
-	//UE_LOG(LogTemp, Log, TEXT("curr_yaw, %f"), curr_yaw);
 	
-	UE_LOG(LogTemp, Log, TEXT("pitch, %f"), VehicleInputs.pitch);
-	UE_LOG(LogTemp, Log, TEXT("yaw, %f"), VehicleInputs.yaw);
+	UE_LOG(LogTemp, Log, TEXT("eye2light_pitch, %f"), eye2light_pitch);
+	UE_LOG(LogTemp, Log, TEXT("eye2light_yaw, %f"), eye2light_yaw);
+	UE_LOG(LogTemp, Log, TEXT("head2light_pitch, %f"), head2light_pitch);
+	UE_LOG(LogTemp, Log, TEXT("head2light_yaw, %f"), head2light_yaw);
 	UE_LOG(LogTemp, Log, TEXT("Light On: %d"), VehicleInputs.LightOn);
 	
 	// Draw debug border markers
@@ -973,14 +986,13 @@ void AEgoVehicle::LogitechWheelUpdate()
         UE_LOG(LogTemp, Log, TEXT("Reversing: Dpad value %f"), Dpad);
         ToggleReverse();
     }
-    if (WheelState->rgbButtons[4])
+    if (WheelState->rgbButtons[4] || WheelState->rgbButtons[5])
     {
 		PressButton();
-    }
-    if (WheelState->rgbButtons[5])
-    {
-        PressButton();
-    }
+	}
+	else {
+		ReleaseButton();
+	}
 }
 
 void AEgoVehicle::ApplyForceFeedback() const

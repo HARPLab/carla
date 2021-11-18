@@ -60,10 +60,10 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 	float TimeBetweenFlash = 2.0f;
 	float TimeSinceIntervalStart = 0.f;
 	float TimeStart = 0.f;
-	float curr_pitch = 0.f;
-	float curr_yaw = 0.f;
-	float gaze_pitch = 0.f;
-	float gaze_yaw = 0.f;
+	float head2light_pitch = 0.f;
+	float head2light_yaw = 0.f;
+	float eye2light_pitch = 0.f;
+	float eye2light_yaw = 0.f;
 	float vert_offset = 0.15f;
 	int Ticks = 0;
 	FVector RotVec = FVector(1, 0, 0);

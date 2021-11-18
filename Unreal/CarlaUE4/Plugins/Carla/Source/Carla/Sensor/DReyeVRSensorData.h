@@ -40,10 +40,14 @@ struct UserInputs
     // Add more inputs here!
 	bool LightOn = false;
 	bool ButtonPressed = false;
-	float pitch = 0.f;
-	float yaw = 0.f;
-	//float gazeHeadPitch = 0.f;
-	//float gazeHeadYaw = 0.f;
+	float gaze2target_pitch = 0.f;
+	float gaze2target_yaw = 0.f;
+	float head2target_pitch = 0.f;
+	float head2target_yaw = 0.f;
+	FVector WorldPos = FVector::ZeroVector;
+	FRotator WorldRot = FRotator::ZeroRotator;
+	FVector CombinedOrigin = FVector::ZeroVector; // Absolute Eye Origin
+	
 
     // helper functions
     void Clear()
