@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>  // timing threads
 #include <cstdint> // int64_t
 #include <iostream>
 #include <string>
@@ -51,21 +52,39 @@ struct UserInputs
     }
 };
 
-struct SensorData // everything being held by this sensor
+struct FocusInfo
 {
-    SensorData()
+    // substitute for SRanipal FFocusInfo in SRanipal_Eyes_Enums.h
+    TWeakObjectPtr<class AActor> Actor;
+    float Distance;
+    FVector Point;
+    FVector Normal;
+};
+
+struct SRanipalData
+{
+    SRanipalData()
     {
         // Assign default values to SensorData
         Combined.Origin = FVector(-5.60, 0.14, 1.12);
         Left.Origin = FVector(-6.308, 3.247, 1.264);
         Right.Origin = FVector(-5.284, -3.269, 1.014);
-        FocusActorName = FString("None");
     }
-    int64_t TimestampSR = 0;    // timestamp of when the frame was captured by SRanipal. in Seconds
-    int64_t TimestampCarla = 0; // Timestamp within Carla of when the EyeTracker Tick() occurred
-    int64_t FrameSequence = 0;  // Frame sequence of the SRanipal
+    int64_t TimestampSR = 0;   // timestamp of when the frame was captured by SRanipal. in Seconds
+    int64_t FrameSequence = 0; // Frame sequence of the SRanipal
     ComboEyeData Combined;
     SingleEyeData Left, Right;
+};
+
+struct SensorData // everything being held by this sensor
+{
+    SensorData()
+    {
+        FocusActorName = FString("None");
+    }
+    int64_t TimestampCarla = 0; // Timestamp within Carla of when the EyeTracker Tick() occurred
+    // SRanipal eye tracker data
+    SRanipalData EyeTrackerData;
     // HMD position and orientation
     FVector HMDLocation = FVector::ZeroVector;    // initialized as {0,0,0}
     FRotator HMDRotation = FRotator::ZeroRotator; // initialized to {0,0,0}

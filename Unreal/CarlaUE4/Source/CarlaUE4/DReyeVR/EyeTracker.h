@@ -5,7 +5,9 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "CoreMinimal.h"
 #include "DReyeVRUtils.h"
+#include <chrono> // timing threads
 #include <cstdint>
+
 /// NOTE: Can only use SRanipal on Windows machines
 #ifdef _WIN32
 #include "SRanipalEye.h"      // SRanipal Module Framework
@@ -36,10 +38,19 @@ class CARLAUE4_API EyeTrackerThread : public FRunnable
     bool Init() override;
     uint32 Run() override;
     void Stop() override;
+    DReyeVR::SRanipalData GetLatestSensorData() const;
 
   private:
+    std::chrono::duration UnixStartTime;
     FRunnableThread *Thread;
-    bool bRunThread;
+    // Eye Tracker Variables
+#if USE_SRANIPAL
+    SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
+    SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
+    ViveSR::anipal::Eye::EyeData EyeData;     // SRanipal_Eyes_Enums.h
+#endif
+    bool bRunDataCollector;
+    std::vector<DReyeVR::SRanipalData> CapturedData;
 };
 
 UCLASS()
@@ -86,16 +97,7 @@ class CARLAUE4_API AEyeTracker : public AActor
     class UCameraComponent *FirstPersonCam; // for moving the camera upon recording
 
   private:
-    // Eye Tracker Variables
-#if USE_SRANIPAL
-    SRanipalEye_Core *SRanipal;                              // SRanipalEye_Core.h
-    SRanipalEye_Framework *SRanipalFramework;                // SRanipalEye_Framework.h
-    ViveSR::anipal::Eye::EyeData EyeData;                    // SRanipal_Eyes_Enums.h
-    FFocusInfo FocusInfo;                                    // SRanipal_Eyes_Enums.h
-    bool SRanipalFocus(const ECollisionChannel TraceChannel, // reimplementing the SRanipal Focus so it actually works
-                       FFocusInfo &F, const float radius);   // custom
-#endif
-    class EyeTrackerThread *DataCollector;
+    class EyeTrackerThread *DataCollectorThread;
     int64_t TimestampRef; // reference timestamp (ms) since the hmd started ticking
 
     // everything stored in the sensor is held in this struct
@@ -114,5 +116,7 @@ class CARLAUE4_API AEyeTracker : public AActor
     int FrameCapHeight;
 
     // Helper functions
+    bool ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, // reimplementing the SRanipal Focus
+                               DReyeVR::FocusInfo &F, const float radius);
     float CalculateVergenceFromDirections() const; // Calculating Vergence
 };

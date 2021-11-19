@@ -78,32 +78,35 @@ void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSec
     if (ClientInitialized)
     {
         auto Stream = GetDataStream(*this);
+        auto &SR_Combo = Snapshot->EyeTrackerData.Combined;
+        auto &SR_Right = Snapshot->EyeTrackerData.Right;
+        auto &SR_Left = Snapshot->EyeTrackerData.Left;
         Stream.Send(*this,
-                    Snapshot->TimestampSR,                             // Timestamp of SRanipal (ms)
+                    Snapshot->EyeTrackerData.TimestampSR,              // Timestamp of SRanipal (ms)
                     Snapshot->TimestampCarla,                          // Timestamp of Carla (ms)
-                    Snapshot->FrameSequence,                           // Frame sequence
-                    FVectorToGeom(Snapshot->Combined.GazeRay),         // Stream GazeRay Vec3
-                    FVectorToGeom(Snapshot->Combined.Origin),          // Stream EyeOrigin Vec3
-                    Snapshot->Combined.GazeValid,                      // Validity of combined gaze
-                    Snapshot->Combined.Vergence,                       // Vergence (float) of combined ray
+                    Snapshot->EyeTrackerData.FrameSequence,            // Frame sequence
+                    FVectorToGeom(SR_Combo.GazeRay),                   // Stream GazeRay Vec3
+                    FVectorToGeom(SR_Combo.Origin),                    // Stream EyeOrigin Vec3
+                    SR_Combo.GazeValid,                                // Validity of combined gaze
+                    SR_Combo.Vergence,                                 // Vergence (float) of combined ray
                     FVectorToGeom(Snapshot->HMDLocation),              // HMD absolute location
                     FRotatorToGeom(Snapshot->HMDRotation),             // HMD absolute rotation
-                    FVectorToGeom(Snapshot->Left.GazeRay),             // Left eye gaze ray
-                    FVectorToGeom(Snapshot->Left.Origin),              // left eye origin
-                    Snapshot->Left.GazeValid,                          // Validity of left gaze
-                    FVectorToGeom(Snapshot->Right.GazeRay),            // right eye gaze ray
-                    FVectorToGeom(Snapshot->Right.Origin),             // right eye origin
-                    Snapshot->Right.GazeValid,                         // Validity of right gaze
-                    Snapshot->Left.EyeOpenness,                        // left eye openness
-                    Snapshot->Left.EyeOpenValid,                       // Validity of left eye openness
-                    Snapshot->Right.EyeOpenness,                       // right eye openness
-                    Snapshot->Right.EyeOpenValid,                      // Validity of right eye openness
-                    FVector2DToGeom2D(Snapshot->Left.PupilPos),        // left pupil position
-                    Snapshot->Left.PupilPosValid,                      // Validity of left eye posn
-                    FVector2DToGeom2D(Snapshot->Right.PupilPos),       // right pupil position
-                    Snapshot->Right.PupilPosValid,                     // Validity of left eye posn
-                    Snapshot->Left.PupilDiam,                          // Left eye diameter (mm)
-                    Snapshot->Right.PupilDiam,                         // Right eye diameter (mm)
+                    FVectorToGeom(SR_Left.GazeRay),                    // Left eye gaze ray
+                    FVectorToGeom(SR_Left.Origin),                     // left eye origin
+                    SR_Left.GazeValid,                                 // Validity of left gaze
+                    FVectorToGeom(SR_Right.GazeRay),                   // right eye gaze ray
+                    FVectorToGeom(SR_Right.Origin),                    // right eye origin
+                    SR_Right.GazeValid,                                // Validity of right gaze
+                    SR_Left.EyeOpenness,                               // left eye openness
+                    SR_Left.EyeOpenValid,                              // Validity of left eye openness
+                    SR_Right.EyeOpenness,                              // right eye openness
+                    SR_Right.EyeOpenValid,                             // Validity of right eye openness
+                    FVector2DToGeom2D(SR_Left.PupilPos),               // left pupil position
+                    SR_Left.PupilPosValid,                             // Validity of left eye posn
+                    FVector2DToGeom2D(SR_Right.PupilPos),              // right pupil position
+                    SR_Right.PupilPosValid,                            // Validity of left eye posn
+                    SR_Left.PupilDiam,                                 // Left eye diameter (mm)
+                    SR_Right.PupilDiam,                                // Right eye diameter (mm)
                     carla::rpc::FromFString(Snapshot->FocusActorName), // Focus Actor's name
                     FVectorToGeom(Snapshot->FocusActorPoint),          // Focus Actor's location in world space
                     Snapshot->FocusActorDist,                          // Focus Actor's distance to the sensor

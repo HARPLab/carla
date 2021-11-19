@@ -15,9 +15,9 @@
 void ReadTimings(std::ifstream &InFile, DReyeVR::SensorData &Snapshot)
 {
     // all the timing values in SRanipal
-    ReadValue<int64_t>(InFile, Snapshot.TimestampSR);
+    ReadValue<int64_t>(InFile, Snapshot.EyeTrackerData.TimestampSR);
     ReadValue<int64_t>(InFile, Snapshot.TimestampCarla);
-    ReadValue<int64_t>(InFile, Snapshot.FrameSequence);
+    ReadValue<int64_t>(InFile, Snapshot.EyeTrackerData.FrameSequence);
 }
 
 void ReadEyeData(std::ifstream &InFile, DReyeVR::EyeData &Eye)
@@ -66,9 +66,9 @@ void ReadInputs(std::ifstream &InFile, DReyeVR::UserInputs &In)
 void DReyeVRDataRecorder::Read(std::ifstream &InFile)
 {
     ReadTimings(InFile, this->Data);
-    ReadComboEyeData(InFile, this->Data.Combined);
-    ReadSingleEyeData(InFile, this->Data.Left);
-    ReadSingleEyeData(InFile, this->Data.Right);
+    ReadComboEyeData(InFile, this->Data.EyeTrackerData.Combined);
+    ReadSingleEyeData(InFile, this->Data.EyeTrackerData.Left);
+    ReadSingleEyeData(InFile, this->Data.EyeTrackerData.Right);
     ReadFVector(InFile, this->Data.HMDLocation);
     ReadFRotator(InFile, this->Data.HMDRotation);
     ReadFocusActor(InFile, this->Data);
@@ -83,9 +83,9 @@ void DReyeVRDataRecorder::Read(std::ifstream &InFile)
 void WriteTimings(std::ofstream &OutFile, const DReyeVR::SensorData &Snapshot)
 {
     // all the timing values in SRanipal
-    WriteValue<int64_t>(OutFile, Snapshot.TimestampSR);
+    WriteValue<int64_t>(OutFile, Snapshot.EyeTrackerData.TimestampSR);
     WriteValue<int64_t>(OutFile, Snapshot.TimestampCarla);
-    WriteValue<int64_t>(OutFile, Snapshot.FrameSequence);
+    WriteValue<int64_t>(OutFile, Snapshot.EyeTrackerData.FrameSequence);
 }
 
 void WriteEyeData(std::ofstream &OutFile, const DReyeVR::EyeData &Eye)
@@ -134,9 +134,9 @@ void WriteInputs(std::ofstream &OutFile, const DReyeVR::UserInputs &In)
 void DReyeVRDataRecorder::Write(std::ofstream &OutFile) const
 {
     WriteTimings(OutFile, this->Data);
-    WriteComboEyeData(OutFile, this->Data.Combined);
-    WriteSingleEyeData(OutFile, this->Data.Left);
-    WriteSingleEyeData(OutFile, this->Data.Right);
+    WriteComboEyeData(OutFile, this->Data.EyeTrackerData.Combined);
+    WriteSingleEyeData(OutFile, this->Data.EyeTrackerData.Left);
+    WriteSingleEyeData(OutFile, this->Data.EyeTrackerData.Right);
     WriteFVector(OutFile, this->Data.HMDLocation);
     WriteFRotator(OutFile, this->Data.HMDRotation);
     WriteFocusActor(OutFile, this->Data);
@@ -172,37 +172,41 @@ inline std::string VecToString(const FRotator &X)
 std::string DReyeVRDataRecorder::Print() const
 {
     std::ostringstream oss;
+    auto &SR_Combo = Data.EyeTrackerData.Combined;
+    auto &SR_Right = Data.EyeTrackerData.Right;
+    auto &SR_Left = Data.EyeTrackerData.Left;
+
     const std::string delim = "; ";                                       // semicolon + space
-    oss << "T_SRanipal: " << Data.TimestampSR << delim                    // Sranipal time
+    oss << "T_SRanipal: " << Data.EyeTrackerData.TimestampSR << delim     // Sranipal time
         << "T_Carla: " << Data.TimestampCarla << delim                    // Carla time
-        << "FrameSeq: " << Data.FrameSequence << delim                    // SRanipal Framesequence
-        << "GazeRay: " << VecToString(Data.Combined.GazeRay) << delim     // Gaze ray vector
-        << "EyeOrigin: " << VecToString(Data.Combined.Origin) << delim    // Combined Eye origin vector
-        << "Vergence: " << Data.Combined.Vergence << delim                // Calculated vergence
+        << "FrameSeq: " << Data.EyeTrackerData.FrameSequence << delim     // SRanipal Framesequence
+        << "GazeRay: " << VecToString(SR_Combo.GazeRay) << delim          // Gaze ray vector
+        << "EyeOrigin: " << VecToString(SR_Combo.Origin) << delim         // Combined Eye origin vector
+        << "Vergence: " << SR_Combo.Vergence << delim                     // Calculated vergence
         << "HMDLoc: " << VecToString(Data.HMDLocation) << delim           // HMD location
         << "HMDRot: " << VecToString(Data.HMDRotation) << delim           // HMD rotation
         << "EgoVel: " << Data.Velocity << delim                           // Ego Velocity
-        << "LGazeRay: " << VecToString(Data.Left.GazeRay) << delim        // LEFT gaze ray
-        << "LEyeOrigin: " << VecToString(Data.Left.Origin) << delim       // LEFT gaze ray
-        << "RGazeRay: " << VecToString(Data.Right.GazeRay) << delim       // RIGHT gaze ray
-        << "REyeOrigin: " << VecToString(Data.Right.Origin) << delim      // RIGHT gaze ray
-        << "LEyeOpenness: " << Data.Left.EyeOpenness << delim             // LEFT eye openness
-        << "REyeOpenness: " << Data.Right.EyeOpenness << delim            // RIGHT eye openness
-        << "LPupilPos: " << VecToString(Data.Left.PupilPos) << delim      // LEFT pupil position
-        << "RPupilPos: " << VecToString(Data.Right.PupilPos) << delim     // RIGHT pupil position
-        << "LPupilDiam: " << Data.Left.PupilDiam << delim                 // LEFT pupil diameter
-        << "RPupilDiam: " << Data.Right.PupilDiam << delim                // LEFT pupil diameter
+        << "LGazeRay: " << VecToString(SR_Left.GazeRay) << delim          // LEFT gaze ray
+        << "LEyeOrigin: " << VecToString(SR_Left.Origin) << delim         // LEFT gaze ray
+        << "RGazeRay: " << VecToString(SR_Right.GazeRay) << delim         // RIGHT gaze ray
+        << "REyeOrigin: " << VecToString(SR_Right.Origin) << delim        // RIGHT gaze ray
+        << "LEyeOpenness: " << SR_Left.EyeOpenness << delim               // LEFT eye openness
+        << "REyeOpenness: " << SR_Right.EyeOpenness << delim              // RIGHT eye openness
+        << "LPupilPos: " << VecToString(SR_Left.PupilPos) << delim        // LEFT pupil position
+        << "RPupilPos: " << VecToString(SR_Right.PupilPos) << delim       // RIGHT pupil position
+        << "LPupilDiam: " << SR_Left.PupilDiam << delim                   // LEFT pupil diameter
+        << "RPupilDiam: " << SR_Right.PupilDiam << delim                  // LEFT pupil diameter
         << "FActorName: " << TCHAR_TO_UTF8(*Data.FocusActorName) << delim // Name (tag) of actor being focused on
         << "FActorPoint: " << VecToString(Data.FocusActorPoint) << delim  // Location of focused actor
         << "FActorDist: " << Data.FocusActorDist << delim                 // Distance to focused actor
         << "VALIDITY: "                                                   // validity booleans
-        << "GazeV: " << Data.Combined.GazeValid << delim                  // validity bool for gaze ray
-        << "LGazeV: " << Data.Left.GazeValid << delim                     // validity for LEFT gaze ray
-        << "RGazeV: " << Data.Right.GazeValid << delim                    // validity for RIGHT gaze ray
-        << "LEyeOpenV: " << Data.Left.EyeOpenValid << delim               // validity for LEFT eye openness
-        << "REyeOpenV: " << Data.Right.EyeOpenValid << delim              // validity for RIGHT eye openness
-        << "LPupilPosV: " << Data.Left.PupilPosValid << delim             // validity for LEFT pupil position
-        << "RPupilPosV: " << Data.Right.PupilPosValid << delim            // validity for LEFT pupil position
+        << "GazeV: " << SR_Combo.GazeValid << delim                       // validity bool for gaze ray
+        << "LGazeV: " << SR_Left.GazeValid << delim                       // validity for LEFT gaze ray
+        << "RGazeV: " << SR_Right.GazeValid << delim                      // validity for RIGHT gaze ray
+        << "LEyeOpenV: " << SR_Left.EyeOpenValid << delim                 // validity for LEFT eye openness
+        << "REyeOpenV: " << SR_Right.EyeOpenValid << delim                // validity for RIGHT eye openness
+        << "LPupilPosV: " << SR_Left.PupilPosValid << delim               // validity for LEFT pupil position
+        << "RPupilPosV: " << SR_Right.PupilPosValid << delim              // validity for LEFT pupil position
         << "INPUTS: "                                                     // User inputs
         << "Throttle: " << Data.Inputs.Throttle << delim                  // Value of Throttle
         << "Steering: " << Data.Inputs.Steering << delim                  // Value of Steering
