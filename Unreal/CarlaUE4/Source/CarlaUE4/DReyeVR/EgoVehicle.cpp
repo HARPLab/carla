@@ -10,7 +10,8 @@
 #include "Kismet/KismetSystemLibrary.h"        // PrintString, QuitGame
 #include "Math/Rotator.h"                      // RotateVector, Clamp
 #include "Math/UnrealMathUtility.h"            // Clamp
-
+#include "opencv2/opencv.hpp"
+#include "IBDT.h"
 #include <algorithm>
 
 // Sets default values
@@ -42,6 +43,7 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 
     // Initialize mirrors
     InitDReyeVRMirrors();
+
 }
 
 void AEgoVehicle::InitVehicleMovement()

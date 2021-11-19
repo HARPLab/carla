@@ -188,6 +188,11 @@ void AEyeTracker::Tick(float DeltaSeconds)
         FirstPersonCam->SetRelativeRotation(SensorData->HMDRotation, false, nullptr, ETeleportType::None);
         FirstPersonCam->SetRelativeLocation(SensorData->HMDLocation, false, nullptr, ETeleportType::None);
     }
+
+    // TODO IBDT stuff here actually so its agnostic to data source (live vs replay)
+    // need a helper function that creates a GazaDataEntry from a SensorData
+    // SensorData2GazeDataEntry(SensorData)
+
 }
 
 /// ========================================== ///
