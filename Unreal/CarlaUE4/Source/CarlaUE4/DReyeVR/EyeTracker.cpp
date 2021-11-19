@@ -3,6 +3,10 @@
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "UObject/UObjectBaseUtility.h" // GetName
 
+#ifdef _WIN32
+#include <windows.h> // required for file IO in Windows
+#endif
+
 #include <string>
 
 #ifndef NO_DREYEVR_EXCEPTIONS
@@ -30,7 +34,7 @@ AEyeTracker::AEyeTracker()
     ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
     ReadConfigValue("EyeTracker", "FrameDir", FrameCapLocation);
     ReadConfigValue("EyeTracker", "FrameName", FrameCapFilename);
-    DataCollector = new EyeTrackerThread(); /// TODO: start running upon begin play
+    // DataCollector = new EyeTrackerThread(); /// TODO: start running upon begin play
 
     if (bCaptureFrameData)
     {
@@ -112,7 +116,13 @@ void AEyeTracker::BeginPlay()
         UE_LOG(LogTemp, Log, TEXT("Outputting frame capture data to %s"), *FrameCapLocation);
         IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
         if (!PlatformFile.DirectoryExists(*FrameCapLocation))
+#ifndef _WIN32
+            // this only seems to work on Unix systems, else CreateDirectoryW is not linked
             PlatformFile.CreateDirectory(*FrameCapLocation);
+#else
+            // using Windows system calls
+            CreateDirectory(*FrameCapLocation, NULL);
+#endif
     }
 }
 

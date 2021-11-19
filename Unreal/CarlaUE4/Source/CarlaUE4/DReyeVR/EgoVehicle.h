@@ -115,9 +115,9 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class Mirror
     {
       public:
-        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mirrors")
         class UStaticMeshComponent *MirrorSM;
-        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mirrors")
         class UPlanarReflectionComponent *Reflection;
         FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
         FRotator MirrorRot, ReflectionRot;
