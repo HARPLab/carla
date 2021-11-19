@@ -59,19 +59,9 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "BBScale", BBScale3D);
     ReadConfigValue("EgoVehicle", "BBExtent", BBBoxExtent);
     // mirrors
-    auto InitMirrorParams = [](const FString &Name, Mirror &M) {
-        M.Name = Name;
-        ReadConfigValue("EgoVehicle", Name + "MirrorPos", M.MirrorPos);
-        ReadConfigValue("EgoVehicle", Name + "MirrorScale", M.MirrorScale);
-        ReadConfigValue("EgoVehicle", Name + "MirrorRot", M.MirrorRot);
-        ReadConfigValue("EgoVehicle", Name + "ReflectionPos", M.ReflectionPos);
-        ReadConfigValue("EgoVehicle", Name + "ReflectionScale", M.ReflectionScale);
-        ReadConfigValue("EgoVehicle", Name + "ReflectionRot", M.ReflectionRot);
-        ReadConfigValue("EgoVehicle", Name + "ScreenPercentage", M.ScreenPercentage);
-    };
-    InitMirrorParams("Right", RightMirror);
-    InitMirrorParams("Left", LeftMirror);
-    InitMirrorParams("Rear", RearMirror);
+    ReadConfigValue("EgoVehicle", "RearScreenPercentage", RearScreenPercentage);
+    ReadConfigValue("EgoVehicle", "LeftScreenPercentage", LeftScreenPercentage);
+    ReadConfigValue("EgoVehicle", "RightScreenPercentage", RightScreenPercentage);
     // cosmetic
     ReadConfigValue("EgoVehicle", "UseRectangularReticle", bRectangularReticle);
     ReadConfigValue("EgoVehicle", "ReticleThicknessX", ReticleThickness.X);
@@ -257,37 +247,6 @@ void AEgoVehicle::InitDReyeVRSounds()
     CrashSound->SetSound(CarCrashSound.Object);
 }
 
-void AEgoVehicle::InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM)
-{
-    M.MirrorSM = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(M.Name + "MirrorSM")));
-    M.MirrorSM->SetStaticMesh(SM);
-    M.MirrorSM->SetMaterial(0, MirrorTexture);
-    M.MirrorSM->AttachTo(GetMesh());
-    M.MirrorSM->SetRelativeLocation(M.MirrorPos);
-    M.MirrorSM->SetRelativeRotation(M.MirrorRot); // Y Z X (euler angles)
-    M.MirrorSM->SetRelativeScale3D(M.MirrorScale);
-    M.MirrorSM->SetGenerateOverlapEvents(false); // don't collide with itself
-    M.MirrorSM->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    M.MirrorSM->SetVisibility(true);
-
-    M.Reflection = CreateDefaultSubobject<UPlanarReflectionComponent>(FName(*(M.Name + "Reflection")));
-    M.Reflection->AttachTo(M.MirrorSM);
-    M.Reflection->SetRelativeLocation(M.ReflectionPos);
-    M.Reflection->SetRelativeRotation(M.ReflectionRot);
-    M.Reflection->SetRelativeScale3D(M.ReflectionScale);
-    M.Reflection->NormalDistortionStrength = 0.0f;
-    M.Reflection->PrefilterRoughness = 0.0f;
-    M.Reflection->DistanceFromPlaneFadeoutStart = 1500.f;
-    M.Reflection->DistanceFromPlaneFadeoutEnd = 0.f;
-    M.Reflection->AngleFromPlaneFadeStart = 90.f;
-    M.Reflection->AngleFromPlaneFadeEnd = 90.f;
-    M.Reflection->PrefilterRoughnessDistance = 10000.f;
-    M.Reflection->ScreenPercentage = M.ScreenPercentage; // change this to reduce quality & improve performance
-    M.Reflection->bShowPreviewPlane = false;
-    M.Reflection->HideComponent(GetMesh());
-    M.Reflection->SetVisibility(true);
-}
-
 void AEgoVehicle::InitDReyeVRMirrors()
 {
     static ConstructorHelpers::FObjectFinder<UMaterial> MirrorTexture(
@@ -295,9 +254,83 @@ void AEgoVehicle::InitDReyeVRMirrors()
              "Mirror_DReyeVR.Mirror_DReyeVR'"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneSM(TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
 
-    InitializeMirror(RearMirror, MirrorTexture.Object, PlaneSM.Object);
-    InitializeMirror(LeftMirror, MirrorTexture.Object, PlaneSM.Object);
-    InitializeMirror(RightMirror, MirrorTexture.Object, PlaneSM.Object);
+    RearMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RearMirror"));
+    RearMirror->SetStaticMesh(PlaneSM.Object);
+    RearMirror->SetMaterial(0, MirrorTexture.Object);
+    RearMirror->AttachTo(GetMesh());
+    RearMirror->SetRelativeLocation(FVector(76.f, 0.f, 127.f));
+    RearMirror->SetRelativeRotation(FRotator(90.f, 0.f, -15.f)); // Y Z X (euler angles)
+    RearMirror->SetRelativeScale3D(FVector(0.13f, 0.2775f, 1.f));
+    RearMirror->SetGenerateOverlapEvents(false); // don't collide with itself
+    RearMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    RearReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("RearReflection"));
+    RearReflection->AttachTo(RearMirror);
+    RearReflection->SetRelativeLocation(FVector(0.f, 0.f, 2.f));
+    RearReflection->SetRelativeRotation(FRotator(5.f, 0.f, -5.f));
+    RearReflection->SetRelativeScale3D(FVector(0.0625f, 0.035f, 1.f));
+    RearReflection->NormalDistortionStrength = 0.0f;
+    RearReflection->PrefilterRoughness = 0.0f;
+    RearReflection->DistanceFromPlaneFadeoutStart = 1500.f;
+    RearReflection->DistanceFromPlaneFadeoutEnd = 0.f;
+    RearReflection->AngleFromPlaneFadeStart = 90.f;
+    RearReflection->AngleFromPlaneFadeEnd = 90.f;
+    RearReflection->PrefilterRoughnessDistance = 10000.f;
+    RearReflection->ScreenPercentage = RearScreenPercentage; // change this to reduce quality & improve performance
+    RearReflection->bShowPreviewPlane = false;
+    RearReflection->HideComponent(GetMesh());
+
+    LeftMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftMirror"));
+    LeftMirror->SetStaticMesh(PlaneSM.Object);
+    LeftMirror->SetMaterial(0, MirrorTexture.Object);
+    LeftMirror->AttachTo(GetMesh());
+    LeftMirror->SetRelativeLocation(FVector(58.f, -98.f, 104.f));
+    LeftMirror->SetRelativeRotation(FRotator(90.f, 0.f, 25.4f)); // Y Z X (euler angles)
+    LeftMirror->SetRelativeScale3D(FVector(0.13f, 0.2475f, 1.f));
+    LeftMirror->SetGenerateOverlapEvents(false); // don't collide with itself
+    LeftMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    LeftReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("LeftReflection"));
+    LeftReflection->AttachTo(LeftMirror);
+    LeftReflection->SetRelativeLocation(FVector(0.f, -15.f, 12.2f));
+    LeftReflection->SetRelativeRotation(FRotator(-5.f, 0.f, -7.f));
+    LeftReflection->SetRelativeScale3D(FVector(0.035f, 0.043f, 1.f));
+    LeftReflection->NormalDistortionStrength = 0.0f;
+    LeftReflection->PrefilterRoughness = 0.0f;
+    LeftReflection->DistanceFromPlaneFadeoutStart = 1500.f;
+    LeftReflection->DistanceFromPlaneFadeoutEnd = 0.f;
+    LeftReflection->AngleFromPlaneFadeStart = 90.f;
+    LeftReflection->AngleFromPlaneFadeEnd = 90.f;
+    LeftReflection->PrefilterRoughnessDistance = 10000.f;
+    LeftReflection->ScreenPercentage = LeftScreenPercentage; 
+    LeftReflection->bShowPreviewPlane = false;
+    LeftReflection->HideComponent(GetMesh());
+
+    RightMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RightMirror"));
+    RightMirror->SetStaticMesh(PlaneSM.Object);
+    RightMirror->SetMaterial(0, MirrorTexture.Object);
+    RightMirror->AttachTo(GetMesh());
+    RightMirror->SetRelativeLocation(FVector(58.f, 98.f, 104.f));
+    RightMirror->SetRelativeRotation(FRotator(90.f, 0.f, -25.4f)); // Y Z X (euler angles)
+    RightMirror->SetRelativeScale3D(FVector(0.13f, 0.2475f, 1.f));
+    RightMirror->SetGenerateOverlapEvents(false); // don't collide with itself
+    RightMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    RightReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("RightReflection"));
+    RightReflection->AttachTo(RightMirror);
+    RightReflection->SetRelativeLocation(FVector(11.f, -4.f, 6.13f));
+    RightReflection->SetRelativeRotation(FRotator(-5.f, 0.f, -7.f));
+    RightReflection->SetRelativeScale3D(FVector(0.03f, 0.05f, 1.f));
+    RightReflection->NormalDistortionStrength = 0.0f;
+    RightReflection->PrefilterRoughness = 0.0f;
+    RightReflection->DistanceFromPlaneFadeoutStart = 1500.f;
+    RightReflection->DistanceFromPlaneFadeoutEnd = 0.f;
+    RightReflection->AngleFromPlaneFadeStart = 90.f;
+    RightReflection->AngleFromPlaneFadeEnd = 90.f;
+    RightReflection->PrefilterRoughnessDistance = 10000.f;
+    RightReflection->ScreenPercentage = RightScreenPercentage;
+    RightReflection->bShowPreviewPlane = false;
+    RightReflection->HideComponent(GetMesh());
 }
 
 void AEgoVehicle::ErrMsg(const FString &message, const bool isFatal = false)
