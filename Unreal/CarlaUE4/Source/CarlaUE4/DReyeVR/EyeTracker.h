@@ -8,8 +8,17 @@
 #include <chrono> // timing threads
 #include <cstdint>
 
+#define SRANIPAL_EYE_SWAP_FIXED false
+#define USE_SRANIPAL true
+
+#ifndef _WIN32
+// can only use SRanipal plugin on Windows!
+#undef USE_SRANIPAL
+#define USE_SRANIPAL false
+#endif
+
+#if USE_SRANIPAL
 /// NOTE: Can only use SRanipal on Windows machines
-#ifdef _WIN32
 #include "SRanipalEye.h"      // SRanipal Module Framework
 #include "SRanipalEye_Core.h" // SRanipal Eye Tracker
 // for some reason the SRanipal developers created an enum called "ERROR" in SRanipal/Public/SRanipal_Enums.h:28
@@ -20,15 +29,6 @@
 #endif
 
 #include "EyeTracker.generated.h"
-
-#define SRANIPAL_EYE_SWAP_FIXED false
-#define USE_SRANIPAL true
-
-#ifndef _WIN32
-// can only use SRanipal plugin on Windows!
-#undef USE_SRANIPAL
-#define USE_SRANIPAL false
-#endif
 
 class CARLAUE4_API EyeTrackerThread : public FRunnable
 {
