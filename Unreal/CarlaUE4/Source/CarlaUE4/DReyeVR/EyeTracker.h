@@ -28,20 +28,6 @@
 #define USE_SRANIPAL false
 #endif
 
-class CARLAUE4_API EyeTrackerThread : public FRunnable
-{
-  public:
-    EyeTrackerThread();
-    virtual ~EyeTrackerThread() override;
-    bool Init() override;
-    uint32 Run() override;
-    void Stop() override;
-
-  private:
-    FRunnableThread *Thread;
-    bool bRunThread;
-};
-
 UCLASS()
 class CARLAUE4_API AEyeTracker : public AActor
 {
@@ -49,7 +35,6 @@ class CARLAUE4_API AEyeTracker : public AActor
 
   public:
     AEyeTracker();
-    ~AEyeTracker();
 
     void Tick(float DeltaSeconds);
     int64_t TickCount = 0;
@@ -95,7 +80,6 @@ class CARLAUE4_API AEyeTracker : public AActor
     bool SRanipalFocus(const ECollisionChannel TraceChannel, // reimplementing the SRanipal Focus so it actually works
                        FFocusInfo &F, const float radius);   // custom
 #endif
-    class EyeTrackerThread *DataCollector;
     int64_t TimestampRef; // reference timestamp (ms) since the hmd started ticking
 
     // everything stored in the sensor is held in this struct

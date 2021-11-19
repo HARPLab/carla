@@ -12,8 +12,11 @@
 #include "EyeTracker.h"                           // AEyeTracker
 #include "ImageUtils.h"                           // CreateTexture2D
 #include "WheeledVehicle.h"                       // VehicleMovementComponent
+#include "LightBall.h"						                // ALightBall
+#include "EgoVehicleHelper.h"                     // EgoVehicleHelper
 #include <stdio.h>
 #include <vector>
+#include <tuple>
 
 #define USE_LOGITECH_WHEEL true
 
@@ -52,6 +55,52 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void ReplayUpdate();
     void ToggleGazeHUD();
 
+	// new variables added by George
+	float pitchMax = 0.25;
+	float yawMax = 0.6;
+	float FlashDuration = 0.5f;
+	float TimeBetweenFlash = 2.0f;
+	float TimeSinceIntervalStart = 0.f;
+	float TimeStart = 0.f;
+	float head2light_pitch = 0.f;
+	float head2light_yaw = 0.f;
+	float eye2light_pitch = 0.f;
+	float eye2light_yaw = 0.f;
+	float vert_offset = 0.15f;
+	int Ticks = 0;
+	FVector RotVec = FVector(1, 0, 0);
+	FVector DiffVec = FVector(0, 0, 0);
+
+	float RunningTime = 0.f;
+
+	// define the func
+	/*
+	Input
+	---
+	CombinedGazePosn: Position of the an object directly ahead of the driver's eye gaze
+	CombinedOrigin: Position of driver's eyes
+	LightBallObject: The class that contains properties of the flashing light
+	DeltaTime: Time between each frame
+
+	Output
+	---
+
+	*/
+	void GenerateSphere(const FVector &HeadDirection, const FVector &CombinedGazePosn, 
+                      const FRotator &WorldRot, const FVector &CombinedOrigin, ALightBall *LightBallObject, float DeltaTime);
+
+	/*
+	Input
+	---
+	UnitGazeVec: Unit Vector directly ahead of the driver's eye gaze
+	RotVec: rotated unit vector pointing to position of flashing light
+
+	Output
+	---
+
+	*/
+	//void GetAngles(FVector UnitGazeVec, FVector RotVec);
+
   protected:
     // Called when the game starts (spawned) or ends (destroyed)
     virtual void BeginPlay() override;
@@ -88,6 +137,18 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void UpdateSensor(const float DeltaTime);
     void DebugLines() const;
 
+
+	// Light Ball Component
+	UPROPERTY(Category = DReyeVR, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	class ALightBall *LightBallObject;
+
+	// added by George (same as EgoVehicleHelper)
+	std::tuple<float, float> GetAngles(const FVector &UnitGazeVec, const FVector &RotVec);
+	void PeripheralResponseButtonPressed();
+	void PeripheralResponseButtonReleased();
+	FVector GenerateRotVec(const FVector &UnitGazeVec, float yawMax, float pitchMax, float vert_offset);
+	FVector GenerateRotVecGivenAngles(const FVector &UnitGazeVec, float yaw, float pitch);
+
     // Vehicle Control Functions
     void SetSteering(const float SteeringInput);
     void SetThrottle(const float ThrottleInput);
@@ -98,6 +159,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float RightSignalTimeToDie, LeftSignalTimeToDie; // how long the blinkers last
     void TurnSignalLeft();
     void TurnSignalRight();
+    void PressButton(); // added by George
+    void ReleaseButton(); // added by George
     void HoldHandbrake();
     void ReleaseHandbrake();
     void MouseLookUp(const float mY_Input);
