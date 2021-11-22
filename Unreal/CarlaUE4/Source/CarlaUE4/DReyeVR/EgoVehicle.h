@@ -175,24 +175,22 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Mirrors
     void InitDReyeVRMirrors();
-    // rear view mirror
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UStaticMeshComponent *RearMirror;
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UPlanarReflectionComponent *RearReflection;
-    float RearScreenPercentage = 100.f; // these get set in params
-    // left view mirror
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UStaticMeshComponent *LeftMirror;
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UPlanarReflectionComponent *LeftReflection;
-    float LeftScreenPercentage = 100.f; // these get set in params
-    // right view mirror
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UStaticMeshComponent *RightMirror;
-    UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class UPlanarReflectionComponent *RightReflection;
-    float RightScreenPercentage = 100.f; // these get set in params
+    class Mirror
+    {
+      public:
+        bool Enabled = false;
+        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+        class UStaticMeshComponent *MirrorSM;
+        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+        class UPlanarReflectionComponent *Reflection;
+        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
+        FRotator MirrorRot, ReflectionRot;
+        float ScreenPercentage;
+        FString Name;
+        friend class EgoVehicle;
+    };
+    void InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM);
+    Mirror RightMirror, LeftMirror, RearMirror;
 
     // Cosmetic
     bool bDisableSpectatorScreen = false; // don't spent time rendering the spectator screen
