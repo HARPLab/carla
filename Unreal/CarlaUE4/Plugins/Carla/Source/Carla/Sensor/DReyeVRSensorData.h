@@ -38,6 +38,16 @@ struct UserInputs
     bool TurnSignalRight = false;
     bool HoldHandbrake = false;
     // Add more inputs here!
+	bool LightOn = false;
+	bool ButtonPressed = false;
+	float gaze2target_pitch = 0.f;
+	float gaze2target_yaw = 0.f;
+	float head2target_pitch = 0.f;
+	float head2target_yaw = 0.f;
+	FVector WorldPos = FVector::ZeroVector;
+	FRotator WorldRot = FRotator::ZeroRotator;
+	FVector CombinedOrigin = FVector::ZeroVector; // Absolute Eye Origin
+	
 
     // helper functions
     void Clear()
@@ -77,5 +87,10 @@ struct SensorData // everything being held by this sensor
     float FocusActorDist = 0.f;                    // Distance to the Focus Actor
     // User inputs
     struct UserInputs Inputs;
+
+	// peripheral variables
+	//bool TargetPresent;
+	//float pitch;
+	//float yaw;
 };
 }; // namespace DReyeVR

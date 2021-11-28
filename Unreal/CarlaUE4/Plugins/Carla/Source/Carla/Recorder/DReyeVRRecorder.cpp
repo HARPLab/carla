@@ -61,6 +61,18 @@ void ReadInputs(std::ifstream &InFile, DReyeVR::UserInputs &In)
     ReadValue<bool>(InFile, In.TurnSignalLeft);
     ReadValue<bool>(InFile, In.TurnSignalRight);
     ReadValue<bool>(InFile, In.HoldHandbrake);
+	
+	// peripheral button
+	ReadValue<bool>(InFile, In.ButtonPressed);
+	ReadValue<bool>(InFile, In.LightOn);
+	ReadValue<float>(InFile, In.gaze2target_pitch);
+	ReadValue<float>(InFile, In.gaze2target_yaw);
+	ReadValue<float>(InFile, In.head2target_pitch);
+	ReadValue<float>(InFile, In.head2target_yaw);
+	ReadValue<FVector>(InFile, In.WorldPos);
+	ReadValue<FRotator>(InFile, In.WorldRot);
+	ReadValue<FVector>(InFile, In.CombinedOrigin);
+
 }
 
 void DReyeVRDataRecorder::Read(std::ifstream &InFile)
@@ -74,6 +86,13 @@ void DReyeVRDataRecorder::Read(std::ifstream &InFile)
     ReadFocusActor(InFile, this->Data);
     ReadInputs(InFile, this->Data.Inputs);
     ReadValue<float>(InFile, this->Data.Velocity);
+
+	// peripheral variables
+	
+	//ReadValue<bool>(InFile, this->Data.TargetPresent);
+	//ReadValue<float>(InFile, this->Data.pitch);
+	//ReadValue<float>(InFile, this->Data.yaw);
+
 }
 
 /// ========================================== ///
@@ -129,6 +148,17 @@ void WriteInputs(std::ofstream &OutFile, const DReyeVR::UserInputs &In)
     WriteValue<bool>(OutFile, In.TurnSignalLeft);
     WriteValue<bool>(OutFile, In.TurnSignalRight);
     WriteValue<bool>(OutFile, In.HoldHandbrake);
+
+	//peripheral variables
+	WriteValue<bool>(OutFile, In.ButtonPressed);
+	WriteValue<bool>(OutFile, In.LightOn);
+	WriteValue<float>(OutFile, In.gaze2target_pitch);
+	WriteValue<float>(OutFile, In.gaze2target_yaw);
+	WriteValue<float>(OutFile, In.head2target_pitch);
+	WriteValue<float>(OutFile, In.head2target_yaw);
+	WriteValue<FVector>(OutFile, In.WorldPos);
+	WriteValue<FRotator>(OutFile, In.WorldRot);
+	WriteValue<FVector>(OutFile, In.CombinedOrigin);
 }
 
 void DReyeVRDataRecorder::Write(std::ofstream &OutFile) const
@@ -173,11 +203,20 @@ std::string DReyeVRDataRecorder::Print() const
 {
     std::ostringstream oss;
     const std::string delim = "; ";                                       // semicolon + space
-    oss << "T_SRanipal: " << Data.TimestampSR << delim                    // Sranipal time
+    oss << "gaze2target_pitch: " << Data.Inputs.gaze2target_pitch << delim
+		<< "gaze2target_yaw: " << Data.Inputs.gaze2target_yaw << delim
+		<< "head2target_pitch: " << Data.Inputs.head2target_pitch << delim
+		<< "head2target_yaw: " << Data.Inputs.head2target_yaw << delim
+		<< "Light On: " << Data.Inputs.LightOn << delim
+		<< "Button Pressed: " << Data.Inputs.ButtonPressed << delim
+		<< "WorldPos: " << VecToString(Data.Inputs.WorldPos) << delim				  // Absolute Head Pos
+		<< "WorldRot: " << VecToString(Data.Inputs.WorldRot) << delim				  // Absolute Head Rot
+		<< "AbsoluteEyeOrigin: " << VecToString(Data.Inputs.CombinedOrigin) << delim	  // Absolute Eye Origin
+		<< "T_SRanipal: " << Data.TimestampSR << delim                    // Sranipal time
         << "T_Carla: " << Data.TimestampCarla << delim                    // Carla time
         << "FrameSeq: " << Data.FrameSequence << delim                    // SRanipal Framesequence
-        << "GazeRay: " << VecToString(Data.Combined.GazeRay) << delim     // Gaze ray vector
-        << "EyeOrigin: " << VecToString(Data.Combined.Origin) << delim    // Combined Eye origin vector
+        << "GazeRay: " << VecToString(Data.Combined.GazeRay) << delim     // Gaze ray vector deflected from (1,0,0) head
+        << "RelativeEyeOrigin: " << VecToString(Data.Combined.Origin) << delim    // Combined Eye origin vector relative to head
         << "Vergence: " << Data.Combined.Vergence << delim                // Calculated vergence
         << "HMDLoc: " << VecToString(Data.HMDLocation) << delim           // HMD location
         << "HMDRot: " << VecToString(Data.HMDRotation) << delim           // HMD rotation

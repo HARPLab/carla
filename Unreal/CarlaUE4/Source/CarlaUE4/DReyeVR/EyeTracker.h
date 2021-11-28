@@ -1,8 +1,10 @@
 #pragma once
 
-#include "Carla/Sensor/DReyeVRSensor.h" // DReyeVRSensor
-#include "Carla/Sensor/DReyeVRSensorData.h"
+#include "Carla/Sensor/DReyeVRSensor.h"     // DReyeVRSensor
+#include "Carla/Sensor/DReyeVRSensorData.h" // DReyeVRSensorData
+#include "Components/SceneCaptureComponent2D.h"
 #include "CoreMinimal.h"
+#include "DReyeVRUtils.h"
 #include <cstdint>
 /// NOTE: Can only use SRanipal on Windows machines
 #ifdef _WIN32
@@ -35,6 +37,7 @@ class CARLAUE4_API AEyeTracker : public AActor
     AEyeTracker();
 
     void Tick(float DeltaSeconds);
+    int64_t TickCount = 0;
 
     // Getters of low level Eye Tracking data
     FVector GetCenterGazeRay() const;
@@ -84,6 +87,15 @@ class CARLAUE4_API AEyeTracker : public AActor
 
     // Ego velocity is tracked bc it is hard to reproduce with a variable timestamp
     float EgoVelocity = 0.f;
+
+    // Frame cap helpers
+    class UTextureRenderTarget2D *CaptureRenderTarget = nullptr;
+    class USceneCaptureComponent2D *FrameCap = nullptr;
+    FString FrameCapLocation; // relative to game dir
+    FString FrameCapFilename; // gets ${tick}.png suffix
+    bool bCaptureFrameData;
+    int FrameCapWidth;
+    int FrameCapHeight;
 
     // Helper functions
     float CalculateVergenceFromDirections() const; // Calculating Vergence

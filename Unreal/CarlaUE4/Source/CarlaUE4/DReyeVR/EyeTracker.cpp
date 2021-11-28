@@ -1,6 +1,12 @@
 #include "EyeTracker.h"
+
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "UObject/UObjectBaseUtility.h" // GetName
+
+#ifdef _WIN32
+#include <windows.h> // required for file IO in Windows
+#endif
+
 #include <string>
 
 #ifndef NO_DREYEVR_EXCEPTIONS
@@ -20,6 +26,47 @@ void throw_exception(const std::exception &e)
 AEyeTracker::AEyeTracker()
 {
     SensorData = new struct DReyeVR::SensorData;
+    ReadDReyeVRConfig();
+    ReadConfigValue("EyeTracker", "RecordFrames", bCaptureFrameData);
+    ReadConfigValue("EyeTracker", "FrameWidth", FrameCapWidth);
+    ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
+    ReadConfigValue("EyeTracker", "FrameDir", FrameCapLocation);
+    ReadConfigValue("EyeTracker", "FrameName", FrameCapFilename);
+
+    if (bCaptureFrameData)
+    {
+        // Frame capture
+        CaptureRenderTarget = CreateDefaultSubobject<UTextureRenderTarget2D>(TEXT("CaptureRenderTarget_DReyeVR"));
+        CaptureRenderTarget->CompressionSettings = TextureCompressionSettings::TC_Default;
+        CaptureRenderTarget->SRGB = false;
+        CaptureRenderTarget->bAutoGenerateMips = false;
+        CaptureRenderTarget->bGPUSharedFlag = true;
+        CaptureRenderTarget->ClearColor = FLinearColor::Black;
+        CaptureRenderTarget->UpdateResourceImmediate(true);
+        // CaptureRenderTarget->OverrideFormat = EPixelFormat::PF_FloatRGB;
+        CaptureRenderTarget->AddressX = TextureAddress::TA_Clamp;
+        CaptureRenderTarget->AddressY = TextureAddress::TA_Clamp;
+        const bool bInForceLinearGamma = false;
+        CaptureRenderTarget->InitCustomFormat(FrameCapWidth, FrameCapHeight, PF_B8G8R8A8, bInForceLinearGamma);
+        check(CaptureRenderTarget->GetSurfaceWidth() > 0 && CaptureRenderTarget->GetSurfaceHeight() > 0);
+
+        FrameCap = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("FrameCap"));
+        FrameCap->SetupAttachment(FirstPersonCam);
+        FrameCap->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+        FrameCap->bCaptureOnMovement = false;
+        FrameCap->bCaptureEveryFrame = false;
+        FrameCap->bAlwaysPersistRenderingState = true;
+        FrameCap->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+
+        FrameCap->Deactivate();
+        FrameCap->TextureTarget = CaptureRenderTarget;
+        FrameCap->UpdateContent();
+        FrameCap->Activate();
+    }
+    if (FrameCap && !bCaptureFrameData)
+    {
+        FrameCap->Deactivate();
+    }
 }
 
 void AEyeTracker::BeginPlay()
@@ -51,6 +98,24 @@ void AEyeTracker::BeginPlay()
     cppDReyeVRSensor = World->SpawnActor<ADReyeVRSensor>(GetActorLocation(), GetActorRotation(), SpawnInfo);
     // Attach the DReyeVRSensor as a child to self
     cppDReyeVRSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+
+    // Set up frame capture
+    if (bCaptureFrameData)
+    {
+        // create out dir
+        /// TODO: add check for absolute paths
+        FrameCapLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() + FrameCapLocation);
+        UE_LOG(LogTemp, Log, TEXT("Outputting frame capture data to %s"), *FrameCapLocation);
+        IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+        if (!PlatformFile.DirectoryExists(*FrameCapLocation))
+#ifndef _WIN32
+            // this only seems to work on Unix systems, else CreateDirectoryW is not linked
+            PlatformFile.CreateDirectory(*FrameCapLocation);
+#else
+            // using Windows system calls
+            CreateDirectory(*FrameCapLocation, NULL);
+#endif
+    }
 }
 
 void AEyeTracker::BeginDestroy()
@@ -188,11 +253,21 @@ void AEyeTracker::Tick(float DeltaSeconds)
         FirstPersonCam->SetRelativeRotation(SensorData->HMDRotation, false, nullptr, ETeleportType::None);
         FirstPersonCam->SetRelativeLocation(SensorData->HMDLocation, false, nullptr, ETeleportType::None);
     }
+    // frame capture
+    if (bCaptureFrameData && FrameCap && FirstPersonCam)
+    {
+        FMinimalViewInfo DesiredView;
+        FirstPersonCam->GetCameraView(0, DesiredView);
+        FrameCap->SetCameraView(DesiredView); // move camera to the FirstPersonCam view
+        FrameCap->CaptureScene();             // also available: CaptureSceneDeferred()
+        const FString Suffix = FString::Printf(TEXT("%04d.png"), TickCount);
+        SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix));
+    }
+    TickCount++;
 
     // TODO IBDT stuff here actually so its agnostic to data source (live vs replay)
     // need a helper function that creates a GazaDataEntry from a SensorData
     // SensorData2GazeDataEntry(SensorData)
-
 }
 
 /// ========================================== ///

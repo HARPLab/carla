@@ -1,7 +1,6 @@
 #include "EgoVehicle.h"
 #include "Carla/Vehicle/VehicleControl.h"      // FVehicleControl
 #include "DrawDebugHelpers.h"                  // Debug Line/Sphere
-#include "Engine/EngineTypes.h"                // EBlendMode
 #include "Engine/World.h"                      // GetWorld
 #include "GameFramework/Actor.h"               // Destroy
 #include "HeadMountedDisplayFunctionLibrary.h" // SetTrackingOrigin, GetWorldToMetersScale
@@ -10,13 +9,20 @@
 #include "Kismet/KismetSystemLibrary.h"        // PrintString, QuitGame
 #include "Math/Rotator.h"                      // RotateVector, Clamp
 #include "Math/UnrealMathUtility.h"            // Clamp
+
+#include "Components/SphereComponent.h"		   // Sphere Starter Content
+#include "EgoVehicleHelper.h"
+#include <algorithm>
+
+// include files for IBDT detector
 #include "opencv2/opencv.hpp"
 #include "IBDT.h"
-#include <algorithm>
 
 // Sets default values
 AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
+    ReadConfigVariables();
+
     // Initialize vehicle movement component
     InitVehicleMovement();
 
@@ -44,6 +50,46 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
     // Initialize mirrors
     InitDReyeVRMirrors();
 
+}
+
+void AEgoVehicle::ReadConfigVariables()
+{
+    ReadDReyeVRConfig();
+    ReadConfigValue("EgoVehicle", "CameraInit", CameraLocnInVehicle);
+    ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
+    // vr
+    ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
+    ReadConfigValue("EgoVehicle", "PixelDensity", PixelDensity);
+    // bounding box
+    ReadConfigValue("EgoVehicle", "BBOrigin", BBOrigin);
+    ReadConfigValue("EgoVehicle", "BBScale", BBScale3D);
+    ReadConfigValue("EgoVehicle", "BBExtent", BBBoxExtent);
+    // mirrors
+    auto InitMirrorParams = [](const FString &Name, Mirror &M) {
+        M.Name = Name;
+        ReadConfigValue("EgoVehicle", Name + "MirrorEnabled", M.Enabled);
+        ReadConfigValue("EgoVehicle", Name + "MirrorPos", M.MirrorPos);
+        ReadConfigValue("EgoVehicle", Name + "MirrorScale", M.MirrorScale);
+        ReadConfigValue("EgoVehicle", Name + "MirrorRot", M.MirrorRot);
+        ReadConfigValue("EgoVehicle", Name + "ReflectionPos", M.ReflectionPos);
+        ReadConfigValue("EgoVehicle", Name + "ReflectionScale", M.ReflectionScale);
+        ReadConfigValue("EgoVehicle", Name + "ReflectionRot", M.ReflectionRot);
+        ReadConfigValue("EgoVehicle", Name + "ScreenPercentage", M.ScreenPercentage);
+    };
+    InitMirrorParams("Right", RightMirror);
+    InitMirrorParams("Left", LeftMirror);
+    InitMirrorParams("Rear", RearMirror);
+    // cosmetic
+    ReadConfigValue("EgoVehicle", "UseRectangularReticle", bRectangularReticle);
+    ReadConfigValue("EgoVehicle", "ReticleThicknessX", ReticleThickness.X);
+    ReadConfigValue("EgoVehicle", "ReticleThicknessY", ReticleThickness.Y);
+    ReadConfigValue("EgoVehicle", "ReticleDimX", ReticleDim.X);
+    ReadConfigValue("EgoVehicle", "ReticleDimY", ReticleDim.Y);
+    ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
+    ReadConfigValue("EgoVehicle", "InvertY", InvertY);
+    ReadConfigValue("EgoVehicle", "DrawSpectatorReticle", DrawSpectatorReticle);
+    ReadConfigValue("EgoVehicle", "DrawFlatReticle", DrawFlatReticle);
+    ReadConfigValue("EgoVehicle", "DrawGazeOnHUD", DrawGazeOnHUD);
 }
 
 void AEgoVehicle::InitVehicleMovement()
@@ -95,7 +141,7 @@ void AEgoVehicle::InitCamera()
     FirstPersonCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCam"));
     FirstPersonCam->SetupAttachment(VRCameraRoot);
     FirstPersonCam->bUsePawnControlRotation = false; // free for VR movement
-    FirstPersonCam->FieldOfView = 90.0f;             // editable
+    FirstPersonCam->FieldOfView = FieldOfView;       // editable
 }
 
 void AEgoVehicle::InitDReyeVRText()
@@ -146,9 +192,6 @@ void AEgoVehicle::InitDReyeVRCollisions()
     UE_LOG(LogTemp, Log, TEXT("Initializing collisions"));
     // AActor::GetActorBounds(false, Origin, BoxExtent); // not sure why incorrect
     // UBoxComponent *Bounds = ACarlaWheeledVehicle::GetVehicleBoundingBox();
-    FVector Origin(3.07f, -0.59f, 74.74f); // obtained by looking at blueprint values
-    FVector Scale3D(7.51f, 3.38f, 2.37f);  // obtained by looking at blueprint values
-    FVector BoxExtent(32.f, 32.f, 32.f);   // obtained by looking at blueprint values
     // FVector BoxExtent2 = this->GetVehicleBoundingBoxExtent();
     // FTransform BoxTransform = this->GetVehicleTransform(); // this->GetVehicleBoundingBoxTransform();
     // UE_LOG(LogTemp, Log, TEXT("Detected origin %.3f %.3f %.3f"), BoxTransform.GetLocation().X,
@@ -158,9 +201,9 @@ void AEgoVehicle::InitDReyeVRCollisions()
     // UE_LOG(LogTemp, Log, TEXT("Detected extent %.3f %.3f %.3f"), BoxExtent2.X, BoxExtent2.Y, BoxExtent2.Z);
     Bounds = CreateDefaultSubobject<UBoxComponent>(TEXT("DReyeVRBoundingBox"));
     Bounds->SetupAttachment(GetRootComponent());
-    Bounds->SetBoxExtent(BoxExtent);
-    Bounds->SetRelativeScale3D(Scale3D);
-    Bounds->SetRelativeLocation(Origin);
+    Bounds->SetBoxExtent(BBBoxExtent);
+    Bounds->SetRelativeScale3D(BBScale3D);
+    Bounds->SetRelativeLocation(BBOrigin);
     Bounds->SetGenerateOverlapEvents(true);
     Bounds->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     Bounds->SetCollisionProfileName(TEXT("Trigger"));
@@ -221,89 +264,54 @@ void AEgoVehicle::InitDReyeVRSounds()
     CrashSound->SetSound(CarCrashSound.Object);
 }
 
+
+void AEgoVehicle::InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM)
+{
+    if (!M.Enabled) {
+        return;
+    }
+    UE_LOG(LogTemp, Log, TEXT("Initializing %s mirror"), *M.Name)
+    M.MirrorSM = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(M.Name + "MirrorSM")));
+    M.MirrorSM->SetStaticMesh(SM);
+    M.MirrorSM->SetMaterial(0, MirrorTexture);
+    /// TODO: replace with AttachToComponent
+    M.MirrorSM->AttachTo(GetMesh());
+    M.MirrorSM->SetRelativeLocation(M.MirrorPos);
+    M.MirrorSM->SetRelativeRotation(M.MirrorRot); // Y Z X (euler angles)
+    M.MirrorSM->SetRelativeScale3D(M.MirrorScale);
+    M.MirrorSM->SetGenerateOverlapEvents(false); // don't collide with itself
+    M.MirrorSM->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    M.MirrorSM->SetVisibility(true);
+
+    M.Reflection = CreateDefaultSubobject<UPlanarReflectionComponent>(FName(*(M.Name + "Reflection")));
+    /// TODO: replace with AttachToComponent
+    M.Reflection->AttachTo(M.MirrorSM);
+    M.Reflection->SetRelativeLocation(M.ReflectionPos);
+    M.Reflection->SetRelativeRotation(M.ReflectionRot);
+    M.Reflection->SetRelativeScale3D(M.ReflectionScale);
+    M.Reflection->NormalDistortionStrength = 0.0f;
+    M.Reflection->PrefilterRoughness = 0.0f;
+    M.Reflection->DistanceFromPlaneFadeoutStart = 1500.f;
+    M.Reflection->DistanceFromPlaneFadeoutEnd = 0.f;
+    M.Reflection->AngleFromPlaneFadeStart = 90.f;
+    M.Reflection->AngleFromPlaneFadeEnd = 90.f;
+    M.Reflection->PrefilterRoughnessDistance = 10000.f;
+    M.Reflection->ScreenPercentage = M.ScreenPercentage; // change this to reduce quality & improve performance
+    M.Reflection->bShowPreviewPlane = false;
+    M.Reflection->HideComponent(GetMesh());
+    M.Reflection->SetVisibility(true);
+}
+
 void AEgoVehicle::InitDReyeVRMirrors()
 {
     static ConstructorHelpers::FObjectFinder<UMaterial> MirrorTexture(
         TEXT("Material'/Game/Carla/Blueprints/Vehicles/DReyeVR/"
              "Mirror_DReyeVR.Mirror_DReyeVR'"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneSM(TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
-    RearMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RearMirror"));
-    RearMirror->SetStaticMesh(PlaneSM.Object);
-    RearMirror->SetMaterial(0, MirrorTexture.Object);
-    RearMirror->AttachTo(GetMesh());
-    RearMirror->SetRelativeLocation(FVector(76.f, 0.f, 127.f));
-    RearMirror->SetRelativeRotation(FRotator(90.f, 0.f, -15.f)); // Y Z X (euler angles)
-    RearMirror->SetRelativeScale3D(FVector(0.13f, 0.2775f, 1.f));
-    RearMirror->SetGenerateOverlapEvents(false); // don't collide with itself
-    RearMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    RearReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("RearReflection"));
-    RearReflection->AttachTo(RearMirror);
-    RearReflection->SetRelativeLocation(FVector(0.f, 0.f, 2.f));
-    RearReflection->SetRelativeRotation(FRotator(5.f, 0.f, -5.f));
-    RearReflection->SetRelativeScale3D(FVector(0.0625f, 0.035f, 1.f));
-    RearReflection->NormalDistortionStrength = 0.0f;
-    RearReflection->PrefilterRoughness = 0.0f;
-    RearReflection->DistanceFromPlaneFadeoutStart = 1500.f;
-    RearReflection->DistanceFromPlaneFadeoutEnd = 0.f;
-    RearReflection->AngleFromPlaneFadeStart = 90.f;
-    RearReflection->AngleFromPlaneFadeEnd = 90.f;
-    RearReflection->PrefilterRoughnessDistance = 10000.f;
-    RearReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
-    RearReflection->bShowPreviewPlane = false;
-    RearReflection->HideComponent(GetMesh());
-
-    LeftMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftMirror"));
-    LeftMirror->SetStaticMesh(PlaneSM.Object);
-    LeftMirror->SetMaterial(0, MirrorTexture.Object);
-    LeftMirror->AttachTo(GetMesh());
-    LeftMirror->SetRelativeLocation(FVector(58.f, -98.f, 104.f));
-    LeftMirror->SetRelativeRotation(FRotator(90.f, 0.f, 25.4f)); // Y Z X (euler angles)
-    LeftMirror->SetRelativeScale3D(FVector(0.13f, 0.2475f, 1.f));
-    LeftMirror->SetGenerateOverlapEvents(false); // don't collide with itself
-    LeftMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-    LeftReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("LeftReflection"));
-    LeftReflection->AttachTo(LeftMirror);
-    LeftReflection->SetRelativeLocation(FVector(0.f, -15.f, 12.2f));
-    LeftReflection->SetRelativeRotation(FRotator(-5.f, 0.f, -7.f));
-    LeftReflection->SetRelativeScale3D(FVector(0.035f, 0.043f, 1.f));
-    LeftReflection->NormalDistortionStrength = 0.0f;
-    LeftReflection->PrefilterRoughness = 0.0f;
-    LeftReflection->DistanceFromPlaneFadeoutStart = 1500.f;
-    LeftReflection->DistanceFromPlaneFadeoutEnd = 0.f;
-    LeftReflection->AngleFromPlaneFadeStart = 90.f;
-    LeftReflection->AngleFromPlaneFadeEnd = 90.f;
-    LeftReflection->PrefilterRoughnessDistance = 10000.f;
-    LeftReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
-    LeftReflection->bShowPreviewPlane = false;
-    LeftReflection->HideComponent(GetMesh());
-
-    RightMirror = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RightMirror"));
-    RightMirror->SetStaticMesh(PlaneSM.Object);
-    RightMirror->SetMaterial(0, MirrorTexture.Object);
-    RightMirror->AttachTo(GetMesh());
-    RightMirror->SetRelativeLocation(FVector(58.f, 98.f, 104.f));
-    RightMirror->SetRelativeRotation(FRotator(90.f, 0.f, -25.4f)); // Y Z X (euler angles)
-    RightMirror->SetRelativeScale3D(FVector(0.13f, 0.2475f, 1.f));
-    RightMirror->SetGenerateOverlapEvents(false); // don't collide with itself
-    RightMirror->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-    RightReflection = CreateDefaultSubobject<UPlanarReflectionComponent>(TEXT("RightReflection"));
-    RightReflection->AttachTo(RightMirror);
-    RightReflection->SetRelativeLocation(FVector(11.f, -4.f, 6.13f));
-    RightReflection->SetRelativeRotation(FRotator(-5.f, 0.f, -7.f));
-    RightReflection->SetRelativeScale3D(FVector(0.03f, 0.05f, 1.f));
-    RightReflection->NormalDistortionStrength = 0.0f;
-    RightReflection->PrefilterRoughness = 0.0f;
-    RightReflection->DistanceFromPlaneFadeoutStart = 1500.f;
-    RightReflection->DistanceFromPlaneFadeoutEnd = 0.f;
-    RightReflection->AngleFromPlaneFadeStart = 90.f;
-    RightReflection->AngleFromPlaneFadeEnd = 90.f;
-    RightReflection->PrefilterRoughnessDistance = 10000.f;
-    RightReflection->ScreenPercentage = 100.f; // change this to reduce quality & improve performance
-    RightReflection->bShowPreviewPlane = false;
-    RightReflection->HideComponent(GetMesh());
+    InitializeMirror(RearMirror, MirrorTexture.Object, PlaneSM.Object);
+    InitializeMirror(LeftMirror, MirrorTexture.Object, PlaneSM.Object);
+    InitializeMirror(RightMirror, MirrorTexture.Object, PlaneSM.Object);
 }
 
 void AEgoVehicle::ErrMsg(const FString &message, const bool isFatal = false)
@@ -349,6 +357,8 @@ void AEgoVehicle::BeginPlay()
 
     // Get information about the world
     World = GetWorld();
+    const FString SetVRPixelDensity = "vr.PixelDensity " + FString::SanitizeFloat(PixelDensity);
+    World->Exec(World, *SetVRPixelDensity);
     Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
     AEgoVehicle::ChangePixelDensity(1.f);
 
@@ -361,14 +371,13 @@ void AEgoVehicle::BeginPlay()
     IsHMDConnected = UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled();
     if (IsHMDConnected)
     {
-        UE_LOG(LogTemp, Log, TEXT("HMD detected"));
+        UE_LOG(LogTemp, Warning, TEXT("HMD detected"));
         // Now we'll begin with setting up the VR Origin logic
         UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Level
-        FirstPersonCam->SetRelativeLocation(HMDOffset);                                 // Offset Camera
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("NO HMD detected"));
+        UE_LOG(LogTemp, Warning, TEXT("NO HMD detected"));
     }
 
     // Spawn the EyeTracker Carla sensor and attach to Ego-Vehicle:
@@ -381,6 +390,15 @@ void AEgoVehicle::BeginPlay()
     EyeTrackerSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
     EyeTrackerSensor->SetPlayer(Player);
     EyeTrackerSensor->SetCamera(FirstPersonCam);
+
+    // Spawn LightBall (George)
+	FActorSpawnParameters LightBallSpawnInfo;
+	LightBallSpawnInfo.Owner = this;
+	LightBallSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	LightBallObject = World->SpawnActor<ALightBall>(FirstPersonCam->GetComponentLocation(),
+		FRotator(0.0f, 0.0f, 0.0f), LightBallSpawnInfo);
+	// Turn off collision/transparent
+	LightBallObject->SetActorEnableCollision(false);
 
     // Enable VR spectator screen & eye reticle
     InitReticleTexture(); // generate array of pixel values
@@ -461,6 +479,37 @@ void AEgoVehicle::Tick(float DeltaTime)
     // Draw the reticle on the Viewport (red square on the flat-screen window) while playing VR
     DrawReticle();
 
+	// Draw stimuli
+	const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
+	const FVector WorldPos = FirstPersonCam->GetComponentLocation();
+	FVector HeadDirection = WorldRot.Vector();
+	VehicleInputs.CombinedOrigin = CombinedOrigin;
+	VehicleInputs.WorldRot = WorldRot;
+	VehicleInputs.WorldPos = WorldPos;
+	FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
+	GenerateSphere(HeadDirection, CombinedGazePosn, WorldRot, WorldPos, LightBallObject, DeltaTime);
+
+	/*
+	RunningTime += DeltaTime;
+	float R = FMath::Sin(RunningTime);
+	float G = 0.f;
+	float B = 0.f;
+	LightBallObject->SetColor(R, G, B);
+	*/
+
+	/*
+	UE_LOG(LogTemp, Log, TEXT("CombinedGazePosn logging %s"), *CombinedGazePosn.ToString());
+	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
+	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
+	*/
+	/*
+	UE_LOG(LogTemp, Log, TEXT("HeadDirection logging %s"), *HeadDirection.ToString());
+	UE_LOG(LogTemp, Log, TEXT("ButtonPress, %d"), VehicleInputs.ButtonPressed);
+	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
+	*/
+	//UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
+	//UE_LOG(LogTemp, Log, TEXT("WorldPos logging %s"), *WorldPos.ToString());
+
 #if USE_LOGITECH_WHEEL
     if (IsLogiConnected)
     {
@@ -498,7 +547,14 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 
     // Both eyes
     CombinedGaze = Vergence * UE4MeterScale * EyeTrackerSensor->GetCenterGazeRay();
+	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
+	UE_LOG(LogTemp, Log, TEXT("EyeTrackerSensor->GetCenterGazeRay() logging %s"), *EyeTrackerSensor->GetCenterGazeRay().ToString());
     CombinedOrigin = WorldRot.RotateVector(EyeTrackerSensor->GetCenterOrigin()) + WorldPos;
+	UE_LOG(LogTemp, Log, TEXT("WorldPos logging %s"), *WorldPos.ToString());
+	UE_LOG(LogTemp, Log, TEXT("WorldRot logging %s"), *WorldRot.ToString());
+	UE_LOG(LogTemp, Log, TEXT("FirstPersonCam->GetRelativeLocation() logging %s"), *FirstPersonCam->GetRelativeLocation().ToString());
+	UE_LOG(LogTemp, Log, TEXT("FirstPersonCam->GetRelativeRotation() logging %s"), *FirstPersonCam->GetRelativeRotation().ToString());
+	UE_LOG(LogTemp, Log, TEXT("EyeTrackerSensor->GetCenterOrigin() logging %s"), *EyeTrackerSensor->GetCenterOrigin().ToString());
 
     // Left eye
     LeftGaze = UE4MeterScale * EyeTrackerSensor->GetLeftGazeRay();
@@ -523,18 +579,21 @@ void AEgoVehicle::DebugLines() const
     FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
 
     // Use Absolute Ray Position to draw debug information
-//    DrawDebugSphere(World, CombinedGazePosn, 4.0f, 12, FColor::Blue);
-//
-//    // Draw individual rays for left and right eye
-//    DrawDebugLine(World,
-//                  LeftOrigin,                                        // start line
-//                  LeftOrigin + 10 * WorldRot.RotateVector(LeftGaze), // end line
-//                  FColor::Green, false, -1, 0, 1);
-//
-//    DrawDebugLine(World,
-//                  RightOrigin,                                         // start line
-//                  RightOrigin + 10 * WorldRot.RotateVector(RightGaze), // end line
-//                  FColor::Yellow, false, -1, 0, 1);
+    if (bDrawDebugEditor)
+    {
+        DrawDebugSphere(World, CombinedGazePosn, 4.0f, 12, FColor::Blue);
+
+        // Draw individual rays for left and right eye
+        DrawDebugLine(World,
+                      LeftOrigin,                                        // start line
+                      LeftOrigin + 10 * WorldRot.RotateVector(LeftGaze), // end line
+                      FColor::Green, false, -1, 0, 1);
+
+        DrawDebugLine(World,
+                      RightOrigin,                                         // start line
+                      RightOrigin + 10 * WorldRot.RotateVector(RightGaze), // end line
+                      FColor::Yellow, false, -1, 0, 1);
+    }
 #endif
     if (DrawGazeOnHUD)
     {
@@ -553,7 +612,6 @@ void AEgoVehicle::ToggleGazeHUD()
 void AEgoVehicle::InitReticleTexture()
 {
     // Used to initialize any bitmap-based image that will be used as a reticle
-    const bool bRectangularReticle = false;          // TODO: parametrize
     ReticleSrc.Reserve(ReticleDim.X * ReticleDim.Y); // allocate width*height space
     for (int i = 0; i < ReticleDim.X; i++)
     {
@@ -660,36 +718,45 @@ void AEgoVehicle::DrawReticle()
         if (DrawFlatReticle)
         {
             // Draw on user HUD (only for flat-view)
-            // HUD->DrawDynamicSquare(CombinedGazePosn, 25, FColor(0, 255, 0, 255), 2);
-            // HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
-            if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
+            if (bRectangularReticle)
             {
-                InitReticleTexture();
+                HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
             }
-            if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+            else
             {
-                /// TODO: add scale
-                HUD->DrawDynamicTexture(ReticleTexture,
-                                        ReticlePos + FVector2D(-ReticleDim.X * 0.5f, -ReticleDim.Y * 0.5f));
-                // see here for guide on DrawTexture
-                // https://answers.unrealengine.com/questions/41214/how-do-you-use-draw-texture.html
-                // HUD->DrawTextureSimple(ReticleTexture, ReticlePos.X, ReticlePos.Y, 10.f, false);
-                // HUD->DrawTexture(ReticleTexture,
-                //                  ReticlePos.X, // screen space X coord
-                //                  ReticlePos.Y, // screen space Y coord
-                //                  96,           // screen space width
-                //                  96,           // screen space height
-                //                  0,            // top left X of texture
-                //                  0,            // top left Y of texture
-                //                  1,            // bottom right X of texture
-                //                  1             // bottom right Y of texture
-                //                                //  FLinearColor::White,           // tint colour
-                //                                //  EBlendMode::BLEND_Translucent, // blend mode
-                //                                //  1.f,                           // scale
-                //                                //  false,                         // scale position
-                //                                //  0.f,                           // rotation
-                //                                //  FVector2D::ZeroVector          // rotation pivot
-                // );
+                // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
+                // crashes the thread its on by invalidating the ReticleTexture->Resource which is
+                // non-const (but should be!!) This has to be a bug in UE4 code that we unfortunately have
+                // to work around
+                if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
+                {
+                    InitReticleTexture();
+                }
+                if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+                {
+                    /// TODO: add scale
+                    HUD->DrawReticle(ReticleTexture,
+                                     ReticlePos + FVector2D(-ReticleDim.X * 0.5f, -ReticleDim.Y * 0.5f));
+                    // see here for guide on DrawTexture
+                    // https://answers.unrealengine.com/questions/41214/how-do-you-use-draw-texture.html
+                    // HUD->DrawTextureSimple(ReticleTexture, ReticlePos.X, ReticlePos.Y, 10.f, false);
+                    // HUD->DrawTexture(ReticleTexture,
+                    //                  ReticlePos.X, // screen space X coord
+                    //                  ReticlePos.Y, // screen space Y coord
+                    //                  96,           // screen space width
+                    //                  96,           // screen space height
+                    //                  0,            // top left X of texture
+                    //                  0,            // top left Y of texture
+                    //                  1,            // bottom right X of texture
+                    //                  1             // bottom right Y of texture
+                    //                                //  FLinearColor::White,           // tint colour
+                    //                                //  EBlendMode::BLEND_Translucent, // blend mode
+                    //                                //  1.f,                           // scale
+                    //                                //  false,                         // scale position
+                    //                                //  0.f,                           // rotation
+                    //                                //  FVector2D::ZeroVector          // rotation pivot
+                    // );
+                }
             }
         }
     }
@@ -781,8 +848,16 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
     PlayerInputComponent->BindAction("ToggleReverse_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleReverse);
     PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Pressed, this, &AEgoVehicle::HoldHandbrake);
     PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseHandbrake);
-    PlayerInputComponent->BindAction("TurnSignalRight_DReyeVR", IE_Pressed, this, &AEgoVehicle::TurnSignalLeft);
-    PlayerInputComponent->BindAction("TurnSignalLeft_DReyeVR", IE_Pressed, this, &AEgoVehicle::TurnSignalRight);
+
+    PlayerInputComponent->BindAction("TurnSignalRight_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressButton);
+    PlayerInputComponent->BindAction("TurnSignalLeft_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressButton);
+	PlayerInputComponent->BindAction("TurnSignalRight_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseButton);
+	PlayerInputComponent->BindAction("TurnSignalLeft_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseButton);
+
+	// peripheral response button
+	//PlayerInputComponent->BindAction("PeripheralResponseButton", IE_Pressed, this, &AEgoVehicle::PeripheralResponseButtonPressed);
+	//PlayerInputComponent->BindAction("PeripheralResponseButton", IE_Released, this, &AEgoVehicle::PeripheralResponseButtonReleased);
+
     /// Mouse X and Y input for looking up and turning
     PlayerInputComponent->BindAxis("MouseLookUp_DReyeVR", this, &AEgoVehicle::MouseLookUp);
     PlayerInputComponent->BindAxis("MouseTurn_DReyeVR", this, &AEgoVehicle::MouseTurn);
@@ -871,12 +946,13 @@ void AEgoVehicle::TurnSignalRight()
 {
     // store in local input container
     VehicleInputs.TurnSignalRight = true;
+	VehicleInputs.ButtonPressed = true;
 
     // apply new light state
-    FVehicleLightState Lights = GetVehicleLightState();
-    Lights.RightBlinker = true;
-    Lights.LeftBlinker = false;
-    SetVehicleLightState(Lights);
+    //FVehicleLightState Lights = GetVehicleLightState();
+    //Lights.RightBlinker = true;
+    //Lights.LeftBlinker = false;
+    //SetVehicleLightState(Lights);
 
     // Play turn signal sound
     if (TurnSignalSound)
@@ -884,7 +960,8 @@ void AEgoVehicle::TurnSignalRight()
         const float Delay = 0.f; // Time (s) before playing sound
         TurnSignalSound->Play(Delay);
     }
-    RightSignalTimeToDie = FPlatformTime::Seconds() + 3.0f; // reset counter at 3s
+    //RightSignalTimeToDie = FPlatformTime::Seconds() + 3.0f; // reset counter at 3s
+	RightSignalTimeToDie = 0.f;
     LeftSignalTimeToDie = 0.f;                              // immediately stop left signal
 }
 
@@ -892,12 +969,13 @@ void AEgoVehicle::TurnSignalLeft()
 {
     // store in local input container
     VehicleInputs.TurnSignalLeft = true;
+	VehicleInputs.ButtonPressed = true;
 
     // apply new light state
-    FVehicleLightState Lights = GetVehicleLightState();
-    Lights.RightBlinker = false;
-    Lights.LeftBlinker = true;
-    SetVehicleLightState(Lights);
+    //FVehicleLightState Lights = GetVehicleLightState();
+    //Lights.RightBlinker = false;
+    //Lights.LeftBlinker = true;
+    //SetVehicleLightState(Lights);
 
     // Play turn signal sound
     if (TurnSignalSound)
@@ -906,7 +984,25 @@ void AEgoVehicle::TurnSignalLeft()
         TurnSignalSound->Play(Delay);
     }
     RightSignalTimeToDie = 0.f;                            // immediately stop right signal
-    LeftSignalTimeToDie = FPlatformTime::Seconds() + 3.0f; // reset counter at 3s
+    //LeftSignalTimeToDie = FPlatformTime::Seconds() + 3.0f; // reset counter at 3s
+	LeftSignalTimeToDie = 0.f;
+}
+
+void AEgoVehicle::PressButton()
+{
+	VehicleInputs.ButtonPressed = true;
+
+	// Play turn signal sound
+	if (TurnSignalSound)
+	{
+		const float Delay = 0.f; // Time (s) before playing sound
+		TurnSignalSound->Play(Delay);
+	}
+}
+
+void AEgoVehicle::ReleaseButton()
+{
+	VehicleInputs.ButtonPressed = false;
 }
 
 void AEgoVehicle::HoldHandbrake()
@@ -960,6 +1056,106 @@ void AEgoVehicle::MouseTurn(const float mX_Input)
         FirstPersonCam->SetRelativeRotation(TurnDir);
     }
 }
+
+void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &CombinedGazePosn, 
+                                 const FRotator &WorldRot, const FVector &CombinedOriginIn, ALightBall *LightBallObjectIn, float DeltaTime)
+{
+	float CenterMagnitude = (CombinedGazePosn - CombinedOriginIn).Size();
+	FVector UnitGazeVec = (CombinedGazePosn - CombinedOriginIn) / CenterMagnitude;
+	UE_LOG(LogTemp, Log, TEXT("UnitGazVec, %s"), *UnitGazeVec.ToString());
+
+	// generate stimuli every 5 second chunks, and log that time
+	if (TimeSinceIntervalStart < 10) {
+		if (TimeSinceIntervalStart == 0.f) {
+			// Generate light posn wrt head direction
+			RotVec = GenerateRotVec(HeadDirection, yawMax, pitchMax, vert_offset);
+
+			// Get angles between head direction and light posn
+			auto head2light_angles = AEgoVehicle::GetAngles(HeadDirection, RotVec);
+			head2light_pitch = std::get<0>(head2light_angles);
+			head2light_yaw = std::get<1>(head2light_angles);
+			VehicleInputs.head2target_pitch = head2light_pitch;
+			VehicleInputs.head2target_yaw = head2light_yaw;
+
+			// Generate random time to start flashing during the interval
+			TimeStart = FMath::RandRange(1.f, 9.f);
+			TimeSinceIntervalStart += DeltaTime;
+
+		} 
+		else if (FMath::IsNearlyEqual(TimeSinceIntervalStart, TimeStart, 0.05f)) {
+			// turn light on 
+			LightBallObjectIn->TurnLightOn();
+			TimeSinceIntervalStart += DeltaTime;
+			
+			VehicleInputs.LightOn = true;
+			//UE_LOG(LogTemp, Log, TEXT("Light On: %d"), VehicleInputs.LightOn);
+		}
+		else if (FMath::IsNearlyEqual(TimeSinceIntervalStart, TimeStart + FlashDuration, 0.05f)) {
+			// turn light off
+			LightBallObjectIn->TurnLightOff();
+			TimeSinceIntervalStart += DeltaTime;
+		
+			VehicleInputs.LightOn = false;
+			//UE_LOG(LogTemp, Log, TEXT("Light Off: %d"), VehicleInputs.LightOn);
+		}
+		else {
+			TimeSinceIntervalStart += DeltaTime;
+		}
+	}
+	else {
+		TimeSinceIntervalStart = 0.f;
+	}
+
+	//UE_LOG(LogTemp, Log, TEXT("DeltaTime, %f"), DeltaTime);
+	//UE_LOG(LogTemp, Log, TEXT("TimeSinceIntervalStart, %f"), TimeSinceIntervalStart);
+	
+	// Generate the posn of the light given current angles
+	float DistanceFromDriver = CenterMagnitude*3;
+	FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, head2light_yaw, head2light_pitch);
+	FVector HeadPos = FirstPersonCam->GetComponentLocation();
+	FVector RotVecDirectionPosn = HeadPos + RotVecDirection * DistanceFromDriver;
+
+	LightBallObjectIn->SetLocation(RotVecDirectionPosn);
+
+	/*
+	UE_LOG(LogTemp, Log, TEXT("RotVec, %s"), *RotVec.ToString());
+	UE_LOG(LogTemp, Log, TEXT("RotVecDirection, %s"), *RotVecDirection.ToString());
+	*/
+
+	// Calculate gaze angles of light posn wrt eye gaze
+	auto eye2light_angles = AEgoVehicle::GetAngles(UnitGazeVec, RotVecDirection);
+	eye2light_pitch = std::get<0>(eye2light_angles);
+	eye2light_yaw = std::get<1>(eye2light_angles);
+	VehicleInputs.gaze2target_pitch = eye2light_pitch;
+	VehicleInputs.gaze2target_yaw = eye2light_yaw;
+
+	// Calculate gaze angles of eye gaze wrt head direction
+	/*
+	auto gaze_from_head_angles = AEgoVehicle::GetAngles(HeadDirection, UnitGazeVec);
+	gaze_from_head_pitch = std::get<0>(gaze_from_head_angles);
+	gaze_from_head_yaw = std::get<1>(gaze_from_head_angles);
+	VehicleInputs.gazeHeadPitch = gaze_from_head_pitch;
+	VehicleInputs.gazeHeadYaw = gaze_from_head_yaw;
+	*/
+
+	
+	UE_LOG(LogTemp, Log, TEXT("eye2light_pitch, %f"), eye2light_pitch);
+	UE_LOG(LogTemp, Log, TEXT("eye2light_yaw, %f"), eye2light_yaw);
+	UE_LOG(LogTemp, Log, TEXT("head2light_pitch, %f"), head2light_pitch);
+	UE_LOG(LogTemp, Log, TEXT("head2light_yaw, %f"), head2light_yaw);
+	UE_LOG(LogTemp, Log, TEXT("Light On: %d"), VehicleInputs.LightOn);
+	
+	// Draw debug border markers
+	FVector TopLeftLimit = GenerateRotVecGivenAngles(HeadDirection, -yawMax, pitchMax+vert_offset) * DistanceFromDriver;
+	FVector TopRightLimit = GenerateRotVecGivenAngles(HeadDirection, yawMax, pitchMax+vert_offset) * DistanceFromDriver;
+	FVector BotLeftLimit = GenerateRotVecGivenAngles(HeadDirection, -yawMax, -pitchMax+vert_offset) * DistanceFromDriver;
+	FVector BotRightLimit = GenerateRotVecGivenAngles(HeadDirection, yawMax, -pitchMax+vert_offset) * DistanceFromDriver;
+	DrawDebugSphere(World, CombinedOriginIn + TopLeftLimit, 4.0f, 12, FColor::Blue);
+	DrawDebugSphere(World, CombinedOriginIn + TopRightLimit, 4.0f, 12, FColor::Blue);
+	DrawDebugSphere(World, CombinedOriginIn + BotLeftLimit, 4.0f, 12, FColor::Blue);
+	DrawDebugSphere(World, CombinedOriginIn + BotRightLimit, 4.0f, 12, FColor::Blue);
+}
+
 
 void AEgoVehicle::TogglePythonRecording()
 {
