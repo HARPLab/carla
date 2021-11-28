@@ -85,7 +85,7 @@ class CARLAUE4_API AEyeTracker : public AActor
     // everything stored in the sensor is held in this struct
     struct DReyeVR::SensorData *SensorData;
 
-    // Ego velocity is tracked bc it is hard to reprouce with a variable timestamp
+    // Ego velocity is tracked bc it is hard to reproduce with a variable timestamp
     float EgoVelocity = 0.f;
 
     // Frame cap helpers

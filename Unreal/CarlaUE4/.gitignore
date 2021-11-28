@@ -27,3 +27,4 @@ Config/CarSimConfig.ini
 .vscode
 CMakeLists.txt
 Makefile
+opencv

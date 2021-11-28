@@ -112,6 +112,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // For debug purposes
     void ErrMsg(const FString &message, const bool isFatal);
+    void ChangePixelDensity(const float NewDensity) const;
 
     // Start recording the data from EyeTrackerSensor
     void TogglePythonRecording();
