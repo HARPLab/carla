@@ -3,6 +3,10 @@
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "UObject/UObjectBaseUtility.h" // GetName
 
+#ifdef _WIN32
+#include <windows.h> // required for file IO in Windows
+#endif
+
 #include <string>
 
 #ifndef NO_DREYEVR_EXCEPTIONS
@@ -101,7 +105,15 @@ void AEyeTracker::BeginPlay()
         UE_LOG(LogTemp, Log, TEXT("Outputting frame capture data to %s"), *FrameCapLocation);
         IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
         if (!PlatformFile.DirectoryExists(*FrameCapLocation))
+        {
+#ifndef _WIN32
+            // this only seems to work on Unix systems, else CreateDirectoryW is not linked
             PlatformFile.CreateDirectory(*FrameCapLocation);
+#else
+            // using Windows system calls
+            CreateDirectory(*FrameCapLocation, NULL);
+#endif
+        }
     }
 }
 
@@ -410,8 +422,7 @@ bool EyeTrackerThread::Init()
 {
     UE_LOG(LogTemp, Warning, TEXT("Starting eye tracker collection logger"));
     bRunDataCollector = true;
-    UnixStartTime =
-        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+    StartTime = std::chrono::system_clock::now();
 #if USE_SRANIPAL
     UE_LOG(LogTemp, Warning, TEXT("Attempting to use SRanipal eye tracking"));
     // Initialize the SRanipal eye tracker (WINDOWS ONLY)
@@ -492,10 +503,10 @@ uint32 EyeTrackerThread::Run()
         Combined->GazeRay.X = 5.0;
         // std::chrono::duration<double> Time = std::chrono::system_clock::now();
         const auto p1 = std::chrono::system_clock::now();
-        const float unix_t = (p1 - UnixStartTime).count() / 1000.f;
-        UE_LOG(LogTemp, Log, TEXT("unix time: %.3f"), unix_t);
-        Combined->GazeRay.Y = UKismetMathLibrary::Cos(unix_t);
-        Combined->GazeRay.Z = UKismetMathLibrary::Sin(unix_t);
+        const float current_time =
+            std::chrono::duration_cast<std::chrono::milliseconds>(p1 - StartTime).count() / 1000.f;
+        Combined->GazeRay.Y = UKismetMathLibrary::Cos(current_time);
+        Combined->GazeRay.Z = UKismetMathLibrary::Sin(current_time);
         UKismetMathLibrary::Vector_Normalize(Combined->GazeRay, 0.0001);
 
         // Assign the origin position to the (3D space) origin

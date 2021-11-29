@@ -61,6 +61,7 @@ void AEgoVehicle::ReadConfigVariables()
     // mirrors
     auto InitMirrorParams = [](const FString &Name, Mirror &M) {
         M.Name = Name;
+        ReadConfigValue("EgoVehicle", Name + "MirrorEnabled", M.Enabled);
         ReadConfigValue("EgoVehicle", Name + "MirrorPos", M.MirrorPos);
         ReadConfigValue("EgoVehicle", Name + "MirrorScale", M.MirrorScale);
         ReadConfigValue("EgoVehicle", Name + "MirrorRot", M.MirrorRot);
@@ -259,6 +260,11 @@ void AEgoVehicle::InitDReyeVRSounds()
 
 void AEgoVehicle::InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM)
 {
+    if (!M.Enabled)
+    {
+        return;
+    }
+    UE_LOG(LogTemp, Log, TEXT("Initializing %s mirror"), *M.Name)
     M.MirrorSM = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(M.Name + "MirrorSM")));
     M.MirrorSM->SetStaticMesh(SM);
     M.MirrorSM->SetMaterial(0, MirrorTexture);

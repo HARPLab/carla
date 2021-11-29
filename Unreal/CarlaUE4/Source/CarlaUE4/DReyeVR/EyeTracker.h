@@ -41,7 +41,7 @@ class CARLAUE4_API EyeTrackerThread : public FRunnable
     DReyeVR::SRanipalData GetLatestSensorData() const;
 
   private:
-    std::chrono::duration UnixStartTime;
+    std::chrono::time_point<std::chrono::system_clock> StartTime;
     FRunnableThread *Thread;
     // Eye Tracker Variables
 #if USE_SRANIPAL
