@@ -16,11 +16,12 @@
 
 
 
-std::tuple<float, float> AEgoVehicle::GetAngles(const FVector &UnitGazeVecIn, const FVector &RotVecIn)
+std::tuple<float, float> AEgoVehicleHelpers::GetAngles(FVector UnitGazeVec, FVector RotVec)
+
 {
 	// Normalize input vectors
-	FVector UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
-	RotVec = RotVecIn / RotVec.Size();
+	UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
+	RotVec = RotVec / RotVec.Size();
 
 	// Rotating Vectors back to world coordinate frame to get angles pitch and yaw
 	float Unit_x0 = UnitGazeVec[0];
@@ -84,10 +85,10 @@ void AEgoVehicle::PeripheralResponseButtonReleased()
 }
 */
 
-FVector AEgoVehicle::GenerateRotVec(const FVector &UnitGazeVecIn, float yawMaxIn, float pitchMaxIn, float vert_offsetIn)
+FVector AEgoVehicleHelpers::GenerateRotVec(FVector UnitGazeVec, float yawMaxIn, float pitchMaxIn, float vert_offsetIn)
 {
 	// Normalize input vector
-	FVector UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
+	UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
 	float Unit_x0 = UnitGazeVec[0];
 	float Unit_y0 = UnitGazeVec[1];
 	float Unit_z0 = UnitGazeVec[2];
@@ -135,10 +136,10 @@ FVector AEgoVehicle::GenerateRotVec(const FVector &UnitGazeVecIn, float yawMaxIn
 	return RotVec;
 }
 
-FVector AEgoVehicle::GenerateRotVecGivenAngles(const FVector &UnitGazeVecIn, float yaw, float pitch)
+FVector AEgoVehicleHelpers::GenerateRotVecGivenAngles(FVector UnitGazeVec, float yaw, float pitch)
 {
 	// Normalize input vector
-	FVector UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
+	UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
 	float Unit_x0 = UnitGazeVec[0];
 	float Unit_y0 = UnitGazeVec[1];
 	float Unit_z0 = UnitGazeVec[2];
@@ -163,8 +164,32 @@ FVector AEgoVehicle::GenerateRotVecGivenAngles(const FVector &UnitGazeVecIn, flo
 	float Rot_y2 = Rot_x1 * sin(UnitGaze_yaw) + Rot_y1 * cos(UnitGaze_yaw);
 	float Rot_z2 = Rot_z1;
 
-	FVector RotVecOut = FVector(Rot_x2, Rot_y2, Rot_z2);
-	RotVecOut = RotVecOut / RotVec.Size();
+	FVector RotVec = FVector(Rot_x2, Rot_y2, Rot_z2);
+	RotVec = RotVec / RotVec.Size();
 
-	return RotVecOut;
+	return RotVec;
+}
+
+GazeDataEntry AEgoVehicleHelpers::SensorData2GazeDataEntry(const DReyeVR::SensorData* SensorDataS)
+{
+    double timestamp, x, y, confidence;
+
+    timestamp = SensorDataS->TimestampCarla;
+
+    // get the pitch and yaw from the 3D vectors because IBDT works with 2D data
+    // (prefer pitch/yaw vs pixel coords so there is no off-foveal distance distortion)
+
+    // this vector is relative to the neutral (1,0,0) head gaze
+    auto ComboEyeGazeVector = SensorDataS->Combined.GazeRay;
+    auto gaze_angles_tuple = GetAngles(FVector(1,0,0), ComboEyeGazeVector);
+    x = std::get<0>(gaze_angles_tuple); // head2gaze_pitch
+    y = std::get<1>(gaze_angles_tuple); // head2gaze_yaw
+
+    // confidence is low if x, y is 0, 0 -- weird bug in VIVE tracker
+    if (x==0 && y==0)
+        confidence=0;
+    else
+        confidence=1;
+
+    return GazeDataEntry(timestamp, confidence, x, y);
 }

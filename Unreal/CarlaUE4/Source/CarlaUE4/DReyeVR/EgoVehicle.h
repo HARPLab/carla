@@ -30,6 +30,9 @@
 #include "LogitechSteeringWheelLib.h" // LogitechWheel plugin for Force Feedback
 #endif
 
+#include "GazeData.h"
+#include "IBDT.h"
+
 #include "EgoVehicle.generated.h"
 
 UCLASS()
@@ -55,7 +58,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void ReplayUpdate();
     void ToggleGazeHUD();
 
-	// new variables added by George
+	// new variables added by George for peripheral vision project
 	float pitchMax = 0.25;
 	float yawMax = 0.6;
 	float FlashDuration = 0.5f;
@@ -67,13 +70,13 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 	float eye2light_pitch = 0.f;
 	float eye2light_yaw = 0.f;
 	float vert_offset = 0.15f;
-	int Ticks = 0;
-	FVector RotVec = FVector(1, 0, 0);
+
+	FVector RotVec = FVector(1, 0, 0); // TODO these are being hidden in the EgoVehicle helper functions, change one
 	FVector DiffVec = FVector(0, 0, 0);
 
-	float RunningTime = 0.f;
+	float RunningTime = 0.f; // TODO why is this necessary?
+    long long unsigned int egovehicle_ticks = 0;
 
-	// define the func
 	/*
 	Input
 	---
@@ -86,14 +89,14 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 	---
 
 	*/
-	void GenerateSphere(const FVector &HeadDirection, const FVector &CombinedGazePosn, 
+	void GenerateSphere(const FVector &HeadDirection, const FVector &CombinedGazePosn,
                       const FRotator &WorldRot, const FVector &CombinedOrigin, ALightBall *LightBallObject, float DeltaTime);
 
 	/*
 	Input
 	---
 	UnitGazeVec: Unit Vector directly ahead of the driver's eye gaze
-	RotVec: rotated unit vector pointing to position of flashing light
+	RotVec: rotated unit vector pointing to position of target
 
 	Output
 	---
@@ -101,7 +104,16 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 	*/
 	//void GetAngles(FVector UnitGazeVec, FVector RotVec);
 
-  protected:
+
+    // gaze event detector
+    IBDT* ibdt_classifier;
+    std::vector<GazeDataEntry> gaze_data_hist;
+
+    void TrainIBDTwEntries(std::vector<GazeDataEntry> gaze_pts);
+//    void AddIBDTpt(std::vector<GazeDataEntry> gaze_pts);
+
+
+protected:
     // Called when the game starts (spawned) or ends (destroyed)
     virtual void BeginPlay() override;
     virtual void BeginDestroy() override;
@@ -147,8 +159,11 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 	std::tuple<float, float> GetAngles(const FVector &UnitGazeVec, const FVector &RotVec);
 	void PeripheralResponseButtonPressed();
 	void PeripheralResponseButtonReleased();
-	FVector GenerateRotVec(const FVector &UnitGazeVec, float yawMax, float pitchMax, float vert_offset);
-	FVector GenerateRotVecGivenAngles(const FVector &UnitGazeVec, float yaw, float pitch);
+//	FVector GenerateRotVec(const FVector &UnitGazeVec, float yawMax, float pitchMax, float vert_offset);
+//	FVector GenerateRotVecGivenAngles(const FVector &UnitGazeVec, float yaw, float pitch);
+
+	// IBDT stuff
+
 
     // Vehicle Control Functions
     void SetSteering(const float SteeringInput);

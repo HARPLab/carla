@@ -11,12 +11,13 @@
 #include "Math/UnrealMathUtility.h"            // Clamp
 
 #include "Components/SphereComponent.h"		   // Sphere Starter Content
-#include "EgoVehicleHelper.h"
+//#include "EgoVehicleHelper.h"
 #include <algorithm>
 
 // include files for IBDT detector
 #include "opencv2/opencv.hpp"
 #include "IBDT.h"
+
 
 // Sets default values
 AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -50,6 +51,8 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
     // Initialize mirrors
     InitDReyeVRMirrors();
 
+    // Initialize IBDT classifier
+    ibdt_classifier = new IBDT();
 }
 
 void AEgoVehicle::ReadConfigVariables()
@@ -470,6 +473,18 @@ void AEgoVehicle::Tick(float DeltaTime)
     // Update sensor
     UpdateSensor(DeltaTime);
 
+    // IBDT gaze event detector stuff
+    if (egovehicle_ticks < 1){
+
+    }
+    else if (egovehicle_ticks < 500){
+        // train the ibdt
+
+    }
+    else if (egovehicle_ticks == 500){
+        // inference on the latest gaze pt
+    }
+
     // Draw debug lines on editor
     DebugLines();
 
@@ -496,17 +511,12 @@ void AEgoVehicle::Tick(float DeltaTime)
 	float B = 0.f;
 	LightBallObject->SetColor(R, G, B);
 	*/
-
-	/*
-	UE_LOG(LogTemp, Log, TEXT("CombinedGazePosn logging %s"), *CombinedGazePosn.ToString());
-	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
-	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
-	*/
-	/*
-	UE_LOG(LogTemp, Log, TEXT("HeadDirection logging %s"), *HeadDirection.ToString());
-	UE_LOG(LogTemp, Log, TEXT("ButtonPress, %d"), VehicleInputs.ButtonPressed);
-	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
-	*/
+//	UE_LOG(LogTemp, Log, TEXT("CombinedGazePosn logging %s"), *CombinedGazePosn.ToString());
+//	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
+//	UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
+//	UE_LOG(LogTemp, Log, TEXT("HeadDirection logging %s"), *HeadDirection.ToString());
+//	UE_LOG(LogTemp, Log, TEXT("ButtonPress, %d"), VehicleInputs.ButtonPressed);
+//	UE_LOG(LogTemp, Log, TEXT("CombinedOrigin logging %s"), *CombinedOrigin.ToString());
 	//UE_LOG(LogTemp, Log, TEXT("CombinedGaze logging %s"), *CombinedGaze.ToString());
 	//UE_LOG(LogTemp, Log, TEXT("WorldPos logging %s"), *WorldPos.ToString());
 
@@ -520,6 +530,8 @@ void AEgoVehicle::Tick(float DeltaTime)
         ApplyForceFeedback();
     }
 #endif
+
+    egovehicle_ticks++;
 }
 
 /// ========================================== ///
@@ -1057,6 +1069,10 @@ void AEgoVehicle::MouseTurn(const float mX_Input)
     }
 }
 
+/// ========================================== ///
+/// ------------:Peripheral study:------------ ///
+/// ========================================== ///
+
 void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &CombinedGazePosn, 
                                  const FRotator &WorldRot, const FVector &CombinedOriginIn, ALightBall *LightBallObjectIn, float DeltaTime)
 {
@@ -1065,13 +1081,14 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	UE_LOG(LogTemp, Log, TEXT("UnitGazVec, %s"), *UnitGazeVec.ToString());
 
 	// generate stimuli every 5 second chunks, and log that time
+	// TODO: all these magic numbers need to be parameterized
 	if (TimeSinceIntervalStart < 10) {
 		if (TimeSinceIntervalStart == 0.f) {
 			// Generate light posn wrt head direction
 			RotVec = GenerateRotVec(HeadDirection, yawMax, pitchMax, vert_offset);
 
 			// Get angles between head direction and light posn
-			auto head2light_angles = AEgoVehicle::GetAngles(HeadDirection, RotVec);
+			auto head2light_angles = AEgoVehicleHelpers::GetAngles(HeadDirection, RotVec);
 			head2light_pitch = std::get<0>(head2light_angles);
 			head2light_yaw = std::get<1>(head2light_angles);
 			VehicleInputs.head2target_pitch = head2light_pitch;
@@ -1123,7 +1140,7 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	*/
 
 	// Calculate gaze angles of light posn wrt eye gaze
-	auto eye2light_angles = AEgoVehicle::GetAngles(UnitGazeVec, RotVecDirection);
+	auto eye2light_angles = AEgoVehicleHelpers::GetAngles(UnitGazeVec, RotVecDirection);
 	eye2light_pitch = std::get<0>(eye2light_angles);
 	eye2light_yaw = std::get<1>(eye2light_angles);
 	VehicleInputs.gaze2target_pitch = eye2light_pitch;
@@ -1155,6 +1172,14 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	DrawDebugSphere(World, CombinedOriginIn + BotLeftLimit, 4.0f, 12, FColor::Blue);
 	DrawDebugSphere(World, CombinedOriginIn + BotRightLimit, 4.0f, 12, FColor::Blue);
 }
+
+
+void AEgoVehicle::TrainIBDTwEntries(std::vector<GazeDataEntry> gaze_pts)
+{
+    ibdt_classifier->train(gaze_pts);
+}
+
+//void TrainIBDT
 
 
 void AEgoVehicle::TogglePythonRecording()

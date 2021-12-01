@@ -15,15 +15,19 @@
 #include <vector>
 #include <tuple>
 
+#include "GazeData.h"
+#include "Carla/Sensor/DReyeVRSensorData.h"
+
 // change into namespace
 
-namespace AEgoVehicle
+namespace AEgoVehicleHelpers
 {
 	DReyeVR::UserInputs VehicleInputs;   // struct for user inputs
 
-	std::tuple<float, float> GetAngles(const FVector &UnitGazeVec, const FVector &RotVec);
+	std::tuple<float, float> GetAngles(FVector UnitGazeVec, FVector RotVec);
 	//void PeripheralResponseButtonPressed();
 	//void PeripheralResponseButtonReleased();
-	FVector GenerateRotVec(const FVector &UnitGazeVec, float yawMax, float pitchMax, float vert_offset);
-	FVector GenerateRotVecGivenAngles(const FVector &UnitGazeVec, float yaw, float pitch);
+	FVector GenerateRotVec(FVector UnitGazeVec, float yawMax, float pitchMax, float vert_offset);
+	FVector GenerateRotVecGivenAngles(FVector UnitGazeVec, float yaw, float pitch);
+    GazeDataEntry SensorData2GazeDataEntry(const DReyeVR::SensorData* SensorDataS);
 };

@@ -13,6 +13,8 @@
 #include <exception>
 #include <typeinfo>
 
+#include "EgoVehicleHelper.h"
+
 namespace carla
 {
 void throw_exception(const std::exception &e)
@@ -268,6 +270,8 @@ void AEyeTracker::Tick(float DeltaSeconds)
     // TODO IBDT stuff here actually so its agnostic to data source (live vs replay)
     // need a helper function that creates a GazaDataEntry from a SensorData
     // SensorData2GazeDataEntry(SensorData)
+
+
 }
 
 /// ========================================== ///
