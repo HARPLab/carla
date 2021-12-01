@@ -83,8 +83,12 @@ struct SensorData // everything being held by this sensor
         FocusActorName = FString("None");
     }
     int64_t TimestampCarla = 0; // Timestamp within Carla of when the EyeTracker Tick() occurred
-    // SRanipal eye tracker data
-    SRanipalData EyeTrackerData;
+
+    /// TODO: Eventually depracate use of these and use SRanipalData instead
+    int64_t TimestampSR, FrameSequence;
+    ComboEyeData Combined;
+    SingleEyeData Left, Right;
+
     // HMD position and orientation
     FVector HMDLocation = FVector::ZeroVector;    // initialized as {0,0,0}
     FRotator HMDRotation = FRotator::ZeroRotator; // initialized to {0,0,0}
@@ -96,5 +100,15 @@ struct SensorData // everything being held by this sensor
     float FocusActorDist = 0.f;                    // Distance to the Focus Actor
     // User inputs
     struct UserInputs Inputs;
+
+    void UpdateEyeTrackerData(const SRanipalData &NewData)
+    {
+        /// TODO: refactor
+        TimestampSR = NewData.TimestampSR;
+        FrameSequence = NewData.FrameSequence;
+        Combined = NewData.Combined;
+        Left = NewData.Left;
+        Right = NewData.Right;
+    }
 };
 }; // namespace DReyeVR

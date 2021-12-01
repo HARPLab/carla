@@ -151,7 +151,7 @@ void AEyeTracker::Tick(float DeltaSeconds)
         // ftime_s is used to get the UE4 (carla) timestamp of the world at this tick
         double ftime_s = UGameplayStatics::GetRealTimeSeconds(World);
         // Get data from the collector thread
-        SensorData->EyeTrackerData = DataCollectorThread->GetLatestSensorData();
+        SensorData->UpdateEyeTrackerData(DataCollectorThread->GetLatestSensorData());
 
         // Assign FFocus information
         /// NOTE: the ECC_GameTraceChannel4 line trace allows the trace to ignore the vehicle
@@ -178,7 +178,7 @@ void AEyeTracker::Tick(float DeltaSeconds)
             SensorData->HMDRotation = FirstPersonCam->GetRelativeRotation();
         }
         // The Vergence will be calculated with SRanipal if available, else just 1.0f
-        SensorData->EyeTrackerData.Combined.Vergence = CalculateVergenceFromDirections();
+        SensorData->Combined.Vergence = CalculateVergenceFromDirections();
         // Update the DReyeVR Carla sensor with the most current values
         /// NOTE: both the cpp and pyDReyeVRSensor share the same static SensorData, so we only need to update one
         cppDReyeVRSensor->Update(SensorData);
@@ -210,37 +210,37 @@ void AEyeTracker::Tick(float DeltaSeconds)
 /// ========================================== ///
 FVector AEyeTracker::GetCenterGazeRay() const
 {
-    return SensorData->EyeTrackerData.Combined.GazeRay;
+    return SensorData->Combined.GazeRay;
 }
 
 FVector AEyeTracker::GetCenterOrigin() const
 {
-    return SensorData->EyeTrackerData.Combined.Origin;
+    return SensorData->Combined.Origin;
 }
 
 float AEyeTracker::GetVergence() const
 {
-    return SensorData->EyeTrackerData.Combined.Vergence;
+    return SensorData->Combined.Vergence;
 }
 
 FVector AEyeTracker::GetLeftGazeRay() const
 {
-    return SensorData->EyeTrackerData.Left.GazeRay;
+    return SensorData->Left.GazeRay;
 }
 
 FVector AEyeTracker::GetLeftOrigin() const
 {
-    return SensorData->EyeTrackerData.Left.Origin;
+    return SensorData->Left.Origin;
 }
 
 FVector AEyeTracker::GetRightGazeRay() const
 {
-    return SensorData->EyeTrackerData.Right.GazeRay;
+    return SensorData->Right.GazeRay;
 }
 
 FVector AEyeTracker::GetRightOrigin() const
 {
-    return SensorData->EyeTrackerData.Right.Origin;
+    return SensorData->Right.Origin;
 }
 
 /// ========================================== ///
@@ -309,8 +309,8 @@ bool AEyeTracker::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DR
 
     const FRotator WorldRot = SensorData->HMDRotation;
     const FVector WorldPos = SensorData->HMDLocation;
-    const FVector GazeOrigin = WorldRot.RotateVector(SensorData->EyeTrackerData.Combined.Origin) + WorldPos;
-    const FVector GazeTarget = WorldRot.RotateVector(maxDist * SensorData->EyeTrackerData.Combined.GazeRay);
+    const FVector GazeOrigin = WorldRot.RotateVector(SensorData->Combined.Origin) + WorldPos;
+    const FVector GazeTarget = WorldRot.RotateVector(maxDist * SensorData->Combined.GazeRay);
 
     // Create collision information container.
     FCollisionQueryParams traceParam;

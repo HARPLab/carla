@@ -78,13 +78,13 @@ void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSec
     if (ClientInitialized)
     {
         auto Stream = GetDataStream(*this);
-        auto &SR_Combo = Snapshot->EyeTrackerData.Combined;
-        auto &SR_Right = Snapshot->EyeTrackerData.Right;
-        auto &SR_Left = Snapshot->EyeTrackerData.Left;
+        auto &SR_Combo = Snapshot->Combined;
+        auto &SR_Right = Snapshot->Right;
+        auto &SR_Left = Snapshot->Left;
         Stream.Send(*this,
-                    Snapshot->EyeTrackerData.TimestampSR,              // Timestamp of SRanipal (ms)
+                    Snapshot->TimestampSR,                             // Timestamp of SRanipal (ms)
                     Snapshot->TimestampCarla,                          // Timestamp of Carla (ms)
-                    Snapshot->EyeTrackerData.FrameSequence,            // Frame sequence
+                    Snapshot->FrameSequence,                           // Frame sequence
                     FVectorToGeom(SR_Combo.GazeRay),                   // Stream GazeRay Vec3
                     FVectorToGeom(SR_Combo.Origin),                    // Stream EyeOrigin Vec3
                     SR_Combo.GazeValid,                                // Validity of combined gaze

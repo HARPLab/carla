@@ -15,9 +15,9 @@
 void ReadTimings(std::ifstream &InFile, DReyeVR::SensorData &Snapshot)
 {
     // all the timing values in SRanipal
-    ReadValue<int64_t>(InFile, Snapshot.EyeTrackerData.TimestampSR);
+    ReadValue<int64_t>(InFile, Snapshot.TimestampSR);
     ReadValue<int64_t>(InFile, Snapshot.TimestampCarla);
-    ReadValue<int64_t>(InFile, Snapshot.EyeTrackerData.FrameSequence);
+    ReadValue<int64_t>(InFile, Snapshot.FrameSequence);
 }
 
 void ReadEyeData(std::ifstream &InFile, DReyeVR::EyeData &Eye)
@@ -66,9 +66,9 @@ void ReadInputs(std::ifstream &InFile, DReyeVR::UserInputs &In)
 void DReyeVRDataRecorder::Read(std::ifstream &InFile)
 {
     ReadTimings(InFile, this->Data);
-    ReadComboEyeData(InFile, this->Data.EyeTrackerData.Combined);
-    ReadSingleEyeData(InFile, this->Data.EyeTrackerData.Left);
-    ReadSingleEyeData(InFile, this->Data.EyeTrackerData.Right);
+    ReadComboEyeData(InFile, this->Data.Combined);
+    ReadSingleEyeData(InFile, this->Data.Left);
+    ReadSingleEyeData(InFile, this->Data.Right);
     ReadFVector(InFile, this->Data.HMDLocation);
     ReadFRotator(InFile, this->Data.HMDRotation);
     ReadFocusActor(InFile, this->Data);
@@ -83,9 +83,9 @@ void DReyeVRDataRecorder::Read(std::ifstream &InFile)
 void WriteTimings(std::ofstream &OutFile, const DReyeVR::SensorData &Snapshot)
 {
     // all the timing values in SRanipal
-    WriteValue<int64_t>(OutFile, Snapshot.EyeTrackerData.TimestampSR);
+    WriteValue<int64_t>(OutFile, Snapshot.TimestampSR);
     WriteValue<int64_t>(OutFile, Snapshot.TimestampCarla);
-    WriteValue<int64_t>(OutFile, Snapshot.EyeTrackerData.FrameSequence);
+    WriteValue<int64_t>(OutFile, Snapshot.FrameSequence);
 }
 
 void WriteEyeData(std::ofstream &OutFile, const DReyeVR::EyeData &Eye)
@@ -134,9 +134,9 @@ void WriteInputs(std::ofstream &OutFile, const DReyeVR::UserInputs &In)
 void DReyeVRDataRecorder::Write(std::ofstream &OutFile) const
 {
     WriteTimings(OutFile, this->Data);
-    WriteComboEyeData(OutFile, this->Data.EyeTrackerData.Combined);
-    WriteSingleEyeData(OutFile, this->Data.EyeTrackerData.Left);
-    WriteSingleEyeData(OutFile, this->Data.EyeTrackerData.Right);
+    WriteComboEyeData(OutFile, this->Data.Combined);
+    WriteSingleEyeData(OutFile, this->Data.Left);
+    WriteSingleEyeData(OutFile, this->Data.Right);
     WriteFVector(OutFile, this->Data.HMDLocation);
     WriteFRotator(OutFile, this->Data.HMDRotation);
     WriteFocusActor(OutFile, this->Data);
@@ -172,14 +172,14 @@ inline std::string VecToString(const FRotator &X)
 std::string DReyeVRDataRecorder::Print() const
 {
     std::ostringstream oss;
-    auto &SR_Combo = Data.EyeTrackerData.Combined;
-    auto &SR_Right = Data.EyeTrackerData.Right;
-    auto &SR_Left = Data.EyeTrackerData.Left;
+    auto &SR_Combo = Data.Combined;
+    auto &SR_Right = Data.Right;
+    auto &SR_Left = Data.Left;
 
     const std::string delim = "; ";                                       // semicolon + space
-    oss << "T_SRanipal: " << Data.EyeTrackerData.TimestampSR << delim     // Sranipal time
+    oss << "T_SRanipal: " << Data.TimestampSR << delim                    // Sranipal time
         << "T_Carla: " << Data.TimestampCarla << delim                    // Carla time
-        << "FrameSeq: " << Data.EyeTrackerData.FrameSequence << delim     // SRanipal Framesequence
+        << "FrameSeq: " << Data.FrameSequence << delim                    // SRanipal Framesequence
         << "GazeRay: " << VecToString(SR_Combo.GazeRay) << delim          // Gaze ray vector
         << "EyeOrigin: " << VecToString(SR_Combo.Origin) << delim         // Combined Eye origin vector
         << "Vergence: " << SR_Combo.Vergence << delim                     // Calculated vergence
