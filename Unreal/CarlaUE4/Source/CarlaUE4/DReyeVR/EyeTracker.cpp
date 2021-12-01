@@ -87,6 +87,24 @@ void AEyeTracker::BeginPlay()
 
     // initialize DReyeVR data collection thread
     DataCollectorThread->Init();
+    // initialize SRanipal so data thread can use it
+#if USE_SRANIPAL
+    UE_LOG(LogTemp, Warning, TEXT("Attempting to use SRanipal eye tracking"));
+    // Initialize the SRanipal eye tracker (WINDOWS ONLY)
+    SRanipalFramework = SRanipalEye_Framework::Instance();
+    SRanipal = SRanipalEye_Core::Instance();
+    // no easily discernible difference between v1 and v2
+    /// TODO: use the status output from StartFramework to determine if SRanipal loaded successfully
+    SRanipalFramework->StartFramework(SupportedEyeVersion::version1);
+    // SRanipal->SetEyeParameter_() // can set the eye gaze jitter parameter
+    // see SRanipal_Eyes_Enums.h
+    // Get the reference timing to synchronize the SRanipal timer with Carla
+    SRanipal->GetEyeData_(&EyeData);
+    TimestampRef = EyeData.timestamp;
+    DataCollectorThread->AssignSRanipal(SRanipal, &EyeData);
+#else
+    UE_LOG(LogTemp, Warning, TEXT("NOT using SRanipal eye tracking"));
+#endif
 
     // Spawn the (cpp) DReyeVR Carla sensor and attach to self:
     FActorSpawnParameters SpawnInfo; // empty for now
@@ -120,6 +138,15 @@ void AEyeTracker::BeginPlay()
 void AEyeTracker::BeginDestroy()
 {
     Super::BeginDestroy();
+#if USE_SRANIPAL
+    if (SRanipalFramework)
+    {
+        SRanipalFramework->StopFramework();
+        SRanipalEye_Framework::DestroyEyeFramework();
+    }
+    if (SRanipal)
+        SRanipalEye_Core::DestroyEyeModule();
+#endif
 }
 
 void AEyeTracker::SetPlayer(APlayerController *P)
@@ -402,20 +429,12 @@ EyeTrackerThread::EyeTrackerThread()
 
 EyeTrackerThread::~EyeTrackerThread()
 {
+    bRunDataCollector = false;
     if (Thread)
     {
         Thread->Kill();
         delete Thread;
     }
-#if USE_SRANIPAL
-    if (SRanipalFramework)
-    {
-        SRanipalFramework->StopFramework();
-        SRanipalEye_Framework::DestroyEyeFramework();
-    }
-    if (SRanipal)
-        SRanipalEye_Core::DestroyEyeModule();
-#endif
 }
 
 bool EyeTrackerThread::Init()
@@ -423,22 +442,6 @@ bool EyeTrackerThread::Init()
     UE_LOG(LogTemp, Warning, TEXT("Starting eye tracker collection logger"));
     bRunDataCollector = true;
     StartTime = std::chrono::system_clock::now();
-#if USE_SRANIPAL
-    UE_LOG(LogTemp, Warning, TEXT("Attempting to use SRanipal eye tracking"));
-    // Initialize the SRanipal eye tracker (WINDOWS ONLY)
-    SRanipalFramework = SRanipalEye_Framework::Instance();
-    SRanipal = SRanipalEye_Core::Instance();
-    // no easily discernible difference between v1 and v2
-    /// TODO: use the status output from StartFramework to determine if SRanipal loaded successfully
-    SRanipalFramework->StartFramework(SupportedEyeVersion::version1);
-    // SRanipal->SetEyeParameter_() // can set the eye gaze jitter parameter
-    // see SRanipal_Eyes_Enums.h
-    // Get the reference timing to synchronize the SRanipal timer with Carla
-    SRanipal->GetEyeData_(&EyeData);
-    TimestampRef = EyeData.timestamp;
-#else
-    UE_LOG(LogTemp, Warning, TEXT("NOT using SRanipal eye tracking"));
-#endif
     return true;
 }
 
@@ -462,14 +465,18 @@ uint32 EyeTrackerThread::Run()
         auto Combined = &(Data.Combined);
         auto Left = &(Data.Left);
         auto Right = &(Data.Right);
+        if (!this->SRanipal || !this->EyeData){
+            continue; // no op
+        }
+        continue;
 #if USE_SRANIPAL
         /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
         // Getting real eye tracker data
         check(SRanipal != nullptr);
         // Get the "EyeData" which holds useful information such as the timestamp
-        SRanipal->GetEyeData_(&EyeData);
-        Data->TimestampSR = EyeData.timestamp - TimestampRef;
-        Data->FrameSequence = EyeData.frame_sequence;
+        SRanipal->GetEyeData_(EyeData);
+        Data.TimestampSR = EyeData->timestamp - TimestampRef;
+        Data.FrameSequence = EyeData->frame_sequence;
         // shortcuts to eye datum
         // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
         Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->Origin, Combined->GazeRay);
@@ -496,8 +503,8 @@ uint32 EyeTrackerThread::Run()
         Left->PupilPosValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPos);
         Right->PupilPosValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPos);
         // Assign Pupil Diameters
-        Left->PupilDiam = EyeData.verbose_data.left.pupil_diameter_mm;
-        Right->PupilDiam = EyeData.verbose_data.right.pupil_diameter_mm;
+        Left->PupilDiam = EyeData->verbose_data.left.pupil_diameter_mm;
+        Right->PupilDiam = EyeData->verbose_data.right.pupil_diameter_mm;
 #else
         // Generate dummy values for Gaze Ray based off time, goes in circles in front of the user
         Combined->GazeRay.X = 5.0;

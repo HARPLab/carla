@@ -39,17 +39,25 @@ class CARLAUE4_API EyeTrackerThread : public FRunnable
     uint32 Run() override;
     void Stop() override;
     DReyeVR::SRanipalData GetLatestSensorData() const;
+#if USE_SRANIPAL
+    void AssignSRanipal(SRanipalEye_Core *S, ViveSR::anipal::Eye::EyeData *E)
+    {
+      UE_LOG(LogTemp, Warning, TEXT("Updating SRanipal core"));
+      this->SRanipal = S;
+      this->EyeData = E;
+    }
+#endif
 
   private:
     std::chrono::time_point<std::chrono::system_clock> StartTime;
     FRunnableThread *Thread;
     // Eye Tracker Variables
 #if USE_SRANIPAL
-    SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
-    SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
-    ViveSR::anipal::Eye::EyeData EyeData;     // SRanipal_Eyes_Enums.h
+    SRanipalEye_Core *SRanipal; // SRanipalEye_Core.h
+    ViveSR::anipal::Eye::EyeData *EyeData;
 #endif
     bool bRunDataCollector;
+    int64_t TimestampRef;
     std::vector<DReyeVR::SRanipalData> CapturedData;
 };
 
@@ -97,6 +105,11 @@ class CARLAUE4_API AEyeTracker : public AActor
     class UCameraComponent *FirstPersonCam; // for moving the camera upon recording
 
   private:
+#if USE_SRANIPAL
+    SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
+    SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
+    ViveSR::anipal::Eye::EyeData EyeData;     // SRanipal_Eyes_Enums.h
+#endif
     class EyeTrackerThread *DataCollectorThread;
     int64_t TimestampRef; // reference timestamp (ms) since the hmd started ticking
 
