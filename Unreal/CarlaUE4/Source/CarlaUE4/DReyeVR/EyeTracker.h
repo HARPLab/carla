@@ -20,7 +20,7 @@
 #include "EyeTracker.generated.h"
 
 #define SRANIPAL_EYE_SWAP_FIXED false
-#define USE_SRANIPAL true
+#define USE_SRANIPAL false
 
 #ifndef _WIN32
 // can only use SRanipal plugin on Windows!
@@ -47,6 +47,7 @@ class CARLAUE4_API AEyeTracker : public AActor
     FVector GetLeftOrigin() const;
     FVector GetRightGazeRay() const;
     FVector GetRightOrigin() const;
+    const DReyeVR::SensorData* GetEyeSensorData() const;
 
     // DReyeVR sensor class instance, spawned in BeginPlay()
     ADReyeVRSensor *cppDReyeVRSensor; // Spawned from this class, not used with Python
@@ -56,7 +57,7 @@ class CARLAUE4_API AEyeTracker : public AActor
     bool FindPyDReyeVRSensor();      // initialize the (python) DReyeVR sensor to some actor (ASensor)
     bool ResetPyDReyeVRSensor();     // reset (python) DReyeVR sensor back to a nullptr
 
-    // getters from EgoVehicle
+    // Setters from EgoVehicle
     void SetPlayer(APlayerController *P);
     void SetCamera(UCameraComponent *FPSCamInEgoVehicle);
     void SetInputs(const DReyeVR::UserInputs &inputs);

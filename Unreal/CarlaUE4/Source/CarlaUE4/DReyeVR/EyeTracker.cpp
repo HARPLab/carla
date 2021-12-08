@@ -312,6 +312,11 @@ FVector AEyeTracker::GetRightOrigin() const
     return SensorData->Right.Origin;
 }
 
+const DReyeVR::SensorData* AEyeTracker::GetEyeSensorData() const
+{
+    return SensorData;
+}
+
 /// ========================================== ///
 /// ---------------:HELPERS:------------------ ///
 /// ========================================== ///

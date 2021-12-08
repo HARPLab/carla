@@ -50,9 +50,6 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 
     // Initialize mirrors
     InitDReyeVRMirrors();
-
-    // Initialize IBDT classifier
-    ibdt_classifier = new IBDT();
 }
 
 void AEgoVehicle::ReadConfigVariables()
@@ -466,6 +463,7 @@ void AEgoVehicle::ReplayUpdate()
 void AEgoVehicle::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+    UE_LOG(LogTemp, Log, TEXT("Ego vehicle num ticks: %d"), egovehicle_ticks);
 
     // Update the positions based off replay data
     ReplayUpdate();
@@ -473,17 +471,8 @@ void AEgoVehicle::Tick(float DeltaTime)
     // Update sensor
     UpdateSensor(DeltaTime);
 
-    // IBDT gaze event detector stuff
-    if (egovehicle_ticks < 1){
-
-    }
-    else if (egovehicle_ticks < 500){
-        // train the ibdt
-
-    }
-    else if (egovehicle_ticks == 500){
-        // inference on the latest gaze pt
-    }
+    // IBDT gaze event detector update from fresh sensor data
+    UpdateIBDT();
 
     // Draw debug lines on editor
     DebugLines();
@@ -622,6 +611,68 @@ void AEgoVehicle::ToggleGazeHUD()
 }
 
 void AEgoVehicle::InitReticleTexture()
+{
+    // Used to initialize any bitmap-based image that will be used as a reticle
+    ReticleSrc.Reserve(ReticleDim.X * ReticleDim.Y); // allocate width*height space
+    for (int i = 0; i < ReticleDim.X; i++)
+    {
+        for (int j = 0; j < ReticleDim.Y; j++)
+        {
+            // RGBA colours
+            FColor Colour;
+            if (bRectangularReticle)
+            {
+                bool LeftOrRight = (i < ReticleThickness.X || i > ReticleDim.X - ReticleThickness.X);
+                bool TopOrBottom = (j < ReticleThickness.Y || j > ReticleDim.Y - ReticleThickness.Y);
+                if (LeftOrRight || TopOrBottom)
+                    Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                else
+                    Colour = FColor(0, 0, 0, 0); // (fully transparent inside)
+            }
+            else
+            {
+                const int x = i - ReticleDim.X / 2;
+                const int y = j - ReticleDim.Y / 2;
+                const float Radius = ReticleDim.X / 3.f;
+                const int RadThickness = 3;
+                const int LineLen = 4 * RadThickness;
+                const float RadLo = Radius - LineLen;
+                const float RadHi = Radius + LineLen;
+                bool BelowRadius = (FMath::Square(x) + FMath::Square(y) <= FMath::Square(Radius + RadThickness));
+                bool AboveRadius = (FMath::Square(x) + FMath::Square(y) >= FMath::Square(Radius - RadThickness));
+                if (BelowRadius && AboveRadius)
+                    Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                else
+                {
+                    // Draw little rectangular markers
+                    const bool RightMarker = (RadLo < x && x < RadHi) && std::fabs(y) < RadThickness;
+                    const bool LeftMarker = (RadLo < -x && -x < RadHi) && std::fabs(y) < RadThickness;
+                    const bool TopMarker = (RadLo < y && y < RadHi) && std::fabs(x) < RadThickness;
+                    const bool BottomMarker = (RadLo < -y && -y < RadHi) && std::fabs(x) < RadThickness;
+                    if (RightMarker || LeftMarker || TopMarker || BottomMarker)
+                        Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
+                    else
+                        Colour = FColor(0, 0, 0, 0); // (fully transparent inside)
+                }
+            }
+            ReticleSrc.Add(Colour);
+        }
+    }
+    /// NOTE: need to create transient like this bc of a UE4 bug in release mode
+    // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
+    ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
+    void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+    FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
+    ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
+    ReticleTexture->UpdateResource();
+    // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
+    //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
+
+    check(ReticleTexture);
+    check(ReticleTexture->Resource);
+}
+
+void AEgoVehicle::InitReticleTextures()
 {
     // Used to initialize any bitmap-based image that will be used as a reticle
     ReticleSrc.Reserve(ReticleDim.X * ReticleDim.Y); // allocate width*height space
@@ -1088,7 +1139,7 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 			RotVec = GenerateRotVec(HeadDirection, yawMax, pitchMax, vert_offset);
 
 			// Get angles between head direction and light posn
-			auto head2light_angles = AEgoVehicleHelpers::GetAngles(HeadDirection, RotVec);
+			auto head2light_angles = GetAngles(HeadDirection, RotVec);
 			head2light_pitch = std::get<0>(head2light_angles);
 			head2light_yaw = std::get<1>(head2light_angles);
 			VehicleInputs.head2target_pitch = head2light_pitch;
@@ -1140,7 +1191,7 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	*/
 
 	// Calculate gaze angles of light posn wrt eye gaze
-	auto eye2light_angles = AEgoVehicleHelpers::GetAngles(UnitGazeVec, RotVecDirection);
+	auto eye2light_angles = GetAngles(UnitGazeVec, RotVecDirection);
 	eye2light_pitch = std::get<0>(eye2light_angles);
 	eye2light_yaw = std::get<1>(eye2light_angles);
 	VehicleInputs.gaze2target_pitch = eye2light_pitch;
@@ -1148,7 +1199,7 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 
 	// Calculate gaze angles of eye gaze wrt head direction
 	/*
-	auto gaze_from_head_angles = AEgoVehicle::GetAngles(HeadDirection, UnitGazeVec);
+	auto gaze_from_head_angles = GetAngles(HeadDirection, UnitGazeVec);
 	gaze_from_head_pitch = std::get<0>(gaze_from_head_angles);
 	gaze_from_head_yaw = std::get<1>(gaze_from_head_angles);
 	VehicleInputs.gazeHeadPitch = gaze_from_head_pitch;
@@ -1173,6 +1224,48 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	DrawDebugSphere(World, CombinedOriginIn + BotRightLimit, 4.0f, 12, FColor::Blue);
 }
 
+void AEgoVehicle::UpdateIBDT()
+{
+    auto curr_sensordata = EyeTrackerSensor->GetEyeSensorData();
+    auto gde_temp = SensorData2GazeDataEntry(curr_sensordata);
+    gaze_data_hist.push_back(gde_temp);
+
+    // accumulate gaze data for IBDT classifier
+    if (egovehicle_ticks < ibdt_train_numsamples){
+        // accumulate gaze pts for training
+        UE_LOG(LogTemp, Log, TEXT("curr pt %f, %f, %f"), gde_temp.ts, gde_temp.x, gde_temp.y);
+//        UE_LOG(LogTemp, Log, TEXT("curr pt %s"), gde_temp.to_str().c_str() );
+    }
+        // train the thing
+    else if (egovehicle_ticks == ibdt_train_numsamples){
+        // train the ibdt w accumulated gaze pts
+        UE_LOG(LogTemp, Log, TEXT("first pt %f, %f"), gaze_data_hist.begin()->ts, gaze_data_hist.begin()->confidence);
+        UE_LOG(LogTemp, Log, TEXT("last pt %f, %f"), gaze_data_hist.back().ts, gaze_data_hist.back().confidence);
+
+        ibdt_classifier = new IBDT();
+        ibdt_classifier->train(gaze_data_hist);
+    }
+        // use ibdt classifier to make predictions
+    else if (egovehicle_ticks > ibdt_train_numsamples){
+        // inference on the latest gaze pt
+        // auto gde_temp = SensorData2GazeDataEntry(EyeTrackerSensor->GetEyeSensorData());
+        auto latest_gde = std::prev(gaze_data_hist.end()); // get ptr to latest gde
+        ibdt_classifier->addPoint(*latest_gde);
+
+        UE_LOG(LogTemp, Log, TEXT("Gaze classification: %d at time %f"),
+               latest_gde->classification, latest_gde->ts);
+
+        current_gazeevent_classification = latest_gde->classification;
+        // classification is of the form:
+        // enum GazeMovement {
+        //    FIXATION = 0,
+        //    SACCADE = 1,
+        //    PURSUIT = 2,
+        //    NOISE = 3,
+        //    UNDEF = 4
+        //};
+    }
+}
 
 void AEgoVehicle::TrainIBDTwEntries(std::vector<GazeDataEntry> gaze_pts)
 {

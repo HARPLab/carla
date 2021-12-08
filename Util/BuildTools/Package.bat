@@ -24,7 +24,7 @@ set USAGE_STRING="Usage: %FILE_N% [-h|--help] [--no-packaging] [--no-zip] [--cle
 
 set DO_PACKAGE=true
 set DO_COPY_FILES=true
-set DO_TARBALL=true
+set DO_TARBALL=false
 set DO_CLEAN=false
 set PACKAGES=Carla
 set USE_CARSIM=false

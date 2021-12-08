@@ -105,14 +105,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 	//void GetAngles(FVector UnitGazeVec, FVector RotVec);
 
 
-    // gaze event detector
-    IBDT* ibdt_classifier;
-    std::vector<GazeDataEntry> gaze_data_hist;
-
-    void TrainIBDTwEntries(std::vector<GazeDataEntry> gaze_pts);
-//    void AddIBDTpt(std::vector<GazeDataEntry> gaze_pts);
-
-
 protected:
     // Called when the game starts (spawned) or ends (destroyed)
     virtual void BeginPlay() override;
@@ -156,13 +148,19 @@ protected:
 	class ALightBall *LightBallObject;
 
 	// added by George (same as EgoVehicleHelper)
-	std::tuple<float, float> GetAngles(const FVector &UnitGazeVec, const FVector &RotVec);
+    //std::tuple<float, float> GetAngles(const FVector &UnitGazeVec, const FVector &RotVec);
 	void PeripheralResponseButtonPressed();
 	void PeripheralResponseButtonReleased();
 //	FVector GenerateRotVec(const FVector &UnitGazeVec, float yawMax, float pitchMax, float vert_offset);
 //	FVector GenerateRotVecGivenAngles(const FVector &UnitGazeVec, float yaw, float pitch);
 
-	// IBDT stuff
+	// IBDT gaze event detector
+    IBDT* ibdt_classifier;
+    std::vector<GazeDataEntry> gaze_data_hist;
+    int current_gazeevent_classification = 4; // GazeMovement::UNDEF
+    unsigned int ibdt_train_numsamples = 1000;
+    void UpdateIBDT();
+    void TrainIBDTwEntries(std::vector<GazeDataEntry> gaze_pts);
 
 
     // Vehicle Control Functions
@@ -213,6 +211,7 @@ protected:
     bool bRectangularReticle = false;     // Draw a simple box reticle instead of crosshairs
     void DrawReticle();                   // on Tick(), draw new reticle in eye-gaze posn
     void InitReticleTexture();            // initializes the spectator-reticle texture
+    void InitReticleTextures();            // initializes diff colors for diff gaze events
     FVector2D ReticleThickness{8, 8};     // horizontal line and vertical line
     FIntPoint ReticleDim{96, 96};         // size (px) of reticle texture (x, y)
     TArray<FColor> ReticleSrc;            // pixel values array for eye reticle texture

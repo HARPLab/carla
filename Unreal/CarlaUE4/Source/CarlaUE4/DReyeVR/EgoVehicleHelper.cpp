@@ -15,9 +15,7 @@
 #include <algorithm>
 
 
-
-std::tuple<float, float> AEgoVehicleHelpers::GetAngles(FVector UnitGazeVec, FVector RotVec)
-
+std::tuple<float, float> GetAngles(FVector UnitGazeVec, FVector RotVec)
 {
 	// Normalize input vectors
 	UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
@@ -85,7 +83,7 @@ void AEgoVehicle::PeripheralResponseButtonReleased()
 }
 */
 
-FVector AEgoVehicleHelpers::GenerateRotVec(FVector UnitGazeVec, float yawMaxIn, float pitchMaxIn, float vert_offsetIn)
+FVector GenerateRotVec(FVector UnitGazeVec, float yawMaxIn, float pitchMaxIn, float vert_offsetIn)
 {
 	// Normalize input vector
 	UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
@@ -136,7 +134,7 @@ FVector AEgoVehicleHelpers::GenerateRotVec(FVector UnitGazeVec, float yawMaxIn, 
 	return RotVec;
 }
 
-FVector AEgoVehicleHelpers::GenerateRotVecGivenAngles(FVector UnitGazeVec, float yaw, float pitch)
+FVector GenerateRotVecGivenAngles(FVector UnitGazeVec, float yaw, float pitch)
 {
 	// Normalize input vector
 	UnitGazeVec = UnitGazeVec / UnitGazeVec.Size();
@@ -170,7 +168,7 @@ FVector AEgoVehicleHelpers::GenerateRotVecGivenAngles(FVector UnitGazeVec, float
 	return RotVec;
 }
 
-GazeDataEntry AEgoVehicleHelpers::SensorData2GazeDataEntry(const DReyeVR::SensorData* SensorDataS)
+GazeDataEntry SensorData2GazeDataEntry(const DReyeVR::SensorData* SensorDataS)
 {
     double timestamp, x, y, confidence;
 
@@ -191,5 +189,31 @@ GazeDataEntry AEgoVehicleHelpers::SensorData2GazeDataEntry(const DReyeVR::Sensor
     else
         confidence=1;
 
+//    UE_LOG(LogTemp, Log, TEXT("SD2GDE %f, %f, %f, %f"), timestamp, confidence, x, y);
+
     return GazeDataEntry(timestamp, confidence, x, y);
 }
+
+//GazeDataEntry EyeTracker2GazeDataEntry(const AEyeTracker EyeTrackerS)
+//{
+//    double timestamp, x, y, confidence;
+//
+//    timestamp = SensorDataS->TimestampCarla;
+//
+//    // get the pitch and yaw from the 3D vectors because IBDT works with 2D data
+//    // (prefer pitch/yaw vs pixel coords so there is no off-foveal distance distortion)
+//
+//    // this vector is relative to the neutral (1,0,0) head gaze
+//    auto ComboEyeGazeVector = SensorDataS->Combined.GazeRay;
+//    auto gaze_angles_tuple = GetAngles(FVector(1,0,0), ComboEyeGazeVector);
+//    x = std::get<0>(gaze_angles_tuple); // head2gaze_pitch
+//    y = std::get<1>(gaze_angles_tuple); // head2gaze_yaw
+//
+//    // confidence is low if x, y is 0, 0 -- weird bug in VIVE tracker
+//    if (x==0 && y==0)
+//        confidence=0;
+//    else
+//        confidence=1;
+//
+//    return GazeDataEntry(timestamp, confidence, x, y);
+//}

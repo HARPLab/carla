@@ -20,14 +20,15 @@
 
 // change into namespace
 
-namespace AEgoVehicleHelpers
-{
-	DReyeVR::UserInputs VehicleInputs;   // struct for user inputs
+//namespace AEgoVehicleHelpers
+//{
+DReyeVR::UserInputs VehicleInputs;   // struct for user inputs
 
-	std::tuple<float, float> GetAngles(FVector UnitGazeVec, FVector RotVec);
-	//void PeripheralResponseButtonPressed();
-	//void PeripheralResponseButtonReleased();
-	FVector GenerateRotVec(FVector UnitGazeVec, float yawMax, float pitchMax, float vert_offset);
-	FVector GenerateRotVecGivenAngles(FVector UnitGazeVec, float yaw, float pitch);
-    GazeDataEntry SensorData2GazeDataEntry(const DReyeVR::SensorData* SensorDataS);
-};
+std::tuple<float, float> GetAngles(FVector UnitGazeVec, FVector RotVec);
+//void PeripheralResponseButtonPressed();
+//void PeripheralResponseButtonReleased();
+FVector GenerateRotVec(FVector UnitGazeVec, float yawMax, float pitchMax, float vert_offset);
+FVector GenerateRotVecGivenAngles(FVector UnitGazeVec, float yaw, float pitch);
+GazeDataEntry SensorData2GazeDataEntry(const DReyeVR::SensorData* SensorDataS);
+//GazeDataEntry EyeTracker2GazeDataEntry(const AEyeTracker EyeTrackerS);
+//};

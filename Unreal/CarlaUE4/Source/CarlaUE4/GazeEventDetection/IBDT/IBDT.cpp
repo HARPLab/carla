@@ -3,6 +3,7 @@
 
 #include <climits>
 #include <numeric>
+#include <assert.h>
 #include "opencv2/core.hpp"
 
 using namespace std;
@@ -34,11 +35,20 @@ void IBDT::train(std::vector<GazeDataEntry> &gaze)
 		previous->v = std::numeric_limits<double>::quiet_NaN();
 		previous++;
 	}
+	// what if no valid sample?
+    // assert(std::distance(gaze.begin(), g)) <= 1)
+
 
 	// Estimate velocities for remaining training samples
 	for (auto g = previous + 1; g != gaze.end(); g++) {
 		if (g->confidence < minSampleConfidence) {
-			g->v = std::numeric_limits<double>::quiet_NaN();
+
+//            UE_LOG(LogTemp, Log, TEXT("iterator distance %d"),
+//                   std::distance(gaze.begin(), g));
+//            UE_LOG(LogTemp, Log, TEXT("timestamp %f, %f"),
+//                   gaze.begin()->ts, g->ts);
+
+            g->v = std::numeric_limits<double>::quiet_NaN();
 			continue;
 		}
 
@@ -91,33 +101,33 @@ void IBDT::updateFixationAndSaccadeLikelihood()
 void IBDT::binaryClassification()
 {
 	if (cur->fixation.likelihood > cur->saccade.likelihood)
-		cur->classification = FIXATION;
+		cur->classification = GazeMovement::FIXATION;
 	else
-		cur->classification = SACCADE;
+		cur->classification = GazeMovement::SACCADE;
 }
 
 void IBDT::ternaryClassification()
 {
 	// Class that maximizes posterior probability
 	double maxPosterior = cur->fixation.posterior;
-	cur->classification = FIXATION;
+	cur->classification = GazeMovement::FIXATION;
 
 	if (cur->saccade.posterior > maxPosterior) {
-		cur->classification = SACCADE;
+		cur->classification = GazeMovement::SACCADE;
 		maxPosterior = cur->saccade.posterior;
 	}
 
 	if (cur->pursuit.posterior > maxPosterior)
-		cur->classification = PURSUIT;
+		cur->classification = GazeMovement::PURSUIT;
 
 	// Catch up saccades as saccades
 	if (cur->v > sMean)
-		cur->classification = SACCADE;
+		cur->classification = GazeMovement::SACCADE;
 }
 
 void IBDT::addPoint(GazeDataEntry &entry)
 {
-	entry.classification = UNDEF;
+	entry.classification = GazeMovement::UNDEF;
 
 	// Low confidence, ignore it
 	if (entry.confidence < minSampleConfidence)
@@ -138,7 +148,7 @@ void IBDT::addPoint(GazeDataEntry &entry)
 
 	// First point being classified is a special case (since we classify interframe periods)
 	if (!prev) {
-		cur->classification = UNDEF;
+		cur->classification = GazeMovement::UNDEF;
 		entry.classification = cur->classification;
 		return;
 	}

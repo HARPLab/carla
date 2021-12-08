@@ -5,7 +5,7 @@
 
 #include "opencv2/opencv.hpp"
 
-enum Movement {
+enum GazeMovement {
     FIXATION = 0,
     SACCADE = 1,
     PURSUIT = 2,
@@ -16,30 +16,45 @@ enum Movement {
 class GazeDataEntry
 {
 public:
+
     GazeDataEntry(const double &ts, const double &confidence, const double &x, const double &y) :
         ts(ts),
         confidence(confidence),
         x(x),
         y(y),
         v(0),
-        classification(UNDEF)
+        classification(GazeMovement::UNDEF)
     {}
 
-    bool isFixation() { return classification == FIXATION; }
-    bool isSaccade() { return classification == SACCADE; }
-    bool isPursuit() { return classification == PURSUIT; }
-    bool isNoise() { return classification == NOISE; }
-    bool isUndef() { return classification == UNDEF; }
+    bool isFixation() { return classification == GazeMovement::FIXATION; }
+    bool isSaccade() { return classification == GazeMovement::SACCADE; }
+    bool isPursuit() { return classification == GazeMovement::PURSUIT; }
+    bool isNoise() { return classification == GazeMovement::NOISE; }
+    bool isUndef() { return classification == GazeMovement::UNDEF; }
 
     unsigned int pause();
 
-    double x, y, v;
-    double confidence;
     double ts;
-    Movement classification;
+    double confidence;
+    double x, y, v;
+
+    GazeMovement classification;
+
+    std::string to_str(void) const
+    {
+        std::stringstream ss;
+        ss << "Timestamps, confidence, X, Y, V, classification" << std::endl
+           << ts << ", "
+           << confidence << ", "
+           << x << ", "
+           << y << ", "
+           << v << ", "
+           << classification << ";" <<std::endl;
+        return ss.str();
+    }
 
 	friend std::ostream& operator<<(std::ostream & os, const GazeDataEntry & gde)
-	{
+	{ // TODO : dont repeat yourself replace w something like  os << this->to_str()
 		 os << "Timestamps, confidence, X, Y, V, classification" << std::endl
 			<< gde.ts << ", "
 			<< gde.confidence << ", "
@@ -47,8 +62,9 @@ public:
 			<< gde.y << ", "
 			<< gde.v << ", "
 			<< gde.classification << ";" <<std::endl;
-		return os;
+		 return os;
 	}
+
 };
 
 #endif // GAZEDATA_H
