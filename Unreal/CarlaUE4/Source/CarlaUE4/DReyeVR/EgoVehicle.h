@@ -40,7 +40,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 {
     GENERATED_BODY()
 
-  public:
+public:
     // Sets default values for this pawn's properties
     AEgoVehicle(const FObjectInitializer &ObjectInitializer);
 
@@ -61,10 +61,11 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 	// new variables added by George for peripheral vision project
 	float pitchMax = 0.25;
 	float yawMax = 0.6;
-	float FlashDuration = 0.5f;
-	float TimeBetweenFlash = 2.0f;
+	float FlashDuration = 0.25f;
+	float TimeBetweenFlash = 10.0f;
 	float TimeSinceIntervalStart = 0.f;
 	float TimeStart = 0.f;
+    float TargetRadius = 0.05;
 	float head2light_pitch = 0.f;
 	float head2light_yaw = 0.f;
 	float eye2light_pitch = 0.f;
@@ -122,7 +123,7 @@ protected:
     void TogglePythonRecording();
     bool IsRecording = false;
 
-  private:
+private:
     // Camera Variables
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
     class USceneComponent *VRCameraRoot;
@@ -159,7 +160,8 @@ protected:
     std::vector<GazeDataEntry> gaze_data_hist;
     int current_gazeevent_classification = 4; // GazeMovement::UNDEF
     unsigned int ibdt_train_numsamples = 1000;
-    void UpdateIBDT();
+    double time_since_last_saccade = 0;
+    void UpdateIBDT(float DeltaTime);
     void TrainIBDTwEntries(std::vector<GazeDataEntry> gaze_pts);
 
 
@@ -180,12 +182,12 @@ protected:
     void MouseLookUp(const float mY_Input);
     void MouseTurn(const float mX_Input);
 
-#if USE_LOGITECH_WHEEL
-    DIJOYSTATE2 *Old = nullptr; // global "old" struct for the last state
-    void LogLogitechPluginStruct(const DIJOYSTATE2 *Now);
-    void LogitechWheelUpdate();      // for logitech wheel integration
-    void ApplyForceFeedback() const; // for logitech wheel integration
-#endif
+    #if USE_LOGITECH_WHEEL
+        DIJOYSTATE2 *Old = nullptr; // global "old" struct for the last state
+        void LogLogitechPluginStruct(const DIJOYSTATE2 *Now);
+        void LogitechWheelUpdate();      // for logitech wheel integration
+        void ApplyForceFeedback() const; // for logitech wheel integration
+    #endif
 
     // Mirrors
     void InitDReyeVRMirrors();

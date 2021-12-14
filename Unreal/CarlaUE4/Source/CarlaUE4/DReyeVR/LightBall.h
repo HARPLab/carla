@@ -40,6 +40,7 @@ public:
 	void TurnLightOn();
 	void TurnLightOff();
 	void SetColor(float R, float G, float B);
+	void SetSize(double new_radius);
 
 	FVector Extent_Z;
 };

@@ -90,6 +90,10 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "DrawSpectatorReticle", DrawSpectatorReticle);
     ReadConfigValue("EgoVehicle", "DrawFlatReticle", DrawFlatReticle);
     ReadConfigValue("EgoVehicle", "DrawGazeOnHUD", DrawGazeOnHUD);
+    // peripheral targets
+    ReadConfigValue("EgoVehicle", "TimeBetweenOnsetChunks", TimeBetweenFlash);
+    ReadConfigValue("EgoVehicle", "TargetOnsetDuration", FlashDuration);
+    ReadConfigValue("EgoVehicle", "TargetRadius", TargetRadius);
 }
 
 void AEgoVehicle::InitVehicleMovement()
@@ -397,7 +401,9 @@ void AEgoVehicle::BeginPlay()
 	LightBallSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	LightBallObject = World->SpawnActor<ALightBall>(FirstPersonCam->GetComponentLocation(),
 		FRotator(0.0f, 0.0f, 0.0f), LightBallSpawnInfo);
-	// Turn off collision/transparent
+	// Set the size from params
+    LightBallObject->SetSize(TargetRadius);
+    // Turn off collision/transparent
 	LightBallObject->SetActorEnableCollision(false);
 
     // Enable VR spectator screen & eye reticle
@@ -472,7 +478,7 @@ void AEgoVehicle::Tick(float DeltaTime)
     UpdateSensor(DeltaTime);
 
     // IBDT gaze event detector update from fresh sensor data
-    UpdateIBDT();
+    UpdateIBDT(DeltaTime);
 
     // Draw debug lines on editor
     DebugLines();
@@ -1131,9 +1137,9 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	FVector UnitGazeVec = (CombinedGazePosn - CombinedOriginIn) / CenterMagnitude;
 	UE_LOG(LogTemp, Log, TEXT("UnitGazVec, %s"), *UnitGazeVec.ToString());
 
-	// generate stimuli every 5 second chunks, and log that time
+	// generate stimuli every TimeBetweenFlash second chunks, and log that time
 	// TODO: all these magic numbers need to be parameterized
-	if (TimeSinceIntervalStart < 10) {
+	if (TimeSinceIntervalStart < TimeBetweenFlash) {
 		if (TimeSinceIntervalStart == 0.f) {
 			// Generate light posn wrt head direction
 			RotVec = GenerateRotVec(HeadDirection, yawMax, pitchMax, vert_offset);
@@ -1184,7 +1190,7 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	FVector RotVecDirectionPosn = HeadPos + RotVecDirection * DistanceFromDriver;
 
 	LightBallObjectIn->SetLocation(RotVecDirectionPosn);
-
+    
 	/*
 	UE_LOG(LogTemp, Log, TEXT("RotVec, %s"), *RotVec.ToString());
 	UE_LOG(LogTemp, Log, TEXT("RotVecDirection, %s"), *RotVecDirection.ToString());
@@ -1224,7 +1230,7 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	DrawDebugSphere(World, CombinedOriginIn + BotRightLimit, 4.0f, 12, FColor::Blue);
 }
 
-void AEgoVehicle::UpdateIBDT()
+void AEgoVehicle::UpdateIBDT(float DeltaTime)
 {
     auto curr_sensordata = EyeTrackerSensor->GetEyeSensorData();
     auto gde_temp = SensorData2GazeDataEntry(curr_sensordata);
@@ -1256,6 +1262,15 @@ void AEgoVehicle::UpdateIBDT()
                latest_gde->classification, latest_gde->ts);
 
         current_gazeevent_classification = latest_gde->classification;
+
+        // keep track of how long its been since the last saccade classification
+        if (current_gazeevent_classification == GazeMovement::SACCADE){
+            time_since_last_saccade += DeltaTime;
+        }
+        else{
+            time_since_last_saccade = 0;
+        }
+
         // classification is of the form:
         // enum GazeMovement {
         //    FIXATION = 0,

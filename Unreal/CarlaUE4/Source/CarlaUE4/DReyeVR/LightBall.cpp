@@ -87,3 +87,7 @@ void ALightBall::SetColor(float R, float G, float B)
 	SphereMesh->SetMaterial(0, dynamicMaterial);
 }
 
+void ALightBall::SetSize(double new_radius)
+{
+	SetActorScale3D(FVector(new_radius, new_radius, new_radius));
+}
