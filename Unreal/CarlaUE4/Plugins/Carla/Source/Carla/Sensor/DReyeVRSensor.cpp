@@ -138,6 +138,9 @@ void ADReyeVRSensor::Update(const DReyeVR::SensorData *NewData)
 bool ADReyeVRSensor::IsReplaying = false; // not replaying initially
 FTransform ADReyeVRSensor::EgoReplayTransform = FTransform(FRotator(0, 0, 0), FVector(0, 0, 0), FVector(1, 1, 1));
 float ADReyeVRSensor::EgoReplayVelocity = 0;
+float ADReyeVRSensor::EgoReplayPeriphTargetYaw = 0;
+float ADReyeVRSensor::EgoReplayPeriphTargetPitch = 0;
+bool ADReyeVRSensor::EgoReplayPeriphTargetVisibility = false;
 
 void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &R_Snapshot, const FTransform &EgoTrans,
                                       const double Per)
@@ -146,6 +149,9 @@ void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &R_Snapshot, con
     ADReyeVRSensor::SetIsReplaying(true);
     ADReyeVRSensor::EgoReplayTransform = EgoTrans;
     ADReyeVRSensor::EgoReplayVelocity = R_Snapshot.Velocity;
+    ADReyeVRSensor::EgoReplayPeriphTargetYaw = R_Snapshot.Inputs.head2target_yaw;
+    ADReyeVRSensor::EgoReplayPeriphTargetPitch = R_Snapshot.Inputs.head2target_pitch;
+    ADReyeVRSensor::EgoReplayPeriphTargetVisibility = R_Snapshot.Inputs.LightOn;
     if (ADReyeVRSensor::Snapshot != nullptr)
     {
         FVector NewCameraPose;

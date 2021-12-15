@@ -1138,6 +1138,20 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	FVector UnitGazeVec = (CombinedGazePosn - CombinedOriginIn) / CenterMagnitude;
 	UE_LOG(LogTemp, Log, TEXT("UnitGazVec, %s"), *UnitGazeVec.ToString());
 
+    if (ADReyeVRSensor::GetIsReplaying()) {
+        // replay the position (direction) and visibility of the light ball object
+        const FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, ADReyeVRSensor::EgoReplayPeriphTargetYaw, 
+                                                                  ADReyeVRSensor::EgoReplayPeriphTargetPitch);
+        const FVector RotVecDirectionPosn = FirstPersonCam->GetComponentLocation() + RotVecDirection * TargetRenderDistance;
+	    LightBallObjectIn->SetLocation(RotVecDirectionPosn);
+        if (ADReyeVRSensor::EgoReplayPeriphTargetVisibility == true) {
+            LightBallObjectIn->TurnLightOn();
+        }
+        else {
+            LightBallObjectIn->TurnLightOff();
+        }
+        return; // don't generate anything, just exit
+    }
 	// generate stimuli every TimeBetweenFlash second chunks, and log that time
 	// TODO: all these magic numbers need to be parameterized
 	if (TimeSinceIntervalStart < TimeBetweenFlash) {
