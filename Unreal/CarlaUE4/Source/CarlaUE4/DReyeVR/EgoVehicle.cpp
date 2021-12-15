@@ -94,6 +94,7 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "TimeBetweenOnsetChunks", TimeBetweenFlash);
     ReadConfigValue("EgoVehicle", "TargetOnsetDuration", FlashDuration);
     ReadConfigValue("EgoVehicle", "TargetRadius", TargetRadius);
+    ReadConfigValue("EgoVehicle", "TargetRenderDistance", TargetRenderDistance);
 }
 
 void AEgoVehicle::InitVehicleMovement()
@@ -1158,7 +1159,16 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 		} 
 		else if (FMath::IsNearlyEqual(TimeSinceIntervalStart, TimeStart, 0.05f)) {
 			// turn light on 
-			LightBallObjectIn->TurnLightOn();
+            
+            // // Generate the posn of the light given current angles - more static
+            // float TargetRenderDistance = CenterMagnitude*3;
+            // FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, head2light_yaw, head2light_pitch);
+            // FVector HeadPos = FirstPersonCam->GetComponentLocation();
+            // FVector RotVecDirectionPosn = HeadPos + RotVecDirection * TargetRenderDistance;
+
+            // LightBallObjectIn->SetLocation(RotVecDirectionPosn);
+            
+            LightBallObjectIn->TurnLightOn();
 			TimeSinceIntervalStart += DeltaTime;
 			
 			VehicleInputs.LightOn = true;
@@ -1184,10 +1194,11 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	//UE_LOG(LogTemp, Log, TEXT("TimeSinceIntervalStart, %f"), TimeSinceIntervalStart);
 	
 	// Generate the posn of the light given current angles
-	float DistanceFromDriver = CenterMagnitude*3;
+	// float TargetRenderDistance = CenterMagnitude*3;
+    // UE_LOG(LogTemp, Log, TEXT("CenterMagnitude, %f"), CenterMagnitude);
 	FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, head2light_yaw, head2light_pitch);
 	FVector HeadPos = FirstPersonCam->GetComponentLocation();
-	FVector RotVecDirectionPosn = HeadPos + RotVecDirection * DistanceFromDriver;
+	FVector RotVecDirectionPosn = HeadPos + RotVecDirection * TargetRenderDistance;
 
 	LightBallObjectIn->SetLocation(RotVecDirectionPosn);
     
@@ -1220,10 +1231,10 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	UE_LOG(LogTemp, Log, TEXT("Light On: %d"), VehicleInputs.LightOn);
 	
 	// Draw debug border markers
-	FVector TopLeftLimit = GenerateRotVecGivenAngles(HeadDirection, -yawMax, pitchMax+vert_offset) * DistanceFromDriver;
-	FVector TopRightLimit = GenerateRotVecGivenAngles(HeadDirection, yawMax, pitchMax+vert_offset) * DistanceFromDriver;
-	FVector BotLeftLimit = GenerateRotVecGivenAngles(HeadDirection, -yawMax, -pitchMax+vert_offset) * DistanceFromDriver;
-	FVector BotRightLimit = GenerateRotVecGivenAngles(HeadDirection, yawMax, -pitchMax+vert_offset) * DistanceFromDriver;
+	FVector TopLeftLimit = GenerateRotVecGivenAngles(HeadDirection, -yawMax, pitchMax+vert_offset) * TargetRenderDistance;
+	FVector TopRightLimit = GenerateRotVecGivenAngles(HeadDirection, yawMax, pitchMax+vert_offset) * TargetRenderDistance;
+	FVector BotLeftLimit = GenerateRotVecGivenAngles(HeadDirection, -yawMax, -pitchMax+vert_offset) * TargetRenderDistance;
+	FVector BotRightLimit = GenerateRotVecGivenAngles(HeadDirection, yawMax, -pitchMax+vert_offset) * TargetRenderDistance;
 	DrawDebugSphere(World, CombinedOriginIn + TopLeftLimit, 4.0f, 12, FColor::Blue);
 	DrawDebugSphere(World, CombinedOriginIn + TopRightLimit, 4.0f, 12, FColor::Blue);
 	DrawDebugSphere(World, CombinedOriginIn + BotLeftLimit, 4.0f, 12, FColor::Blue);

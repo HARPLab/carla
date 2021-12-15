@@ -66,6 +66,7 @@ public:
 	float TimeSinceIntervalStart = 0.f;
 	float TimeStart = 0.f;
     float TargetRadius = 0.05;
+    float TargetRenderDistance = 300;
 	float head2light_pitch = 0.f;
 	float head2light_yaw = 0.f;
 	float eye2light_pitch = 0.f;
