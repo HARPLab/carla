@@ -465,11 +465,12 @@ uint32 EyeTrackerThread::Run()
         auto Combined = &(Data.Combined);
         auto Left = &(Data.Left);
         auto Right = &(Data.Right);
-        if (!this->SRanipal || !this->EyeData){
-            continue; // no op
-        }
         continue;
 #if USE_SRANIPAL
+        if (!this->SRanipal || !this->EyeData)
+        {
+            continue; // no op
+        }
         /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
         // Getting real eye tracker data
         check(SRanipal != nullptr);

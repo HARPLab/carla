@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{A72794B7-4BB9-211F-2750-01854A8E18CC}",
+	"EngineAssociation": "4.24",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -104,10 +104,6 @@
 		},
 		{
 			"Name": "RenderDocPlugin",
-			"Enabled": true
-		},
-		{
-			"Name": "LogitechWheelPlugin",
 			"Enabled": true
 		}
 	]
