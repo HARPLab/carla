@@ -23,8 +23,6 @@ void throw_exception(const std::exception &e)
 } // namespace carla
 #endif
 
-#pragma region Main Thread Code
-
 AEyeTracker::AEyeTracker()
 {
     SensorData = new struct DReyeVR::SensorData;
@@ -34,7 +32,6 @@ AEyeTracker::AEyeTracker()
     ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
     ReadConfigValue("EyeTracker", "FrameDir", FrameCapLocation);
     ReadConfigValue("EyeTracker", "FrameName", FrameCapFilename);
-    DataCollectorThread = new EyeTrackerThread(); /// TODO: start running upon begin play
 
     if (bCaptureFrameData)
     {
@@ -72,23 +69,15 @@ AEyeTracker::AEyeTracker()
     }
 }
 
-AEyeTracker::~AEyeTracker()
-{
-    if (DataCollectorThread)
-        DataCollectorThread->Stop();
-    // delete DataCollectorThread;
-}
-
 void AEyeTracker::BeginPlay()
 {
     Super::BeginPlay();
 
     World = GetWorld();
+    StartTime = std::chrono::system_clock::now();
 
-    // initialize DReyeVR data collection thread
-    DataCollectorThread->Init();
-    // initialize SRanipal so data thread can use it
 #if USE_SRANIPAL
+    // initialize SRanipal framework for eye tracking
     UE_LOG(LogTemp, Warning, TEXT("Attempting to use SRanipal eye tracking"));
     // Initialize the SRanipal eye tracker (WINDOWS ONLY)
     SRanipalFramework = SRanipalEye_Framework::Instance();
@@ -101,7 +90,6 @@ void AEyeTracker::BeginPlay()
     // Get the reference timing to synchronize the SRanipal timer with Carla
     SRanipal->GetEyeData_(&EyeData);
     TimestampRef = EyeData.timestamp;
-    DataCollectorThread->AssignSRanipal(SRanipal, &EyeData);
 #else
     UE_LOG(LogTemp, Warning, TEXT("NOT using SRanipal eye tracking"));
 #endif
@@ -177,8 +165,8 @@ void AEyeTracker::Tick(float DeltaSeconds)
     {
         // ftime_s is used to get the UE4 (carla) timestamp of the world at this tick
         double ftime_s = UGameplayStatics::GetRealTimeSeconds(World);
-        // Get data from the collector thread
-        SensorData->UpdateEyeTrackerData(DataCollectorThread->GetLatestSensorData());
+        // Get data from the hardware sensor
+        SensorData->UpdateEyeTrackerData(this->TickSensor());
 
         // Assign FFocus information
         /// NOTE: the ECC_GameTraceChannel4 line trace allows the trace to ignore the vehicle
@@ -230,6 +218,70 @@ void AEyeTracker::Tick(float DeltaSeconds)
         SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix));
     }
     TickCount++;
+}
+
+DReyeVR::SRanipalData AEyeTracker::TickSensor()
+{
+    DReyeVR::SRanipalData Data;
+    auto Combined = &(Data.Combined);
+    auto Left = &(Data.Left);
+    auto Right = &(Data.Right);
+#if USE_SRANIPAL
+    /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
+    // Getting real eye tracker data
+    check(SRanipal != nullptr);
+    // Get the "EyeData" which holds useful information such as the timestamp
+    SRanipal->GetEyeData_(EyeData);
+    Data.TimestampSR = EyeData->timestamp - TimestampRef;
+    Data.FrameSequence = EyeData->frame_sequence;
+    // shortcuts to eye datum
+    // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
+    Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->Origin, Combined->GazeRay);
+    // Assign Left/Right Gaze direction
+    /// NOTE: the eye gazes are reversed at the lowest level bc SRanipal has a bug in their
+    // libraries that flips these when collected from the sensor. We can verify this by
+    // plotting debug lines for the left and right eye gazes and notice that if we close
+    // one eye, the OTHER eye's gaze is null, when it should be the closed eye instead...
+    // see: https://forum.vive.com/topic/9306-possible-bug-in-unreal-sdk-for-leftright-eye-gazes
+    if (SRANIPAL_EYE_SWAP_FIXED) // if the latest SRanipal does not have this bug
+    {
+        Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->Origin, Left->GazeRay);
+        Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->Origin, Right->GazeRay);
+    }
+    else // this is the default case which we were dealing with during development
+    {
+        Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->Origin, Right->GazeRay);
+        Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->Origin, Left->GazeRay);
+    }
+    // Assign Eye openness
+    Left->EyeOpenValid = SRanipal->GetEyeOpenness(EyeIndex::LEFT, Left->EyeOpenness);
+    Right->EyeOpenValid = SRanipal->GetEyeOpenness(EyeIndex::RIGHT, Right->EyeOpenness);
+    // Assign Pupil positions
+    Left->PupilPosValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPos);
+    Right->PupilPosValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPos);
+    // Assign Pupil Diameters
+    Left->PupilDiam = EyeData->verbose_data.left.pupil_diameter_mm;
+    Right->PupilDiam = EyeData->verbose_data.right.pupil_diameter_mm;
+#else
+    // Generate dummy values for Gaze Ray based off time, goes in circles in front of the user
+    Combined->GazeRay.X = 5.0;
+    // std::chrono::duration<double> Time = std::chrono::system_clock::now();
+    const auto DeltaT = std::chrono::system_clock::now() - StartTime; // time difference since begin play
+    const float TimeNow = std::chrono::duration_cast<std::chrono::milliseconds>(DeltaT).count() / 1000.f;
+    Combined->GazeRay.Y = UKismetMathLibrary::Cos(TimeNow);
+    Combined->GazeRay.Z = UKismetMathLibrary::Sin(TimeNow);
+    UKismetMathLibrary::Vector_Normalize(Combined->GazeRay, 0.0001);
+
+    // Assign the origin position to the (3D space) origin
+    Combined->GazeValid = true; // for our Linux case, this is valid
+                                // not going to assign anything for the L/R eye tracker fields
+
+    // Assign the endpoint of the combined position (faked in Linux) to the left & right gazes too
+    Left->GazeRay = Combined->GazeRay;
+    Right->GazeRay = Combined->GazeRay;
+#endif
+    // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
+    return Data;
 }
 
 /// ========================================== ///
@@ -416,124 +468,4 @@ float AEyeTracker::CalculateVergenceFromDirections() const
     // Not calculating vergence without real values
     return 1.0f;
 #endif
-}
-
-#pragma endregion
-
-EyeTrackerThread::EyeTrackerThread()
-{
-    Thread = FRunnableThread::Create(this, TEXT("SRanipal Data Collection Thread"));
-    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR data collection thread"));
-    bRunDataCollector = false;
-}
-
-EyeTrackerThread::~EyeTrackerThread()
-{
-    bRunDataCollector = false;
-    if (Thread)
-    {
-        Thread->Kill();
-        delete Thread;
-    }
-}
-
-bool EyeTrackerThread::Init()
-{
-    UE_LOG(LogTemp, Warning, TEXT("Starting eye tracker collection logger"));
-    bRunDataCollector = true;
-    StartTime = std::chrono::system_clock::now();
-    return true;
-}
-
-DReyeVR::SRanipalData EyeTrackerThread::GetLatestSensorData() const
-{
-    if (this->CapturedData.size() > 0)
-    {
-        // gets last "most recent" element
-        return this->CapturedData[this->CapturedData.size() - 1];
-    }
-    UE_LOG(LogTemp, Warning, TEXT("No data collected from eye tracker thread"));
-    DReyeVR::SRanipalData Ret;
-    return Ret; // Uninitialized
-}
-
-uint32 EyeTrackerThread::Run()
-{
-    while (bRunDataCollector)
-    {
-        DReyeVR::SRanipalData Data;
-        auto Combined = &(Data.Combined);
-        auto Left = &(Data.Left);
-        auto Right = &(Data.Right);
-        continue;
-#if USE_SRANIPAL
-        if (!this->SRanipal || !this->EyeData)
-        {
-            continue; // no op
-        }
-        /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
-        // Getting real eye tracker data
-        check(SRanipal != nullptr);
-        // Get the "EyeData" which holds useful information such as the timestamp
-        SRanipal->GetEyeData_(EyeData);
-        Data.TimestampSR = EyeData->timestamp - TimestampRef;
-        Data.FrameSequence = EyeData->frame_sequence;
-        // shortcuts to eye datum
-        // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
-        Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->Origin, Combined->GazeRay);
-        // Assign Left/Right Gaze direction
-        /// NOTE: the eye gazes are reversed at the lowest level bc SRanipal has a bug in their
-        // libraries that flips these when collected from the sensor. We can verify this by
-        // plotting debug lines for the left and right eye gazes and notice that if we close
-        // one eye, the OTHER eye's gaze is null, when it should be the closed eye instead...
-        // see: https://forum.vive.com/topic/9306-possible-bug-in-unreal-sdk-for-leftright-eye-gazes
-        if (SRANIPAL_EYE_SWAP_FIXED) // if the latest SRanipal does not have this bug
-        {
-            Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->Origin, Left->GazeRay);
-            Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->Origin, Right->GazeRay);
-        }
-        else // this is the default case which we were dealing with during development
-        {
-            Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->Origin, Right->GazeRay);
-            Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->Origin, Left->GazeRay);
-        }
-        // Assign Eye openness
-        Left->EyeOpenValid = SRanipal->GetEyeOpenness(EyeIndex::LEFT, Left->EyeOpenness);
-        Right->EyeOpenValid = SRanipal->GetEyeOpenness(EyeIndex::RIGHT, Right->EyeOpenness);
-        // Assign Pupil positions
-        Left->PupilPosValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPos);
-        Right->PupilPosValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPos);
-        // Assign Pupil Diameters
-        Left->PupilDiam = EyeData->verbose_data.left.pupil_diameter_mm;
-        Right->PupilDiam = EyeData->verbose_data.right.pupil_diameter_mm;
-#else
-        // Generate dummy values for Gaze Ray based off time, goes in circles in front of the user
-        Combined->GazeRay.X = 5.0;
-        // std::chrono::duration<double> Time = std::chrono::system_clock::now();
-        const auto p1 = std::chrono::system_clock::now();
-        const float current_time =
-            std::chrono::duration_cast<std::chrono::milliseconds>(p1 - StartTime).count() / 1000.f;
-        Combined->GazeRay.Y = UKismetMathLibrary::Cos(current_time);
-        Combined->GazeRay.Z = UKismetMathLibrary::Sin(current_time);
-        UKismetMathLibrary::Vector_Normalize(Combined->GazeRay, 0.0001);
-
-        // Assign the origin position to the (3D space) origin
-        Combined->GazeValid = true; // for our Linux case, this is valid
-                                    // not going to assign anything for the L/R eye tracker fields
-
-        // Assign the endpoint of the combined position (faked in Linux) to the left & right gazes too
-        Left->GazeRay = Combined->GazeRay;
-        Right->GazeRay = Combined->GazeRay;
-#endif
-
-        // keep track of all captured SRanipal data
-        this->CapturedData.push_back(Data);
-        FPlatformProcess::Sleep(0.00833f); // 120hz
-    }
-    return 0;
-}
-
-void EyeTrackerThread::Stop()
-{
-    bRunDataCollector = false;
 }

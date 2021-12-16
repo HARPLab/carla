@@ -30,37 +30,6 @@
 
 #include "EyeTracker.generated.h"
 
-class CARLAUE4_API EyeTrackerThread : public FRunnable
-{
-  public:
-    EyeTrackerThread();
-    virtual ~EyeTrackerThread() override;
-    bool Init() override;
-    uint32 Run() override;
-    void Stop() override;
-    DReyeVR::SRanipalData GetLatestSensorData() const;
-#if USE_SRANIPAL
-    void AssignSRanipal(SRanipalEye_Core *S, ViveSR::anipal::Eye::EyeData *E)
-    {
-      UE_LOG(LogTemp, Warning, TEXT("Updating SRanipal core"));
-      this->SRanipal = S;
-      this->EyeData = E;
-    }
-#endif
-
-  private:
-    std::chrono::time_point<std::chrono::system_clock> StartTime;
-    FRunnableThread *Thread;
-    // Eye Tracker Variables
-#if USE_SRANIPAL
-    SRanipalEye_Core *SRanipal; // SRanipalEye_Core.h
-    ViveSR::anipal::Eye::EyeData *EyeData;
-#endif
-    bool bRunDataCollector;
-    int64_t TimestampRef;
-    std::vector<DReyeVR::SRanipalData> CapturedData;
-};
-
 UCLASS()
 class CARLAUE4_API AEyeTracker : public AActor
 {
@@ -68,7 +37,6 @@ class CARLAUE4_API AEyeTracker : public AActor
 
   public:
     AEyeTracker();
-    ~AEyeTracker();
 
     void Tick(float DeltaSeconds);
     int64_t TickCount = 0;
@@ -105,13 +73,14 @@ class CARLAUE4_API AEyeTracker : public AActor
     class UCameraComponent *FirstPersonCam; // for moving the camera upon recording
 
   private:
+    // Eye Tracker Variables
 #if USE_SRANIPAL
     SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
     SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
     ViveSR::anipal::Eye::EyeData EyeData;     // SRanipal_Eyes_Enums.h
 #endif
-    class EyeTrackerThread *DataCollectorThread;
-    int64_t TimestampRef; // reference timestamp (ms) since the hmd started ticking
+    int64_t TimestampRef;               // reference timestamp (ms) since the hmd started ticking
+    DReyeVR::SRanipalData TickSensor(); // tick hardware sensor (should be const function?)
 
     // everything stored in the sensor is held in this struct
     struct DReyeVR::SensorData *SensorData;
@@ -127,6 +96,9 @@ class CARLAUE4_API AEyeTracker : public AActor
     bool bCaptureFrameData;
     int FrameCapWidth;
     int FrameCapHeight;
+
+    // Other variables
+    std::chrono::time_point<std::chrono::system_clock> StartTime;
 
     // Helper functions
     bool ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, // reimplementing the SRanipal Focus
