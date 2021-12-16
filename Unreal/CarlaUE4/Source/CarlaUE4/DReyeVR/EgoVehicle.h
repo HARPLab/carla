@@ -103,6 +103,18 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void MouseLookUp(const float mY_Input);
     void MouseTurn(const float mX_Input);
 
+    // Vehicle Control Possession
+    enum Driver
+    {
+        HUMAN,
+        AI,
+        NONE,
+    } CurrentDriver;
+    void HandoffToHuman();
+    void HandoffToAI();
+    void HandoffToNone();
+    void DriverHandoff(const Driver NewDriver);
+
 #if USE_LOGITECH_WHEEL
     DIJOYSTATE2 *Old = nullptr; // global "old" struct for the last state
     void LogLogitechPluginStruct(const DIJOYSTATE2 *Now);

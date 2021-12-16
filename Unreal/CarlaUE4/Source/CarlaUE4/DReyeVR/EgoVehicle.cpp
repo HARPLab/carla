@@ -1,15 +1,16 @@
 #include "EgoVehicle.h"
-#include "Carla/Vehicle/VehicleControl.h"      // FVehicleControl
-#include "DrawDebugHelpers.h"                  // Debug Line/Sphere
-#include "Engine/EngineTypes.h"                // EBlendMode
-#include "Engine/World.h"                      // GetWorld
-#include "GameFramework/Actor.h"               // Destroy
-#include "HeadMountedDisplayFunctionLibrary.h" // SetTrackingOrigin, GetWorldToMetersScale
-#include "HeadMountedDisplayTypes.h"           // ESpectatorScreenMode
-#include "Kismet/GameplayStatics.h"            // GetPlayerController
-#include "Kismet/KismetSystemLibrary.h"        // PrintString, QuitGame
-#include "Math/Rotator.h"                      // RotateVector, Clamp
-#include "Math/UnrealMathUtility.h"            // Clamp
+#include "Carla/Vehicle/CarlaWheeledVehicleState.h" // ECarlaWheeledVehicleState
+#include "Carla/Vehicle/VehicleControl.h"           // FVehicleControl
+#include "DrawDebugHelpers.h"                       // Debug Line/Sphere
+#include "Engine/EngineTypes.h"                     // EBlendMode
+#include "Engine/World.h"                           // GetWorld
+#include "GameFramework/Actor.h"                    // Destroy
+#include "HeadMountedDisplayFunctionLibrary.h"      // SetTrackingOrigin, GetWorldToMetersScale
+#include "HeadMountedDisplayTypes.h"                // ESpectatorScreenMode
+#include "Kismet/GameplayStatics.h"                 // GetPlayerController
+#include "Kismet/KismetSystemLibrary.h"             // PrintString, QuitGame
+#include "Math/Rotator.h"                           // RotateVector, Clamp
+#include "Math/UnrealMathUtility.h"                 // Clamp
 
 #include <algorithm>
 
@@ -338,9 +339,10 @@ void AEgoVehicle::BeginPlay()
 
     // Get information about the world
     World = GetWorld();
-    const FString SetVRPixelDensity = "vr.PixelDensity " + FString::SanitizeFloat(PixelDensity);
-    World->Exec(World, *SetVRPixelDensity);
+    // const FString SetVRPixelDensity = "vr.PixelDensity " + FString::SanitizeFloat(PixelDensity);
+    // World->Exec(World, *SetVRPixelDensity);
     Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
+    CurrentDriver = Driver::HUMAN;                            // starting off with human driver
 
     // Setup the HUD
     AHUD *Raw_HUD = Player->GetHUD();
@@ -763,6 +765,44 @@ void AEgoVehicle::UpdateText()
 }
 
 /// ========================================== ///
+/// ----------------:DRIVER:------------------ ///
+/// ========================================== ///
+void AEgoVehicle::HandoffToHuman()
+{
+    DriverHandoff(Driver::HUMAN);
+}
+void AEgoVehicle::HandoffToAI()
+{
+    DriverHandoff(Driver::AI);
+}
+void AEgoVehicle::HandoffToNone()
+{
+    DriverHandoff(Driver::NONE);
+}
+
+void AEgoVehicle::DriverHandoff(const Driver NewDriver)
+{
+    CurrentDriver = NewDriver;
+    if (CurrentDriver == Driver::AI)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Handoff to AI control"));
+        this->SetAIVehicleState(ECarlaWheeledVehicleState::FreeDriving);
+    }
+    else
+    {
+        this->SetAIVehicleState(ECarlaWheeledVehicleState::AutopilotOff);
+        if (CurrentDriver == Driver::HUMAN)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Handoff to HUMAN control"));
+        }
+        else if (CurrentDriver == Driver::NONE)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Handoff to NONE control"));
+        }
+    }
+}
+
+/// ========================================== ///
 /// ----------------:INPUTS:------------------ ///
 /// ========================================== ///
 
@@ -790,6 +830,10 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
     PlayerInputComponent->BindAction("TogglePyRecord_DReyeVR", IE_Pressed, this, &AEgoVehicle::TogglePythonRecording);
     // Draw gaze rays on HUD
     PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleGazeHUD);
+    // Driver Handoff examples
+    PlayerInputComponent->BindKey(EKeys::One, IE_Pressed, this, &AEgoVehicle::HandoffToHuman);
+    PlayerInputComponent->BindKey(EKeys::Two, IE_Pressed, this, &AEgoVehicle::HandoffToAI);
+    PlayerInputComponent->BindKey(EKeys::Three, IE_Pressed, this, &AEgoVehicle::HandoffToNone);
 }
 
 void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
@@ -803,6 +847,8 @@ void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
 // to actually move the vehicle we'll use GetVehicleMovementComponent() which is part of AWheeledVehicle
 void AEgoVehicle::SetSteering(const float SteeringInput)
 {
+    if (CurrentDriver != Driver::HUMAN)
+        return;
     float SteeringDamping = 0.6f;
     float ScaledSteeringInput = SteeringDamping * SteeringInput;
     GetVehicleMovementComponent()->SetSteeringInput(ScaledSteeringInput); // UE4 control
@@ -813,6 +859,8 @@ void AEgoVehicle::SetSteering(const float SteeringInput)
 
 void AEgoVehicle::SetThrottle(const float ThrottleInput)
 {
+    if (CurrentDriver != Driver::HUMAN)
+        return;
     float ScaledThrottleInput = 1.0f * ThrottleInput;
     GetVehicleMovementComponent()->SetThrottleInput(ScaledThrottleInput); // UE4 control
     SetThrottleInput(ScaledThrottleInput);                                // Carla control
@@ -829,6 +877,8 @@ void AEgoVehicle::SetThrottle(const float ThrottleInput)
 
 void AEgoVehicle::SetBrake(const float BrakeInput)
 {
+    if (CurrentDriver != Driver::HUMAN)
+        return;
     float ScaledBrakeInput = 2.0f * BrakeInput;
     GetVehicleMovementComponent()->SetBrakeInput(ScaledBrakeInput); // UE4 control
     SetBrakeInput(ScaledBrakeInput);                                // Carla control
@@ -845,6 +895,8 @@ void AEgoVehicle::SetBrake(const float BrakeInput)
 
 void AEgoVehicle::ToggleReverse()
 {
+    if (CurrentDriver != Driver::HUMAN)
+        return;
     // negate to toggle bw 1 (forwards) and -1 (backwards)
     int NewGear = -1 * GetVehicleMovementComponent()->GetTargetGear();
     bReverse = !bReverse;
@@ -869,6 +921,8 @@ void AEgoVehicle::ToggleReverse()
 
 void AEgoVehicle::TurnSignalRight()
 {
+    if (CurrentDriver != Driver::HUMAN)
+        return;
     // store in local input container
     VehicleInputs.TurnSignalRight = true;
 
@@ -890,6 +944,8 @@ void AEgoVehicle::TurnSignalRight()
 
 void AEgoVehicle::TurnSignalLeft()
 {
+    if (CurrentDriver != Driver::HUMAN)
+        return;
     // store in local input container
     VehicleInputs.TurnSignalLeft = true;
 
@@ -911,6 +967,8 @@ void AEgoVehicle::TurnSignalLeft()
 
 void AEgoVehicle::HoldHandbrake()
 {
+    if (CurrentDriver != Driver::HUMAN)
+        return;
     GetVehicleMovementComponent()->SetHandbrakeInput(true); // UE4 control
     SetHandbrakeInput(true);                                // Carla control
     // assign to input struct
@@ -919,6 +977,8 @@ void AEgoVehicle::HoldHandbrake()
 
 void AEgoVehicle::ReleaseHandbrake()
 {
+    if (CurrentDriver != Driver::HUMAN)
+        return;
     GetVehicleMovementComponent()->SetHandbrakeInput(false); // UE4 control
     SetHandbrakeInput(false);                                // Carla control
     // assign to input struct
