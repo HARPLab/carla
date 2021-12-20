@@ -22,10 +22,13 @@ class ADReyeVRLevel : public ALevelScriptActor
 
     // input handling
     void SetupPlayerInputComponent();
+    void SetupSpectator();
+    bool FindEgoVehicle();
 
-    // util functions
     // EgoVehicle functions
-    void ToggleSpectator();
+    void PossessEgoVehicle();
+    void PossessSpectator();
+    void HandoffDriverToAI();
 
     // Recorder media functions
     void PlayPause();
@@ -42,10 +45,11 @@ class ADReyeVRLevel : public ALevelScriptActor
   private:
     // for handling inputs and possessions
     APlayerController *Player = nullptr;
+    AController *AI_Player = nullptr;
 
     // for toggling bw spectator mode
-    bool bIsSpectating = false;
-    ADReyeVRSpectator *SpectatorPtr = nullptr;
+    bool bIsSpectating = true;
+    APawn *SpectatorPtr = nullptr;
     AEgoVehicle *EgoVehiclePtr = nullptr;
 
     // for muting all the world sounds

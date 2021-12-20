@@ -1,4 +1,6 @@
 #include "EgoVehicle.h"
+#include "Carla/Actor/ActorRegistry.h"              // Register
+#include "Carla/Game/CarlaStatics.h"                // GetEpisode
 #include "Carla/Vehicle/CarlaWheeledVehicleState.h" // ECarlaWheeledVehicleState
 #include "Carla/Vehicle/VehicleControl.h"           // FVehicleControl
 #include "DrawDebugHelpers.h"                       // Debug Line/Sphere
@@ -259,6 +261,22 @@ void AEgoVehicle::InitDReyeVRSounds()
     CrashSound->SetSound(CarCrashSound.Object);
 }
 
+void AEgoVehicle::PlayGearShiftSound(const float DelayBeforePlay)
+{
+    if (this->GearShiftSound)
+    {
+        GearShiftSound->Play(DelayBeforePlay);
+    }
+}
+
+void AEgoVehicle::PlayTurnSignalSound(const float DelayBeforePlay)
+{
+    if (this->TurnSignalSound)
+    {
+        this->TurnSignalSound->Play(DelayBeforePlay);
+    }
+}
+
 void AEgoVehicle::InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM)
 {
     if (!M.Enabled)
@@ -307,29 +325,41 @@ void AEgoVehicle::InitDReyeVRMirrors()
     InitializeMirror(RightMirror, MirrorTexture.Object, PlaneSM.Object);
 }
 
-void AEgoVehicle::ErrMsg(const FString &message, const bool isFatal = false)
-{
-    /// NOTE: solely for debugging
-    UKismetSystemLibrary::PrintString(World, message, true, true, FLinearColor(1, 0, 0, 1), 20.0f);
-    if (isFatal)
-        UKismetSystemLibrary::QuitGame(World, Player, EQuitPreference::Quit, false);
-    return;
-}
-
 FVector AEgoVehicle::GetFPSPosn() const
 {
+    /// TODO: refactor
     return FirstPersonCam->GetComponentLocation();
 }
 
 FRotator AEgoVehicle::GetFPSRot() const
 {
+    /// TODO: refactor
     return FirstPersonCam->GetComponentRotation();
 }
 
 FVector AEgoVehicle::GetCameraOffset() const
 {
-    //    return VRCameraRoot->GetRelativeLocation();
     return CameraLocnInVehicle;
+}
+
+const UCameraComponent *AEgoVehicle::GetCamera() const
+{
+    return FirstPersonCam;
+}
+
+UCameraComponent *AEgoVehicle::GetCamera()
+{
+    return FirstPersonCam;
+}
+
+const USceneComponent *AEgoVehicle::GetVRCameraRoot() const
+{
+    return VRCameraRoot;
+}
+
+USceneComponent *AEgoVehicle::GetVRCameraRoot()
+{
+    return VRCameraRoot;
 }
 
 void AEgoVehicle::BeginPlay()
@@ -342,7 +372,6 @@ void AEgoVehicle::BeginPlay()
     // const FString SetVRPixelDensity = "vr.PixelDensity " + FString::SanitizeFloat(PixelDensity);
     // World->Exec(World, *SetVRPixelDensity);
     Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
-    CurrentDriver = Driver::HUMAN;                            // starting off with human driver
 
     // Setup the HUD
     AHUD *Raw_HUD = Player->GetHUD();
@@ -410,6 +439,13 @@ void AEgoVehicle::BeginPlay()
     ApplyVehicleControl(AutomaticControl, EVehicleInputPriority::User);
 
     UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
+    // Register Ego Vehicle with ActorRegistry
+    FActorView::IdType ID = 512;
+    FActorDescription EgoDescr;
+    EgoDescr.Id = "vehicle.dreyevr";
+    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, EgoDescr, ID);
+
+    UE_LOG(LogTemp, Log, TEXT("Successfully initialized DReyeVR player!"));
 }
 
 void AEgoVehicle::BeginDestroy()
@@ -530,18 +566,12 @@ void AEgoVehicle::DebugLines() const
                       FColor::Yellow, false, -1, 0, 1);
     }
 #endif
-    if (DrawGazeOnHUD)
+    if (DrawGazeOnHUD && HUD != nullptr)
     {
         // Draw line components in HUD
         HUD->DrawDynamicLine(CombinedOrigin, CombinedOrigin + 10.f * WorldRot.RotateVector(CombinedGaze), FColor::Red,
                              3.0f);
     }
-}
-
-void AEgoVehicle::ToggleGazeHUD()
-{
-    UE_LOG(LogTemp, Log, TEXT("Toggling gaze on HUD"));
-    DrawGazeOnHUD = !DrawGazeOnHUD;
 }
 
 void AEgoVehicle::InitReticleTexture()
@@ -653,7 +683,7 @@ void AEgoVehicle::DrawReticle()
         if (DrawFlatReticle)
         {
             // Draw on user HUD (only for flat-view)
-            if (bRectangularReticle)
+            if (bRectangularReticle && HUD != nullptr)
             {
                 HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
             }
@@ -667,7 +697,7 @@ void AEgoVehicle::DrawReticle()
                 {
                     InitReticleTexture();
                 }
-                if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+                if (HUD != nullptr && ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
                 {
                     /// TODO: add scale
                     HUD->DrawReticle(ReticleTexture,
@@ -697,44 +727,10 @@ void AEgoVehicle::DrawReticle()
     }
 }
 
-// void AEgoVehicle::SoundUpdate()
-// {
-//     // overwrite from parent class (ACarlaWheeledVehicle)
-//     if (EngineRevSound)
-//     {
-//         float RPM = FMath::Clamp(GetVehicleMovement()->GetEngineRotationSpeed(), 0.f, 5650.0f);
-//         EngineRevSound->SetFloatParameter(FName("RPM"), RPM);
-//     }
-// }
-
-void AEgoVehicle::DrawHUD()
-{
-    if (!IsHMDConnected) // flat view
-    {
-        /// NOTE: this only really works in a non-vr setting!!
-        // Draw text components
-        const float MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
-        FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
-        // found this position via the BP editor
-        const FVector DashboardPosn = GetActorLocation() + GetActorRotation().RotateVector(FVector(120, 0, 105));
-        HUD->DrawDynamicText(Data, DashboardPosn, FColor(255, 0, 0, 255), 4, false);
-
-        // Draw the signals
-        float Now = FPlatformTime::Seconds();
-        const FVector DashCenter = GetActorLocation() + GetActorRotation().RotateVector(FVector(120, -40, 110));
-        if (Now < RightSignalTimeToDie)
-        {
-            HUD->DrawDynamicText("<", DashCenter, FColor(255, 0, 0, 255), 10, false);
-        }
-        if (Now < LeftSignalTimeToDie)
-        {
-            HUD->DrawDynamicText(">", DashCenter, FColor(255, 0, 0, 255), 10, false);
-        }
-    }
-}
-
 void AEgoVehicle::UpdateText()
 {
+    if (Player == nullptr)
+        return;
     // Draw text components
     float MPH;
     if (ADReyeVRSensor::GetIsReplaying())
@@ -763,435 +759,3 @@ void AEgoVehicle::UpdateText()
     else
         GearShifter->SetText(FText::FromString("D"));
 }
-
-/// ========================================== ///
-/// ----------------:DRIVER:------------------ ///
-/// ========================================== ///
-void AEgoVehicle::HandoffToHuman()
-{
-    DriverHandoff(Driver::HUMAN);
-}
-void AEgoVehicle::HandoffToAI()
-{
-    DriverHandoff(Driver::AI);
-}
-void AEgoVehicle::HandoffToNone()
-{
-    DriverHandoff(Driver::NONE);
-}
-
-void AEgoVehicle::DriverHandoff(const Driver NewDriver)
-{
-    CurrentDriver = NewDriver;
-    if (CurrentDriver == Driver::AI)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Handoff to AI control"));
-        this->SetAIVehicleState(ECarlaWheeledVehicleState::FreeDriving);
-    }
-    else
-    {
-        this->SetAIVehicleState(ECarlaWheeledVehicleState::AutopilotOff);
-        if (CurrentDriver == Driver::HUMAN)
-        {
-            UE_LOG(LogTemp, Log, TEXT("Handoff to HUMAN control"));
-        }
-        else if (CurrentDriver == Driver::NONE)
-        {
-            UE_LOG(LogTemp, Log, TEXT("Handoff to NONE control"));
-        }
-    }
-}
-
-/// ========================================== ///
-/// ----------------:INPUTS:------------------ ///
-/// ========================================== ///
-
-// Called to bind functionality to input
-void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponent)
-{
-    /// NOTE: to see all DReyeVR inputs see DefaultInput.ini
-    Super::SetupPlayerInputComponent(PlayerInputComponent);
-
-    /// NOTE: an Action is a digital input, an Axis is an analog input
-    // steering and throttle analog inputs (axes)
-    PlayerInputComponent->BindAxis("Steer_DReyeVR", this, &AEgoVehicle::SetSteering);
-    PlayerInputComponent->BindAxis("Throttle_DReyeVR", this, &AEgoVehicle::SetThrottle);
-    PlayerInputComponent->BindAxis("Brake_DReyeVR", this, &AEgoVehicle::SetBrake);
-    // reverse & handbrake actions
-    PlayerInputComponent->BindAction("ToggleReverse_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleReverse);
-    PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Pressed, this, &AEgoVehicle::HoldHandbrake);
-    PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseHandbrake);
-    PlayerInputComponent->BindAction("TurnSignalRight_DReyeVR", IE_Pressed, this, &AEgoVehicle::TurnSignalLeft);
-    PlayerInputComponent->BindAction("TurnSignalLeft_DReyeVR", IE_Pressed, this, &AEgoVehicle::TurnSignalRight);
-    /// Mouse X and Y input for looking up and turning
-    PlayerInputComponent->BindAxis("MouseLookUp_DReyeVR", this, &AEgoVehicle::MouseLookUp);
-    PlayerInputComponent->BindAxis("MouseTurn_DReyeVR", this, &AEgoVehicle::MouseTurn);
-    // Record button to log the EyeTracker data to the python client
-    PlayerInputComponent->BindAction("TogglePyRecord_DReyeVR", IE_Pressed, this, &AEgoVehicle::TogglePythonRecording);
-    // Draw gaze rays on HUD
-    PlayerInputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleGazeHUD);
-    // Driver Handoff examples
-    PlayerInputComponent->BindKey(EKeys::One, IE_Pressed, this, &AEgoVehicle::HandoffToHuman);
-    PlayerInputComponent->BindKey(EKeys::Two, IE_Pressed, this, &AEgoVehicle::HandoffToAI);
-    PlayerInputComponent->BindKey(EKeys::Three, IE_Pressed, this, &AEgoVehicle::HandoffToNone);
-}
-
-void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
-{
-    FVector CurrRelLocation = VRCameraRoot->GetRelativeLocation();
-    FVector NewRelLocation = CurrRelLocation + displacement;
-    VRCameraRoot->SetRelativeLocation(NewRelLocation);
-}
-
-/// NOTE: the CarlaVehicle does not actually move the vehicle, only its state/animations
-// to actually move the vehicle we'll use GetVehicleMovementComponent() which is part of AWheeledVehicle
-void AEgoVehicle::SetSteering(const float SteeringInput)
-{
-    if (CurrentDriver != Driver::HUMAN)
-        return;
-    float SteeringDamping = 0.6f;
-    float ScaledSteeringInput = SteeringDamping * SteeringInput;
-    GetVehicleMovementComponent()->SetSteeringInput(ScaledSteeringInput); // UE4 control
-    SetSteeringInput(ScaledSteeringInput);                                // Carla control
-    // assign to input struct
-    VehicleInputs.Steering = ScaledSteeringInput;
-}
-
-void AEgoVehicle::SetThrottle(const float ThrottleInput)
-{
-    if (CurrentDriver != Driver::HUMAN)
-        return;
-    float ScaledThrottleInput = 1.0f * ThrottleInput;
-    GetVehicleMovementComponent()->SetThrottleInput(ScaledThrottleInput); // UE4 control
-    SetThrottleInput(ScaledThrottleInput);                                // Carla control
-
-    // apply new light state
-    FVehicleLightState Lights = GetVehicleLightState();
-    Lights.Reverse = false;
-    Lights.Brake = false;
-    SetVehicleLightState(Lights);
-
-    // assign to input struct
-    VehicleInputs.Throttle = ScaledThrottleInput;
-}
-
-void AEgoVehicle::SetBrake(const float BrakeInput)
-{
-    if (CurrentDriver != Driver::HUMAN)
-        return;
-    float ScaledBrakeInput = 2.0f * BrakeInput;
-    GetVehicleMovementComponent()->SetBrakeInput(ScaledBrakeInput); // UE4 control
-    SetBrakeInput(ScaledBrakeInput);                                // Carla control
-
-    // apply new light state
-    FVehicleLightState Lights = GetVehicleLightState();
-    Lights.Reverse = false;
-    Lights.Brake = true;
-    SetVehicleLightState(Lights);
-
-    // assign to input struct
-    VehicleInputs.Brake = ScaledBrakeInput;
-}
-
-void AEgoVehicle::ToggleReverse()
-{
-    if (CurrentDriver != Driver::HUMAN)
-        return;
-    // negate to toggle bw 1 (forwards) and -1 (backwards)
-    int NewGear = -1 * GetVehicleMovementComponent()->GetTargetGear();
-    bReverse = !bReverse;
-    GetVehicleMovementComponent()->SetTargetGear(NewGear, true); // UE4 control
-    SetReverse(bReverse);                                        // Carla control
-
-    // apply new light state
-    FVehicleLightState Lights = GetVehicleLightState();
-    Lights.Reverse = bReverse;
-    SetVehicleLightState(Lights);
-
-    UE_LOG(LogTemp, Log, TEXT("Toggle Reverse"));
-    // assign to input struct
-    VehicleInputs.ToggledReverse = true;
-    // Play gear shift sound
-    if (GearShiftSound)
-    {
-        const float Delay = 0.f; // Time (s) before playing sound
-        GearShiftSound->Play(Delay);
-    }
-}
-
-void AEgoVehicle::TurnSignalRight()
-{
-    if (CurrentDriver != Driver::HUMAN)
-        return;
-    // store in local input container
-    VehicleInputs.TurnSignalRight = true;
-
-    // apply new light state
-    FVehicleLightState Lights = GetVehicleLightState();
-    Lights.RightBlinker = true;
-    Lights.LeftBlinker = false;
-    SetVehicleLightState(Lights);
-
-    // Play turn signal sound
-    if (TurnSignalSound)
-    {
-        const float Delay = 0.f; // Time (s) before playing sound
-        TurnSignalSound->Play(Delay);
-    }
-    RightSignalTimeToDie = FPlatformTime::Seconds() + 3.0f; // reset counter at 3s
-    LeftSignalTimeToDie = 0.f;                              // immediately stop left signal
-}
-
-void AEgoVehicle::TurnSignalLeft()
-{
-    if (CurrentDriver != Driver::HUMAN)
-        return;
-    // store in local input container
-    VehicleInputs.TurnSignalLeft = true;
-
-    // apply new light state
-    FVehicleLightState Lights = GetVehicleLightState();
-    Lights.RightBlinker = false;
-    Lights.LeftBlinker = true;
-    SetVehicleLightState(Lights);
-
-    // Play turn signal sound
-    if (TurnSignalSound)
-    {
-        const float Delay = 0.f; // Time (s) before playing sound
-        TurnSignalSound->Play(Delay);
-    }
-    RightSignalTimeToDie = 0.f;                            // immediately stop right signal
-    LeftSignalTimeToDie = FPlatformTime::Seconds() + 3.0f; // reset counter at 3s
-}
-
-void AEgoVehicle::HoldHandbrake()
-{
-    if (CurrentDriver != Driver::HUMAN)
-        return;
-    GetVehicleMovementComponent()->SetHandbrakeInput(true); // UE4 control
-    SetHandbrakeInput(true);                                // Carla control
-    // assign to input struct
-    VehicleInputs.HoldHandbrake = true;
-}
-
-void AEgoVehicle::ReleaseHandbrake()
-{
-    if (CurrentDriver != Driver::HUMAN)
-        return;
-    GetVehicleMovementComponent()->SetHandbrakeInput(false); // UE4 control
-    SetHandbrakeInput(false);                                // Carla control
-    // assign to input struct
-    VehicleInputs.HoldHandbrake = false;
-}
-
-/// NOTE: in UE4 rotators are of the form: {Pitch, Yaw, Roll} (stored in degrees)
-/// We are basing the limits off of "Cervical Spine Functional Anatomy ad the Biomechanics of Injury":
-// "The cervical spine's range of motion is approximately 80° to 90° of flexion, 70° of extension,
-// 20° to 45° of lateral flexion, and up to 90° of rotation to both sides."
-// (www.ncbi.nlm.nih.gov/pmc/articles/PMC1250253/)
-/// NOTE: flexion = looking down to chest, extension = looking up , lateral = roll
-/// ALSO: These functions are only used in non-VR mode, in VR you can move freely
-
-void AEgoVehicle::MouseLookUp(const float mY_Input)
-{
-    if (mY_Input != 0.f)
-    {
-        const int ScaleY = InvertY ? 1 : -1; // negative Y is "normal" controls
-        FRotator UpDir = FirstPersonCam->GetRelativeRotation() + FRotator(ScaleY * mY_Input, 0.f, 0.f);
-        // get the limits of a human neck (only clamping pitch)
-        const float MinFlexion = -85.f;
-        const float MaxExtension = 70.f;
-        UpDir.Pitch = FMath::Clamp(UpDir.Pitch, MinFlexion, MaxExtension);
-        FirstPersonCam->SetRelativeRotation(UpDir);
-    }
-}
-
-void AEgoVehicle::MouseTurn(const float mX_Input)
-{
-    if (mX_Input != 0.f)
-    {
-        FRotator CurrentDir = FirstPersonCam->GetRelativeRotation();
-        FRotator TurnDir = CurrentDir + FRotator(0.f, mX_Input, 0.f);
-        // get the limits of a human neck (only clamping pitch)
-        const float MinLeft = -90.f;
-        const float MaxRight = 90.f; // may consider increasing to allow users to look through the back window
-        TurnDir.Yaw = FMath::Clamp(TurnDir.Yaw, MinLeft, MaxRight);
-        FirstPersonCam->SetRelativeRotation(TurnDir);
-    }
-}
-
-void AEgoVehicle::TogglePythonRecording()
-{
-    bool FoundSensor = false;
-    if (IsRecording)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Ego-Vehicle stops logging"));
-        if (EyeTrackerSensor)
-            FoundSensor = EyeTrackerSensor->ResetPyDReyeVRSensor();
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("Ego-Vehicle starts logging"));
-        if (EyeTrackerSensor)
-            FoundSensor = EyeTrackerSensor->FindPyDReyeVRSensor();
-    }
-    if (FoundSensor) // at least one is found in the Simulator (spawned)
-        IsRecording = !IsRecording;
-}
-
-void AEgoVehicle::SetVolume(const float Mult)
-{
-    if (GearShiftSound)
-    {
-        GearShiftSound->SetVolumeMultiplier(Mult);
-    }
-    if (TurnSignalSound)
-    {
-        TurnSignalSound->SetVolumeMultiplier(Mult);
-    }
-    Super::SetVolume(Mult); // mutes engine rev
-}
-
-#if USE_LOGITECH_WHEEL
-
-const std::vector<FString> VarNames = {"rgdwPOV[0]", "rgdwPOV[1]", "rgdwPOV[2]", "rgdwPOV[3]"};
-void AEgoVehicle::LogLogitechPluginStruct(const DIJOYSTATE2 *Now)
-{
-    if (Old == nullptr)
-    {
-        Old = new struct DIJOYSTATE2;
-        (*Old) = (*Now); // assign to the new (current) dijoystate struct
-        return;          // initializing the Old struct ptr
-    }
-    // Getting all (4) values from the current struct
-    const std::vector<int> NowVals = {int(Now->rgdwPOV[0]), int(Now->rgdwPOV[1]), int(Now->rgdwPOV[2]),
-                                      int(Now->rgdwPOV[3])};
-    // Getting the (4) values from the old struct
-    const std::vector<int> OldVals = {int(Old->rgdwPOV[0]), int(Old->rgdwPOV[1]), int(Old->rgdwPOV[2]),
-                                      int(Old->rgdwPOV[3])};
-
-    check(NowVals.size() == OldVals.size() && NowVals.size() == VarNames.size());
-
-    // print any differences
-    bool isDiff = false;
-    for (size_t i = 0; i < NowVals.size(); i++)
-    {
-        if (NowVals[i] != OldVals[i])
-        {
-            if (!isDiff) // only gets triggered at MOST once
-            {
-                UE_LOG(LogTemp, Log, TEXT("Logging joystick at t=%.3f"), UGameplayStatics::GetRealTimeSeconds(World));
-                isDiff = true;
-            }
-            UE_LOG(LogTemp, Log, TEXT("Triggered \"%s\" from %d to %d"), *(VarNames[i]), OldVals[i], NowVals[i]);
-        }
-    }
-
-    // also check the 128 rgbButtons array
-    for (size_t i = 0; i < 127; i++)
-    {
-        if (Old->rgbButtons[i] != Now->rgbButtons[i])
-        {
-            if (!isDiff) // only gets triggered at MOST once
-            {
-                UE_LOG(LogTemp, Log, TEXT("Logging joystick at t=%.3f"), UGameplayStatics::GetRealTimeSeconds(World));
-                isDiff = true;
-            }
-            UE_LOG(LogTemp, Log, TEXT("Triggered \"rgbButtons[%d]\" from %d to %d"), int(i), int(OldVals[i]),
-                   int(NowVals[i]));
-        }
-    }
-
-    // assign the current joystate into the old one
-    (*Old) = (*Now);
-}
-
-void AEgoVehicle::LogitechWheelUpdate()
-{
-    // only execute this in Windows, the Logitech plugin is incompatible with Linux
-    LogiUpdate(); // update the logitech wheel
-    DIJOYSTATE2 *WheelState = LogiGetState(0);
-    LogLogitechPluginStruct(WheelState);
-    /// NOTE: obtained these from LogitechWheelInputDevice.cpp:~111
-    // -32768 to 32767. -32768 = all the way to the left. 32767 = all the way to the right.
-    const float WheelRotation = FMath::Clamp(float(WheelState->lX), -32767.0f, 32767.0f) / 32767.0f; // (-1, 1)
-    // -32768 to 32767. 32767 = pedal not pressed. -32768 = pedal fully pressed.
-    const float AccelerationPedal = fabs(((WheelState->lY - 32767.0f) / (65535.0f))); // (0, 1)
-    // -32768 to 32767. Higher value = less pressure on brake pedal
-    const float BrakePedal = fabs(((WheelState->lRz - 32767.0f) / (65535.0f))); // (0, 1)
-    // -1 = not pressed. 0 = Top. 0.25 = Right. 0.5 = Bottom. 0.75 = Left.
-    const float Dpad = fabs(((WheelState->rgdwPOV[0] - 32767.0f) / (65535.0f)));
-    // apply to DReyeVR inputs
-    SetSteering(WheelRotation);
-    SetThrottle(AccelerationPedal);
-    SetBrake(BrakePedal);
-
-    //    UE_LOG(LogTemp, Log, TEXT("Dpad value %f"), Dpad);
-    //    if (WheelState->rgdwPOV[0] == 0) // should work now
-    if (WheelState->rgbButtons[0] || WheelState->rgbButtons[1] || WheelState->rgbButtons[2] ||
-        WheelState->rgbButtons[3]) // replace reverse with face buttons
-    {
-        if (isPressRisingEdgeRev == true) // only toggle reverse on rising edge of button press
-        {
-            isPressRisingEdgeRev = false; // not rising edge while the button is pressed
-            UE_LOG(LogTemp, Log, TEXT("Reversing: Dpad value %f"), Dpad);
-            ToggleReverse();
-        }
-    }
-    else
-    {
-        isPressRisingEdgeRev = true;
-    }
-    if (WheelState->rgbButtons[4])
-    {
-        TurnSignalRight();
-    }
-    if (WheelState->rgbButtons[5])
-    {
-        TurnSignalLeft();
-    }
-
-    // VRCamerRoot base position adjustment
-    if (WheelState->rgdwPOV[0] == 0) // positive in X
-        AEgoVehicle::CameraPositionAdjust(FVector(1.f, 0.f, 0.f));
-    else if (WheelState->rgdwPOV[0] == 18000) // negative in X
-        AEgoVehicle::CameraPositionAdjust(FVector(-1.f, 0.f, 0.f));
-    else if (WheelState->rgdwPOV[0] == 9000) // positive in Y
-        AEgoVehicle::CameraPositionAdjust(FVector(0.f, 1.f, 0.f));
-    else if (WheelState->rgdwPOV[0] == 27000) // negative in Y
-        AEgoVehicle::CameraPositionAdjust(FVector(0.f, -1.f, 0.f));
-    // VRCamerRoot base height adjustment
-    else if (WheelState->rgbButtons[19]) // positive in Z
-        AEgoVehicle::CameraPositionAdjust(FVector(0.f, 0.f, 1.f));
-    else if (WheelState->rgbButtons[20]) // negative in Z
-        AEgoVehicle::CameraPositionAdjust(FVector(0.f, 0.f, -1.f));
-}
-
-void AEgoVehicle::ApplyForceFeedback() const
-{
-    // only execute this in Windows, the Logitech plugin is incompatible with Linux
-    const float Speed = GetVelocity().Size(); // get magnitude of self (AActor's) velocity
-                                              //    UE_LOG(LogTemp, Log, TEXT("Speed value %f"), Speed);
-    const int WheelIndex = 0;                 // first (only) wheel attached
-    /// TODO: move outside this function (in tick()) to avoid redundancy
-    if (LogiHasForceFeedback(WheelIndex))
-    {
-        const int OffsetPercentage = 0;      // "Specifies the center of the spring force effect"
-        const int SaturationPercentage = 30; // "Level of saturation... comparable to a magnitude"
-        const int CoeffPercentage = 100; // "Slope of the effect strength increase relative to deflection from Offset"
-        LogiPlaySpringForce(WheelIndex, OffsetPercentage, SaturationPercentage, CoeffPercentage);
-    }
-    /// NOTE: there are other kinds of forces as described in the LogitechWheelPlugin API:
-    // https://github.com/drb1992/LogitechWheelPlugin/blob/master/LogitechWheelPlugin/Source/LogitechWheelPlugin/Private/LogitechBWheelInputDevice.cpp
-    // For example:
-    /*
-        Force Types
-        0 = Spring				5 = Dirt Road
-        1 = Constant			6 = Bumpy Road
-        2 = Damper				7 = Slippery Road
-        3 = Side Collision		8 = Surface Effect
-        4 = Frontal Collision	9 = Car Airborne
-    */
-}
-#endif

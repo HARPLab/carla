@@ -49,8 +49,16 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     FVector GetFPSPosn() const;
     FRotator GetFPSRot() const;
 
+    UCameraComponent *GetCamera();
+    const UCameraComponent *GetCamera() const;
+
+    const USceneComponent *GetVRCameraRoot() const;
+    USceneComponent *GetVRCameraRoot();
+
+    void PlayGearShiftSound(const float DelayBeforePlay = 0.f);
+    void PlayTurnSignalSound(const float DelayBeforePlay = 0.f);
+
     void ReplayUpdate();
-    void ToggleGazeHUD();
 
   protected:
     // Called when the game starts (spawned) or ends (destroyed)
@@ -58,8 +66,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     virtual void BeginDestroy() override;
 
     // World variables
-    UWorld *World;
-    APlayerController *Player;
+    class UWorld *World;
+    class APlayerController *Player;
 
     // For debug purposes
     void ErrMsg(const FString &message, const bool isFatal);
@@ -102,18 +110,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void ReleaseHandbrake();
     void MouseLookUp(const float mY_Input);
     void MouseTurn(const float mX_Input);
-
-    // Vehicle Control Possession
-    enum Driver
-    {
-        HUMAN,
-        AI,
-        NONE,
-    } CurrentDriver;
-    void HandoffToHuman();
-    void HandoffToAI();
-    void HandoffToNone();
-    void DriverHandoff(const Driver NewDriver);
 
 #if USE_LOGITECH_WHEEL
     DIJOYSTATE2 *Old = nullptr; // global "old" struct for the last state
@@ -181,10 +177,9 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     // Audio components
     void InitDReyeVRSounds();
     // void SoundUpdate(); // handled in parent class (with Engine rev)
-    void SetVolume(const float Mult) override; // allow us to mute all our extra sounds (gear/signals)
-    class UAudioComponent *GearShiftSound;     // nice for toggling reverse
-    class UAudioComponent *TurnSignalSound;    // good for turn signals
-    class UAudioComponent *CrashSound;         // crashing with another actor
+    class UAudioComponent *GearShiftSound;  // nice for toggling reverse
+    class UAudioComponent *TurnSignalSound; // good for turn signals
+    class UAudioComponent *CrashSound;      // crashing with another actor
 
     // Eye gaze variables
     bool bDrawDebugEditor = false;
