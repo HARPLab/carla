@@ -26,6 +26,7 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 
     // Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.TickGroup = TG_PostPhysics;
 
     // Set this pawn to be controlled by first (only) player
     AutoPossessPlayer = EAutoReceiveInput::Player0;
@@ -325,15 +326,19 @@ void AEgoVehicle::InitDReyeVRMirrors()
     InitializeMirror(RightMirror, MirrorTexture.Object, PlaneSM.Object);
 }
 
-FVector AEgoVehicle::GetFPSPosn() const
+FVector AEgoVehicle::GetCameraPosn() const
 {
-    /// TODO: refactor
     return FirstPersonCam->GetComponentLocation();
 }
 
-FRotator AEgoVehicle::GetFPSRot() const
+FVector AEgoVehicle::GetNextCameraPosn(const float DeltaSeconds) const
 {
-    /// TODO: refactor
+    // usually only need this is tick before physics
+    return this->GetCameraPosn() + DeltaSeconds * this->GetVelocity();
+}
+
+FRotator AEgoVehicle::GetCameraRot() const
+{
     return FirstPersonCam->GetComponentRotation();
 }
 
@@ -488,6 +493,9 @@ void AEgoVehicle::Tick(float DeltaTime)
     // Draw the reticle on the Viewport (red square on the flat-screen window) while playing VR
     DrawReticle();
 
+    // Update the world level
+    TickLevel(DeltaTime);
+
 #if USE_LOGITECH_WHEEL
     if (IsLogiConnected)
     {
@@ -534,6 +542,22 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     // Right eye
     RightGaze = UE4MeterScale * EyeTrackerSensor->GetRightGazeRay();
     RightOrigin = WorldRot.RotateVector(EyeTrackerSensor->GetRightOrigin()) + WorldPos;
+}
+
+/// ========================================== ///
+/// -----------------:LEVEL:------------------ ///
+/// ========================================== ///
+
+void AEgoVehicle::SetLevel(ADReyeVRLevel *Level)
+{
+    this->DReyeVRLevel = Level;
+}
+
+void AEgoVehicle::TickLevel(float DeltaSeconds)
+{
+    if (this->DReyeVRLevel == nullptr)
+        return;
+    DReyeVRLevel->Tick(DeltaSeconds);
 }
 
 /// ========================================== ///

@@ -39,13 +39,18 @@ def set_DReyeVR_autopilot(world, traffic_manager):
     return DReyeVR_vehicle
 
 
-def spawn_other_vehicles(max_vehicles, world, traffic_manager):
+def spawn_other_vehicles(client, max_vehicles, world, traffic_manager):
     spawn_points = world.get_map().get_spawn_points()
 
     blueprints = world.get_blueprint_library().filter("vehicle.*")
     blueprints = sorted(blueprints, key=lambda bp: bp.id)
 
-    other_vehicles = []
+    SpawnActor = carla.command.SpawnActor
+    SetAutopilot = carla.command.SetAutopilot
+    FutureActor = carla.command.FutureActor
+
+    vehicle_list = []
+    batch = []
     for n, transform in enumerate(spawn_points):
         if n >= max_vehicles:
             break
@@ -60,12 +65,19 @@ def spawn_other_vehicles(max_vehicles, world, traffic_manager):
             blueprint.set_attribute("driver_id", driver_id)
         blueprint.set_attribute("role_name", "autopilot")
 
-        new_car = world.spawn_actor(blueprint, transform)
-        new_car.set_autopilot(True, traffic_manager.get_port())
-        other_vehicles.append(new_car)
-
-    print(f"successfully spawned {len(other_vehicles)} vehicles")
-    return other_vehicles
+        batch.append(
+            SpawnActor(blueprint, transform).then(
+                SetAutopilot(FutureActor, True, traffic_manager.get_port())
+            )
+        )
+    synchronous_master = False
+    for response in client.apply_batch_sync(batch, synchronous_master):
+        if response.error:
+            print(f"ERROR: {response.error}")
+        else:
+            vehicle_list.append(response.actor_id)
+    print(f"successfully spawned {len(vehicle_list)} vehicles")
+    return vehicle_list
 
 
 def main():
@@ -121,15 +133,15 @@ def main():
 
         # spawn other vehicles
         other_vehicles = spawn_other_vehicles(
-            args.number_of_vehicles, world, traffic_manager
+            client, args.number_of_vehicles, world, traffic_manager
         )
 
         while True:
             world.wait_for_tick()
     finally:
-
+        ego_vehicle.set_autopilot(False, traffic_manager.get_port())
         print("\ndestroying %d vehicles" % len(other_vehicles))
-        client.apply_batch([carla.command.DestroyActor(x.id) for x in other_vehicles])
+        client.apply_batch([carla.command.DestroyActor(x) for x in other_vehicles])
 
         time.sleep(0.5)
 

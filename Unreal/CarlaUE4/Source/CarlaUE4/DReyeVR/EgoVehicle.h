@@ -8,6 +8,7 @@
 #include "Components/SceneComponent.h"            // USceneComponent
 #include "CoreMinimal.h"                          // Unreal functions
 #include "DReyeVRHUD.h"                           // ADReyeVRHUD
+#include "DReyeVRLevel.h"                         // ADReyeVRLevel
 #include "DReyeVRUtils.h"                         // ReadConfigValue
 #include "EyeTracker.h"                           // AEyeTracker
 #include "ImageUtils.h"                           // CreateTexture2D
@@ -29,6 +30,8 @@
 
 #include "EgoVehicle.generated.h"
 
+class ADReyeVRLevel;
+
 UCLASS()
 class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 {
@@ -43,11 +46,13 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Called to bind functionality to input
     virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
+    void SetLevel(ADReyeVRLevel *Level);
 
     FVector GetCameraOffset() const;
 
-    FVector GetFPSPosn() const;
-    FRotator GetFPSRot() const;
+    FVector GetCameraPosn() const;
+    FVector GetNextCameraPosn(const float DeltaTime) const;
+    FRotator GetCameraRot() const;
 
     UCameraComponent *GetCamera();
     const UCameraComponent *GetCamera() const;
@@ -68,6 +73,10 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     // World variables
     class UWorld *World;
     class APlayerController *Player;
+
+    // Level variables
+    void TickLevel(float DeltaSeconds);
+    ADReyeVRLevel *DReyeVRLevel = nullptr;
 
     // For debug purposes
     void ErrMsg(const FString &message, const bool isFatal);

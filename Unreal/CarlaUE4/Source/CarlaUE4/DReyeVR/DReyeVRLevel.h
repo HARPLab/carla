@@ -6,6 +6,8 @@
 
 #include "DReyeVRLevel.generated.h"
 
+class AEgoVehicle;
+
 UCLASS()
 class ADReyeVRLevel : public ALevelScriptActor
 {
@@ -41,6 +43,12 @@ class ADReyeVRLevel : public ALevelScriptActor
     // Meta world functions
     void ToggleMute();
     void ToggleGazeHUD();
+    enum DRIVER
+    {
+        HUMAN,
+        SPECTATOR,
+        AI,
+    } ControlMode;
 
   private:
     // for handling inputs and possessions

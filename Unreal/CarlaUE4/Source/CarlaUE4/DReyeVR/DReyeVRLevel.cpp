@@ -8,15 +8,15 @@
 ADReyeVRLevel::ADReyeVRLevel()
 {
     // initialize stuff here
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.bStartWithTickEnabled = true;
+    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bStartWithTickEnabled = false;
 }
 
 ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : ADReyeVRLevel()
 {
     // initialize stuff here
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.bStartWithTickEnabled = true;
+    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bStartWithTickEnabled = false;
 }
 
 bool ADReyeVRLevel::FindEgoVehicle()
@@ -27,8 +27,10 @@ bool ADReyeVRLevel::FindEgoVehicle()
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEgoVehicle::StaticClass(), FoundEgoVehicles);
     if (FoundEgoVehicles.Num() > 0)
     {
-        EgoVehiclePtr = Cast<AEgoVehicle>(FoundEgoVehicles[0]);
         UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle"));
+        /// TODO: add support for multiple Ego Vehicles?
+        EgoVehiclePtr = Cast<AEgoVehicle>(FoundEgoVehicles[0]);
+        EgoVehiclePtr->SetLevel(this);
         if (!AI_Player)
             AI_Player = EgoVehiclePtr->GetController();
         return true;
@@ -45,7 +47,7 @@ void ADReyeVRLevel::BeginPlay()
     Player = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 
     // Can we tick?
-    SetActorTickEnabled(true); // make sure we DO tick
+    SetActorTickEnabled(false); // make sure we do not tick ourselves
 
     // enable input tracking
     InputEnabled();
@@ -60,24 +62,48 @@ void ADReyeVRLevel::BeginPlay()
 
     // Find the ego vehicle in the world
     FindEgoVehicle();
+
+    // Initialize control mode
+    /// TODO: read in initial control mode from .ini
+    ControlMode = DRIVER::HUMAN;
+    switch (ControlMode)
+    {
+    case (DRIVER::HUMAN):
+        PossessEgoVehicle();
+        break;
+    case (DRIVER::SPECTATOR):
+        PossessSpectator();
+        break;
+    case (DRIVER::AI):
+        HandoffDriverToAI();
+        break;
+    }
 }
 
 void ADReyeVRLevel::SetupSpectator()
 {
     SpectatorPtr = UCarlaStatics::GetCurrentEpisode(GetWorld())->GetSpectatorPawn();
-    UE_LOG(LogTemp, Log, TEXT("Set up spectator"));
 }
 
 void ADReyeVRLevel::BeginDestroy()
 {
     Super::BeginDestroy();
-
-    UE_LOG(LogTemp, Log, TEXT("Finished Level BP"));
+    UE_LOG(LogTemp, Log, TEXT("Finished Level"));
 }
 
 void ADReyeVRLevel::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    if (EgoVehiclePtr && SpectatorPtr && AI_Player)
+    {
+        if (ControlMode == DRIVER::AI) // when AI is controlling EgoVehicle
+        {
+            // Physically attach the Controller to the specified Pawn, so that our position reflects theirs.
+            // const FVector &NewVehiclePosn = EgoVehiclePtr->GetNextCameraPosn(DeltaSeconds); // for pre-physics tick
+            const FVector &NewVehiclePosn = EgoVehiclePtr->GetCameraPosn(); // for post-physics tick
+            SpectatorPtr->SetActorLocationAndRotation(NewVehiclePosn, EgoVehiclePtr->GetCameraRot());
+        }
+    }
 }
 
 void ADReyeVRLevel::SetupPlayerInputComponent()
@@ -114,7 +140,8 @@ void ADReyeVRLevel::PossessEgoVehicle()
     check(EgoVehiclePtr != nullptr);
     // repossess the ego vehicle
     Player->Possess(EgoVehiclePtr);
-    UE_LOG(LogTemp, Log, TEXT("Successful handoff to human driver"));
+    UE_LOG(LogTemp, Log, TEXT("Possessing DReyeVR EgoVehicle"));
+    this->ControlMode = DRIVER::HUMAN;
 }
 
 void ADReyeVRLevel::PossessSpectator()
@@ -134,13 +161,14 @@ void ADReyeVRLevel::PossessSpectator()
     if (EgoVehiclePtr)
     {
         // spawn from EgoVehicle head position
-        const FVector &EgoLocn = EgoVehiclePtr->GetFPSPosn();
-        const FRotator &EgoRotn = EgoVehiclePtr->GetFPSRot();
+        const FVector &EgoLocn = EgoVehiclePtr->GetCameraPosn();
+        const FRotator &EgoRotn = EgoVehiclePtr->GetCameraRot();
         SpectatorPtr->SetActorLocationAndRotation(EgoLocn, EgoRotn);
     }
     // repossess the ego vehicle
     Player->Possess(SpectatorPtr);
-    UE_LOG(LogTemp, Log, TEXT("Switching to Spectator player"));
+    UE_LOG(LogTemp, Log, TEXT("Possessing spectator player"));
+    this->ControlMode = DRIVER::SPECTATOR;
 }
 
 void ADReyeVRLevel::HandoffDriverToAI()
@@ -157,9 +185,10 @@ void ADReyeVRLevel::HandoffDriverToAI()
         return;
     }
     check(AI_Player != nullptr);
-    // PossessSpectator();
+    PossessSpectator();
     AI_Player->Possess(EgoVehiclePtr);
-    UE_LOG(LogTemp, Log, TEXT("Successful handoff to AI driver"));
+    UE_LOG(LogTemp, Log, TEXT("Handoff to AI driver"));
+    this->ControlMode = DRIVER::AI;
 }
 
 void ADReyeVRLevel::PlayPause()
