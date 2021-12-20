@@ -144,6 +144,11 @@ public:
     return ActorDispatcher->GetActorRegistry();
   }
 
+  FActorView RegisterActor(AActor &Actor, FActorDescription ActorDescription, FActorRegistry::IdType DesiredId = 0)
+  {
+    return ActorDispatcher->RegisterActor(Actor, ActorDescription, DesiredId);
+  }
+
   // ===========================================================================
   // -- Actor look up methods --------------------------------------------------
   // ===========================================================================
