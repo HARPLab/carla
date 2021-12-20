@@ -25,7 +25,7 @@ double IBDT::estimateVelocity(const GazeDataEntry &cur_gaze, const GazeDataEntry
 	return dist / dt;
 }
 
-void IBDT::train(std::vector<GazeDataEntry> &gaze)
+bool IBDT::train(std::vector<GazeDataEntry> &gaze)
 {
 	Mat samples;
 
@@ -36,8 +36,14 @@ void IBDT::train(std::vector<GazeDataEntry> &gaze)
 		previous++;
 	}
 	// what if no valid sample?
-    // assert(std::distance(gaze.begin(), g)) <= 1)
+    if(std::distance(previous, gaze.end()) == 0){
+		// if no valid samples, make up some random data?
+		UE_LOG(LogTemp, Log, TEXT("%d valid samples"),
+                   std::distance(previous , gaze.end()));
+		return false;
+	}
 
+	
 
 	// Estimate velocities for remaining training samples
 	for (auto g = previous + 1; g != gaze.end(); g++) {
@@ -75,6 +81,7 @@ void IBDT::train(std::vector<GazeDataEntry> &gaze)
 
 	fMean = means.at<double>(fIdx);
 	sMean = means.at<double>(sIdx);
+	return true;
 }
 
 void IBDT::updateFixationAndSaccadeLikelihood()

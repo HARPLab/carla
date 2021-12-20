@@ -42,7 +42,7 @@ public:
 
     IBDT(const double &maxSaccadeDurationMs=80, const double &minSampleConfidence=0.5, const enum CLASSIFICATION &classification=TERNARY);
     void addPoint(GazeDataEntry &entry);
-    void train(std::vector<GazeDataEntry> &gaze);
+    bool train(std::vector<GazeDataEntry> &gaze);
     double estimateVelocity(const GazeDataEntry &cur, const GazeDataEntry &prev);
 	double get_fMean(void) { return fMean; }
 	double get_sMean(void) { return sMean; }

@@ -160,8 +160,9 @@ private:
     IBDT* ibdt_classifier;
     std::vector<GazeDataEntry> gaze_data_hist;
     int current_gazeevent_classification = 4; // GazeMovement::UNDEF
-    unsigned int ibdt_train_numsamples = 1000;
+    int ibdt_train_numsamples = 1000;
     double time_since_last_saccade = 0;
+    bool valid_classification = 0;
     void UpdateIBDT(float DeltaTime);
     void TrainIBDTwEntries(std::vector<GazeDataEntry> gaze_pts);
 

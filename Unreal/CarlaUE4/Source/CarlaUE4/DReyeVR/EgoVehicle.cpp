@@ -95,6 +95,7 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "TargetOnsetDuration", FlashDuration);
     ReadConfigValue("EgoVehicle", "TargetRadius", TargetRadius);
     ReadConfigValue("EgoVehicle", "TargetRenderDistance", TargetRenderDistance);
+    ReadConfigValue("EgoVehicle", "IBDTNumTrainSamples", ibdt_train_numsamples);    
 }
 
 void AEgoVehicle::InitVehicleMovement()
@@ -482,7 +483,7 @@ void AEgoVehicle::Tick(float DeltaTime)
     UpdateIBDT(DeltaTime);
 
     // Draw debug lines on editor
-    DebugLines();
+    // DebugLines();
 
     // Draw text on scren (like a HUD but works in VR)
     UpdateText();
@@ -1152,6 +1153,7 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
         }
         return; // don't generate anything, just exit
     }
+    
 	// generate stimuli every TimeBetweenFlash second chunks, and log that time
 	// TODO: all these magic numbers need to be parameterized
 	if (TimeSinceIntervalStart < TimeBetweenFlash) {
@@ -1167,26 +1169,19 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 			VehicleInputs.head2target_yaw = head2light_yaw;
 
 			// Generate random time to start flashing during the interval
-			TimeStart = FMath::RandRange(1.f, 9.f);
+            float TimeStartCushion = 0.1f;
+			TimeStart = FMath::RandRange(0.f + TimeStartCushion, TimeBetweenFlash - TimeStartCushion);
 			TimeSinceIntervalStart += DeltaTime;
 
 		} 
 		else if (FMath::IsNearlyEqual(TimeSinceIntervalStart, TimeStart, 0.05f)) {
 			// turn light on 
-            
-            // // Generate the posn of the light given current angles - more static
-            // float TargetRenderDistance = CenterMagnitude*3;
-            // FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, head2light_yaw, head2light_pitch);
-            // FVector HeadPos = FirstPersonCam->GetComponentLocation();
-            // FVector RotVecDirectionPosn = HeadPos + RotVecDirection * TargetRenderDistance;
-
-            // LightBallObjectIn->SetLocation(RotVecDirectionPosn);
-            
+           
             LightBallObjectIn->TurnLightOn();
 			TimeSinceIntervalStart += DeltaTime;
 			
 			VehicleInputs.LightOn = true;
-			//UE_LOG(LogTemp, Log, TEXT("Light On: %d"), VehicleInputs.LightOn);
+			UE_LOG(LogTemp, Log, TEXT("Light On: %d @ %f"), VehicleInputs.LightOn, TimeSinceIntervalStart);
 		}
 		else if (FMath::IsNearlyEqual(TimeSinceIntervalStart, TimeStart + FlashDuration, 0.05f)) {
 			// turn light off
@@ -1194,7 +1189,7 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 			TimeSinceIntervalStart += DeltaTime;
 		
 			VehicleInputs.LightOn = false;
-			//UE_LOG(LogTemp, Log, TEXT("Light Off: %d"), VehicleInputs.LightOn);
+			UE_LOG(LogTemp, Log, TEXT("Light Off: %d @ %f"), VehicleInputs.LightOn, TimeSinceIntervalStart);
 		}
 		else {
 			TimeSinceIntervalStart += DeltaTime;
@@ -1210,7 +1205,8 @@ void AEgoVehicle::GenerateSphere(const FVector &HeadDirection, const FVector &Co
 	// Generate the posn of the light given current angles
 	// float TargetRenderDistance = CenterMagnitude*3;
     // UE_LOG(LogTemp, Log, TEXT("CenterMagnitude, %f"), CenterMagnitude);
-	FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, head2light_yaw, head2light_pitch);
+	// RotVec of target from head direction
+    FVector RotVecDirection = GenerateRotVecGivenAngles(HeadDirection, head2light_yaw, head2light_pitch);
 	FVector HeadPos = FirstPersonCam->GetComponentLocation();
 	FVector RotVecDirectionPosn = HeadPos + RotVecDirection * TargetRenderDistance;
 
@@ -1274,10 +1270,10 @@ void AEgoVehicle::UpdateIBDT(float DeltaTime)
         UE_LOG(LogTemp, Log, TEXT("last pt %f, %f"), gaze_data_hist.back().ts, gaze_data_hist.back().confidence);
 
         ibdt_classifier = new IBDT();
-        ibdt_classifier->train(gaze_data_hist);
+        valid_classification = ibdt_classifier->train(gaze_data_hist);
     }
         // use ibdt classifier to make predictions
-    else if (egovehicle_ticks > ibdt_train_numsamples){
+    else if ((egovehicle_ticks > ibdt_train_numsamples) && valid_classification){
         // inference on the latest gaze pt
         // auto gde_temp = SensorData2GazeDataEntry(EyeTrackerSensor->GetEyeSensorData());
         auto latest_gde = std::prev(gaze_data_hist.end()); // get ptr to latest gde
