@@ -421,23 +421,15 @@ void AEgoVehicle::BeginPlay()
 #endif
 
     // Bug-workaround for initial delay on throttle; see https://github.com/carla-simulator/carla/issues/1640
-    FVehicleControl ManualControl;
-    ManualControl.bManualGearShift = true;
-    ManualControl.Gear = 1;
-    ApplyVehicleControl(ManualControl, EVehicleInputPriority::User);
-    // then switch back to automatic
-    FVehicleControl AutomaticControl;
-    AutomaticControl.bManualGearShift = false;
-    ApplyVehicleControl(AutomaticControl, EVehicleInputPriority::User);
+    this->GetVehicleMovementComponent()->SetTargetGear(1, true);
 
-    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
     // Register Ego Vehicle with ActorRegistry
     FActorView::IdType ID = 512;
     FActorDescription EgoDescr;
     EgoDescr.Id = "vehicle.dreyevr";
     UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, EgoDescr, ID);
 
-    UE_LOG(LogTemp, Log, TEXT("Successfully initialized DReyeVR player!"));
+    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
 }
 
 void AEgoVehicle::BeginDestroy()
