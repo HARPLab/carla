@@ -34,8 +34,7 @@ void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
 // to actually move the vehicle we'll use GetVehicleMovementComponent() which is part of AWheeledVehicle
 void AEgoVehicle::SetSteering(const float SteeringInput)
 {
-    float SteeringDamping = 0.6f;
-    float ScaledSteeringInput = SteeringDamping * SteeringInput;
+    float ScaledSteeringInput = this->ScaleSteeringInput * SteeringInput;
     this->GetVehicleMovementComponent()->SetSteeringInput(ScaledSteeringInput); // UE4 control
     // assign to input struct
     VehicleInputs.Steering = ScaledSteeringInput;
@@ -43,7 +42,7 @@ void AEgoVehicle::SetSteering(const float SteeringInput)
 
 void AEgoVehicle::SetThrottle(const float ThrottleInput)
 {
-    float ScaledThrottleInput = 1.0f * ThrottleInput;
+    float ScaledThrottleInput = this->ScaleThrottleInput * ThrottleInput;
     this->GetVehicleMovementComponent()->SetThrottleInput(ScaledThrottleInput); // UE4 control
 
     // apply new light state
@@ -58,7 +57,7 @@ void AEgoVehicle::SetThrottle(const float ThrottleInput)
 
 void AEgoVehicle::SetBrake(const float BrakeInput)
 {
-    float ScaledBrakeInput = 2.0f * BrakeInput;
+    float ScaledBrakeInput = this->ScaleBrakeInput * BrakeInput;
     this->GetVehicleMovementComponent()->SetBrakeInput(ScaledBrakeInput); // UE4 control
 
     // apply new light state
@@ -73,14 +72,15 @@ void AEgoVehicle::SetBrake(const float BrakeInput)
 
 void AEgoVehicle::ToggleReverse()
 {
-    // negate to toggle bw 1 (forwards) and -1 (backwards)
-    int NewGear = -1 * this->GetVehicleMovementComponent()->GetTargetGear();
-    bReverse = !bReverse;
+    // negate to toggle bw + (forwards) and - (backwards)
+    const int CurrentGear = this->GetVehicleMovementComponent()->GetTargetGear();
+    const int NewGear = CurrentGear != 0 ? -1 * CurrentGear : -1; // set to -1 if parked, else -gear
+    this->bReverse = !this->bReverse;
     this->GetVehicleMovementComponent()->SetTargetGear(NewGear, true); // UE4 control
 
     // apply new light state
     FVehicleLightState Lights = this->GetVehicleLightState();
-    Lights.Reverse = bReverse;
+    Lights.Reverse = this->bReverse;
     this->SetVehicleLightState(Lights);
 
     UE_LOG(LogTemp, Log, TEXT("Toggle Reverse"));
@@ -148,7 +148,7 @@ void AEgoVehicle::MouseLookUp(const float mY_Input)
 {
     if (mY_Input != 0.f)
     {
-        const int ScaleY = InvertY ? 1 : -1; // negative Y is "normal" controls
+        const float ScaleY = (this->InvertMouseY ? 1 : -1) * this->ScaleMouseY; // negative Y is "normal" controls
         FRotator UpDir = this->GetCamera()->GetRelativeRotation() + FRotator(ScaleY * mY_Input, 0.f, 0.f);
         // get the limits of a human neck (only clamping pitch)
         const float MinFlexion = -85.f;
@@ -162,8 +162,9 @@ void AEgoVehicle::MouseTurn(const float mX_Input)
 {
     if (mX_Input != 0.f)
     {
+        const float ScaleX = this->ScaleMouseX;
         FRotator CurrentDir = this->GetCamera()->GetRelativeRotation();
-        FRotator TurnDir = CurrentDir + FRotator(0.f, mX_Input, 0.f);
+        FRotator TurnDir = CurrentDir + FRotator(0.f, ScaleX * mX_Input, 0.f);
         // get the limits of a human neck (only clamping pitch)
         const float MinLeft = -90.f;
         const float MaxRight = 90.f; // may consider increasing to allow users to look through the back window

@@ -27,6 +27,7 @@ static std::string CreateVariableName(const FString &Section, const FString &Var
 
 static void ReadDReyeVRConfig()
 {
+    /// TODO: add feature to "hot-reload" new params during runtime
     UE_LOG(LogTemp, Warning, TEXT("Reading config from %s"), *ConfigFilePath);
     /// performs a single pass over the config file to collect all variables into Params
     std::ifstream ConfigFile(TCHAR_TO_ANSI(*ConfigFilePath));
@@ -68,8 +69,16 @@ static void ReadDReyeVRConfig()
     // }
 }
 
+static void EnsureConfigsUpdated()
+{
+    // used to ensure the configs file has been read and contents updated
+    if (Params.size() == 0)
+        ReadDReyeVRConfig();
+}
+
 static void ReadConfigValue(const FString &Section, const FString &Variable, bool &Value)
 {
+    EnsureConfigsUpdated();
     std::string VariableName = CreateVariableName(Section, Variable);
     if (Params.find(VariableName) != Params.end())
         Value = Params[VariableName].ToBool();
@@ -78,6 +87,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, boo
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, int &Value)
 {
+    EnsureConfigsUpdated();
     std::string VariableName = CreateVariableName(Section, Variable);
     if (Params.find(VariableName) != Params.end())
         Value = FCString::Atoi(*Params[VariableName]);
@@ -86,6 +96,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, int
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, float &Value)
 {
+    EnsureConfigsUpdated();
     std::string VariableName = CreateVariableName(Section, Variable);
     if (Params.find(VariableName) != Params.end())
         Value = FCString::Atof(*Params[VariableName]);
@@ -94,6 +105,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, flo
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FVector &Value)
 {
+    EnsureConfigsUpdated();
     std::string VariableName = CreateVariableName(Section, Variable);
     if (Params.find(VariableName) != Params.end())
     {
@@ -115,6 +127,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FRo
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FString &Value)
 {
+    EnsureConfigsUpdated();
     std::string VariableName = CreateVariableName(Section, Variable);
     if (Params.find(VariableName) != Params.end())
         Value = Params[VariableName];

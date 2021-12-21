@@ -52,7 +52,6 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 
 void AEgoVehicle::ReadConfigVariables()
 {
-    ReadDReyeVRConfig();
     ReadConfigValue("EgoVehicle", "CameraInit", CameraLocnInVehicle);
     ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
     // vr
@@ -77,6 +76,13 @@ void AEgoVehicle::ReadConfigVariables()
     InitMirrorParams("Right", RightMirror);
     InitMirrorParams("Left", LeftMirror);
     InitMirrorParams("Rear", RearMirror);
+    // inputs
+    ReadConfigValue("Vehicle", "ScaleSteeringDamping", ScaleSteeringInput);
+    ReadConfigValue("Vehicle", "ScaleThrottleInput", ScaleThrottleInput);
+    ReadConfigValue("Vehicle", "ScaleBrakeInput", ScaleBrakeInput);
+    ReadConfigValue("Vehicle", "InvertMouseY", InvertMouseY);
+    ReadConfigValue("Vehicle", "ScaleMouseY", ScaleMouseY);
+    ReadConfigValue("Vehicle", "ScaleMouseX", ScaleMouseX);
     // cosmetic
     ReadConfigValue("EgoVehicle", "UseRectangularReticle", bRectangularReticle);
     ReadConfigValue("EgoVehicle", "ReticleThicknessX", ReticleThickness.X);
@@ -84,7 +90,6 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "ReticleDimX", ReticleDim.X);
     ReadConfigValue("EgoVehicle", "ReticleDimY", ReticleDim.Y);
     ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
-    ReadConfigValue("EgoVehicle", "InvertY", InvertY);
     ReadConfigValue("EgoVehicle", "DrawSpectatorReticle", DrawSpectatorReticle);
     ReadConfigValue("EgoVehicle", "DrawFlatReticle", DrawFlatReticle);
     ReadConfigValue("EgoVehicle", "DrawGazeOnHUD", DrawGazeOnHUD);

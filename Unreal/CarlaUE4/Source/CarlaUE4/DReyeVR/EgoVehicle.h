@@ -120,6 +120,14 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void MouseLookUp(const float mY_Input);
     void MouseTurn(const float mX_Input);
 
+    // Vehicle parameters
+    float ScaleSteeringInput;
+    float ScaleThrottleInput;
+    float ScaleBrakeInput;
+    bool InvertMouseY;
+    float ScaleMouseY;
+    float ScaleMouseX;
+
 #if USE_LOGITECH_WHEEL
     DIJOYSTATE2 *Old = nullptr; // global "old" struct for the last state
     void LogLogitechPluginStruct(const DIJOYSTATE2 *Now);
@@ -200,7 +208,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void ReadConfigVariables();
     void InitVehicleMovement();
     bool IsHMDConnected = false;      // checks for HMD connection on BeginPlay
-    bool InvertY = false;             // whether or not to invert the mouse-camera movement
     bool DrawGazeOnHUD = false;       // whether or not to draw a line for gaze-ray on HUD
     bool DrawSpectatorReticle = true; // Reticle used in the VR-spectator mode
     bool DrawFlatReticle = true;      // Reticle used in the flat mode (uses HUD) (ONLY in non-vr mode)

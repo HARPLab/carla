@@ -26,7 +26,6 @@ void throw_exception(const std::exception &e)
 AEyeTracker::AEyeTracker()
 {
     SensorData = new struct DReyeVR::SensorData;
-    ReadDReyeVRConfig();
     ReadConfigValue("EyeTracker", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("EyeTracker", "FrameWidth", FrameCapWidth);
     ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
