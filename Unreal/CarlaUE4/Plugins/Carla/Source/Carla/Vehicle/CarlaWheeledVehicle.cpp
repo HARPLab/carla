@@ -53,6 +53,7 @@ void ACarlaWheeledVehicle::InitSounds()
   static ConstructorHelpers::FObjectFinder<USoundCue> EngineCue(TEXT("SoundCue'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/EngineRev.EngineRev'"));
   EngineRevSound = CreateDefaultSubobject<UAudioComponent>(TEXT("EngineRevving"));
   EngineRevSound->SetupAttachment(GetRootComponent());      // attach to self
+  EngineRevSound->bAutoActivate = true;                     // start playing on begin
   EngineRevSound->SetSound(EngineCue.Object);               // using this sound
   EngineRevSound->SetRelativeLocation(EngineLocnInVehicle); // location of "engine" in vehicle (3D sound)
   EngineRevSound->SetFloatParameter(FName("RPM"), 0.f);     // initially idle

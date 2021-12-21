@@ -225,6 +225,7 @@ void AEgoVehicle::InitDReyeVRSounds()
     // retarget the engine cue
     static ConstructorHelpers::FObjectFinder<USoundCue> EgoEngineCue(
         TEXT("SoundCue'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/EgoEngineRev.EgoEngineRev'"));
+    EngineRevSound->bAutoActivate = true;          // start playing on begin
     EngineRevSound->SetSound(EgoEngineCue.Object); // using this sound
 
     // Initialize audio components
@@ -232,20 +233,21 @@ void AEgoVehicle::InitDReyeVRSounds()
         TEXT("SoundWave'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/GearShift.GearShift'"));
     GearShiftSound = CreateDefaultSubobject<UAudioComponent>(TEXT("GearShift"));
     GearShiftSound->SetupAttachment(GetRootComponent());
-    // GearShiftSound->Activate(true);
+    GearShiftSound->bAutoActivate = false;
     GearShiftSound->SetSound(GearSound.Object);
 
     static ConstructorHelpers::FObjectFinder<USoundWave> TurnSignalSoundWave(
         TEXT("SoundWave'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/TurnSignal.TurnSignal'"));
     TurnSignalSound = CreateDefaultSubobject<UAudioComponent>(TEXT("TurnSignal"));
     TurnSignalSound->SetupAttachment(GetRootComponent());
-    // TurnSignalSound->Activate(true);
+    TurnSignalSound->bAutoActivate = false;
     TurnSignalSound->SetSound(TurnSignalSoundWave.Object);
 
     static ConstructorHelpers::FObjectFinder<USoundWave> CarCrashSound(
         TEXT("SoundWave'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/Crash.Crash'"));
     CrashSound = CreateDefaultSubobject<UAudioComponent>(TEXT("CarCrash"));
     CrashSound->SetupAttachment(GetRootComponent());
+    CrashSound->bAutoActivate = false;
     CrashSound->SetSound(CarCrashSound.Object);
 }
 

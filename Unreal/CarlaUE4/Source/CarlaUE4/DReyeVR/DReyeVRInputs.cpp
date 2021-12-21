@@ -102,8 +102,8 @@ void AEgoVehicle::TurnSignalRight()
     this->SetVehicleLightState(Lights);
 
     this->PlayTurnSignalSound();
-    RightSignalTimeToDie = FPlatformTime::Seconds() + 3.0f; // reset counter at 3s
-    LeftSignalTimeToDie = 0.f;                              // immediately stop left signal
+    RightSignalTimeToDie = FPlatformTime::Seconds() + this->TurnSignalDuration; // reset counter
+    LeftSignalTimeToDie = 0.f;                                                  // immediately stop left signal
 }
 
 void AEgoVehicle::TurnSignalLeft()
@@ -118,8 +118,8 @@ void AEgoVehicle::TurnSignalLeft()
     this->SetVehicleLightState(Lights);
 
     this->PlayTurnSignalSound();
-    RightSignalTimeToDie = 0.f;                            // immediately stop right signal
-    LeftSignalTimeToDie = FPlatformTime::Seconds() + 3.0f; // reset counter at 3s
+    RightSignalTimeToDie = 0.f;                                                // immediately stop right signal
+    LeftSignalTimeToDie = FPlatformTime::Seconds() + this->TurnSignalDuration; // reset counter
 }
 
 void AEgoVehicle::HoldHandbrake()

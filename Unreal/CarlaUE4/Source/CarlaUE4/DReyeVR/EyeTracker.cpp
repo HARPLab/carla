@@ -1,5 +1,6 @@
 #include "EyeTracker.h"
 
+#include "Carla/Game/CarlaStatics.h"    // GetEpisode
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "UObject/UObjectBaseUtility.h" // GetName
 
@@ -120,6 +121,14 @@ void AEyeTracker::BeginPlay()
 #endif
         }
     }
+
+    // Register EyeTracker with ActorRegistry
+    FActorView::IdType ID = 513;
+    FActorDescription SensorDescr;
+    SensorDescr.Id = "sensor.dreyevr";
+    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, ID);
+
+    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
 }
 
 void AEyeTracker::BeginDestroy()
