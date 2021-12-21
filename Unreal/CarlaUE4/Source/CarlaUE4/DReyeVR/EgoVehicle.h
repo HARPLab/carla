@@ -181,12 +181,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void UpdateText();
 
     // Collision w/ other vehicles
-    FVector BBOrigin{3.07f, -0.59f, 74.74f}; // obtained by looking at blueprint values
-    FVector BBScale3D{7.51f, 3.38f, 2.37f};  // obtained by looking at blueprint values
-    FVector BBBoxExtent{32.f, 32.f, 32.f};   // obtained by looking at blueprint values
     void InitDReyeVRCollisions();
-    UPROPERTY(Category = BoundingBox, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    UBoxComponent *Bounds;
     UFUNCTION()
     void OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor, UPrimitiveComponent *OtherComp,
                         int32 OtherBodyIndex, bool bFromSweep, const FHitResult &SweepResult);

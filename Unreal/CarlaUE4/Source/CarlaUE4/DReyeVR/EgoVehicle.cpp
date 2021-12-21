@@ -57,10 +57,6 @@ void AEgoVehicle::ReadConfigVariables()
     // vr
     ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
     ReadConfigValue("EgoVehicle", "PixelDensity", PixelDensity);
-    // bounding box
-    ReadConfigValue("EgoVehicle", "BBOrigin", BBOrigin);
-    ReadConfigValue("EgoVehicle", "BBScale", BBScale3D);
-    ReadConfigValue("EgoVehicle", "BBExtent", BBBoxExtent);
     // mirrors
     auto InitMirrorParams = [](const FString &Name, Mirror &M) {
         M.Name = Name;
@@ -192,21 +188,7 @@ void AEgoVehicle::InitDReyeVRText()
 void AEgoVehicle::InitDReyeVRCollisions()
 {
     // using Carla's GetVehicleBoundingBox function
-    UE_LOG(LogTemp, Log, TEXT("Initializing collisions"));
-    // AActor::GetActorBounds(false, Origin, BoxExtent); // not sure why incorrect
-    // UBoxComponent *Bounds = ACarlaWheeledVehicle::GetVehicleBoundingBox();
-    // FVector BoxExtent2 = this->GetVehicleBoundingBoxExtent();
-    // FTransform BoxTransform = this->GetVehicleTransform(); // this->GetVehicleBoundingBoxTransform();
-    // UE_LOG(LogTemp, Log, TEXT("Detected origin %.3f %.3f %.3f"), BoxTransform.GetLocation().X,
-    //        BoxTransform.GetLocation().Y, BoxTransform.GetLocation().Z);
-    // UE_LOG(LogTemp, Log, TEXT("Detected scale %.3f %.3f %.3f"), BoxTransform.GetScale3D().X,
-    //        BoxTransform.GetScale3D().Y, BoxTransform.GetScale3D().Z);
-    // UE_LOG(LogTemp, Log, TEXT("Detected extent %.3f %.3f %.3f"), BoxExtent2.X, BoxExtent2.Y, BoxExtent2.Z);
-    Bounds = CreateDefaultSubobject<UBoxComponent>(TEXT("DReyeVRBoundingBox"));
-    Bounds->SetupAttachment(GetRootComponent());
-    Bounds->SetBoxExtent(BBBoxExtent);
-    Bounds->SetRelativeScale3D(BBScale3D);
-    Bounds->SetRelativeLocation(BBOrigin);
+    UBoxComponent *Bounds = this->GetVehicleBoundingBox();
     Bounds->SetGenerateOverlapEvents(true);
     Bounds->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     Bounds->SetCollisionProfileName(TEXT("Trigger"));
