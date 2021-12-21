@@ -1,8 +1,7 @@
 #pragma once
 
-#include "DReyeVRSpectator.h"        // ADReyeVRSpectator ptr
 #include "EgoVehicle.h"              // DReyeVR ego vehicle ptr
-#include "Engine/LevelScriptActor.h" // Parent for LevelBP
+#include "Engine/LevelScriptActor.h" // ALevelScriptActor
 
 #include "DReyeVRLevel.generated.h"
 
