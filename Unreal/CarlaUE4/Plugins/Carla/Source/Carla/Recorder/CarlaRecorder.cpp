@@ -301,7 +301,7 @@ void ACarlaRecorder::AddActorBoundingBox(FActorView &View)
 void ACarlaRecorder::AddDReyeVRData()
 {
   // Add the latest instance of the DReyeVR snapshot to our data
-  DReyeVRData.Add(DReyeVRDataRecorder(ADReyeVRSensor::Snapshot));
+  DReyeVRData.Add(DReyeVRDataRecorder(ADReyeVRSensor::Data));
 }
 
 void ACarlaRecorder::AddTriggerVolume(const ATrafficSignBase &TrafficSign)

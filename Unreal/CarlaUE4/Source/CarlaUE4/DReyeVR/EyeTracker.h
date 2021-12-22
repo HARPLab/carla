@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Carla/Sensor/DReyeVRSensor.h"     // DReyeVRSensor
-#include "Carla/Sensor/DReyeVRSensorData.h" // DReyeVRSensorData
-#include "Components/SceneCaptureComponent2D.h"
+#include "Carla/Sensor/DReyeVRSensor.h"         // DReyeVRSensor
+#include "Carla/Sensor/DReyeVRSensorData.h"     // DReyeVRSensorData
+#include "Components/SceneCaptureComponent2D.h" // USceneCaptureComponent2D
 #include "CoreMinimal.h"
 #include "DReyeVRUtils.h"
 #include <chrono> // timing threads
@@ -31,14 +31,14 @@
 #include "EyeTracker.generated.h"
 
 UCLASS()
-class CARLAUE4_API AEyeTracker : public AActor
+class CARLAUE4_API AEyeTracker : public ADReyeVRSensor
 {
     GENERATED_BODY()
 
   public:
-    AEyeTracker();
+    AEyeTracker(const FObjectInitializer &ObjectInitializer);
 
-    void Tick(float DeltaSeconds);
+    void PrePhysTick(float DeltaSeconds);
     int64_t TickCount = 0;
 
     // Getters of low level Eye Tracking data
@@ -49,14 +49,6 @@ class CARLAUE4_API AEyeTracker : public AActor
     FVector GetLeftOrigin() const;
     FVector GetRightGazeRay() const;
     FVector GetRightOrigin() const;
-
-    // DReyeVR sensor class instance, spawned in BeginPlay()
-    ADReyeVRSensor *cppDReyeVRSensor; // Spawned from this class, not used with Python
-    // ROS bridge (DReyeVR) sensor registered with Carla to interact with ROS bridge
-    UPROPERTY(VisibleAnywhere)       // public to be accessed from PythonAPI (client) -> ROSbridge -> ROS
-    ADReyeVRSensor *pyDReyeVRSensor; // Spawned from PythonAPI client, searched for and updated in cpp
-    bool FindPyDReyeVRSensor();      // initialize the (python) DReyeVR sensor to some actor (ASensor)
-    bool ResetPyDReyeVRSensor();     // reset (python) DReyeVR sensor back to a nullptr
 
     // getters from EgoVehicle
     void SetPlayer(APlayerController *P);
@@ -81,9 +73,6 @@ class CARLAUE4_API AEyeTracker : public AActor
 #endif
     int64_t TimestampRef;               // reference timestamp (ms) since the hmd started ticking
     DReyeVR::SRanipalData TickSensor(); // tick hardware sensor (should be const function?)
-
-    // everything stored in the sensor is held in this struct
-    struct DReyeVR::SensorData *SensorData;
 
     // Ego velocity is tracked bc it is hard to reprouce with a variable timestamp
     float EgoVelocity = 0.f;

@@ -1,8 +1,8 @@
 #include "EgoVehicle.h"
+#include "Carla/Actor/ActorAttribute.h"             // FActorAttribute
 #include "Carla/Actor/ActorRegistry.h"              // Register
 #include "Carla/Game/CarlaStatics.h"                // GetEpisode
 #include "Carla/Vehicle/CarlaWheeledVehicleState.h" // ECarlaWheeledVehicleState
-#include "Carla/Vehicle/VehicleControl.h"           // FVehicleControl
 #include "DrawDebugHelpers.h"                       // Debug Line/Sphere
 #include "Engine/EngineTypes.h"                     // EBlendMode
 #include "Engine/World.h"                           // GetWorld
@@ -426,12 +426,30 @@ void AEgoVehicle::BeginPlay()
     this->GetVehicleMovementComponent()->SetTargetGear(1, true);
 
     // Register Ego Vehicle with ActorRegistry
-    FActorView::IdType ID = 512;
-    FActorDescription EgoDescr;
-    EgoDescr.Id = "vehicle.dreyevr";
-    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, EgoDescr, ID);
+    Register();
 
     UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
+}
+
+void AEgoVehicle::Register()
+{
+    /// TODO: parametrize
+    FActorView::IdType ID = 512;
+    FActorDescription Description;
+    Description.Id = "vehicle.dreyevr";
+    // ensure this vehicle is denoted by the 'hero' attribute
+    FActorAttribute HeroRole;
+    HeroRole.Id = "role_name";
+    HeroRole.Type = EActorAttributeType::String;
+    HeroRole.Value = "hero";
+    Description.Variations.Add(HeroRole.Id, std::move(HeroRole));
+    // ensure the vehicle has attributes denoting number of wheels
+    FActorAttribute NumWheels;
+    NumWheels.Id = "number_of_wheels";
+    NumWheels.Type = EActorAttributeType::Int;
+    NumWheels.Value = "4";
+    Description.Variations.Add(NumWheels.Id, std::move(NumWheels));
+    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, Description, ID);
 }
 
 void AEgoVehicle::BeginDestroy()
@@ -498,7 +516,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     // Compute World positions and orientations
     EyeTrackerSensor->SetInputs(VehicleInputs);
     EyeTrackerSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
-    EyeTrackerSensor->Tick(DeltaSeconds);
+    // EyeTrackerSensor->Tick(DeltaSeconds);
     // clear inputs to be updated on the next tick
     VehicleInputs.Clear();
 

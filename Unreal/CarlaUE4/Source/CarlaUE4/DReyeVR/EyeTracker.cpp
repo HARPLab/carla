@@ -24,9 +24,8 @@ void throw_exception(const std::exception &e)
 } // namespace carla
 #endif
 
-AEyeTracker::AEyeTracker()
+AEyeTracker::AEyeTracker(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
-    SensorData = new struct DReyeVR::SensorData;
     ReadConfigValue("EyeTracker", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("EyeTracker", "FrameWidth", FrameCapWidth);
     ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
@@ -93,15 +92,6 @@ void AEyeTracker::BeginPlay()
 #else
     UE_LOG(LogTemp, Warning, TEXT("NOT using SRanipal eye tracking"));
 #endif
-
-    // Spawn the (cpp) DReyeVR Carla sensor and attach to self:
-    FActorSpawnParameters SpawnInfo; // empty for now
-    SpawnInfo.Owner = this;
-    SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    cppDReyeVRSensor = World->SpawnActor<ADReyeVRSensor>(GetActorLocation(), GetActorRotation(), SpawnInfo);
-    // Attach the DReyeVRSensor as a child to self
-    cppDReyeVRSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
-
     // Set up frame capture
     if (bCaptureFrameData)
     {
@@ -125,10 +115,10 @@ void AEyeTracker::BeginPlay()
     // Register EyeTracker with ActorRegistry
     FActorView::IdType ID = 513;
     FActorDescription SensorDescr;
-    SensorDescr.Id = "sensor.dreyevr";
+    SensorDescr.Id = "sensor.dreyevr.dreyevrsensor";
     UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, ID);
 
-    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
+    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR Eye Tracker"));
 }
 
 void AEyeTracker::BeginDestroy()
@@ -158,7 +148,7 @@ void AEyeTracker::SetCamera(UCameraComponent *FPSCamInEgoVehicle)
 
 void AEyeTracker::SetInputs(const DReyeVR::UserInputs &inputs)
 {
-    SensorData->Inputs = inputs;
+    GetData()->Inputs = inputs;
 }
 
 void AEyeTracker::UpdateEgoVelocity(const float Velocity)
@@ -166,15 +156,14 @@ void AEyeTracker::UpdateEgoVelocity(const float Velocity)
     EgoVelocity = Velocity;
 }
 
-void AEyeTracker::Tick(float DeltaSeconds)
+void AEyeTracker::PrePhysTick(float DeltaSeconds)
 {
-    Super::Tick(DeltaSeconds);
-    if (!cppDReyeVRSensor->GetIsReplaying()) // only update the sensor with local values if not replaying
+    if (!this->GetIsReplaying()) // only update the sensor with local values if not replaying
     {
         // ftime_s is used to get the UE4 (carla) timestamp of the world at this tick
         double ftime_s = UGameplayStatics::GetRealTimeSeconds(World);
         // Get data from the hardware sensor
-        SensorData->UpdateEyeTrackerData(this->TickSensor());
+        GetData()->UpdateEyeTrackerData(this->TickSensor());
 
         // Assign FFocus information
         /// NOTE: the ECC_GameTraceChannel4 line trace allows the trace to ignore the vehicle
@@ -183,37 +172,33 @@ void AEyeTracker::Tick(float DeltaSeconds)
         DReyeVR::FocusInfo F;
         ComputeTraceFocusInfo(ECC_GameTraceChannel4, F, TraceRadius);
         if (F.Actor != nullptr)
-            F.Actor->GetName(SensorData->FocusActorName);
+            F.Actor->GetName(GetData()->FocusActorName);
         else
-            SensorData->FocusActorName = FString("None"); // empty string, not looking at any actor
-        SensorData->FocusActorPoint = F.Point;
-        SensorData->FocusActorDist = F.Distance;
+            GetData()->FocusActorName = FString("None"); // empty string, not looking at any actor
+        GetData()->FocusActorPoint = F.Point;
+        GetData()->FocusActorDist = F.Distance;
         // UE_LOG(LogTemp, Log, TEXT("Focus Actor: %s"), *Data->FocusActorName);
 
         // Update the ego velocity
-        SensorData->Velocity = EgoVelocity;
+        GetData()->Velocity = EgoVelocity;
         // Update the Carla tick timestamp
-        SensorData->TimestampCarla = int64_t(ftime_s * 1000);
+        GetData()->TimestampCarla = int64_t(ftime_s * 1000);
         if (FirstPersonCam != nullptr)
         {
             // Update the hmd location
-            SensorData->HMDLocation = FirstPersonCam->GetRelativeLocation();
-            SensorData->HMDRotation = FirstPersonCam->GetRelativeRotation();
+            GetData()->HMDLocation = FirstPersonCam->GetRelativeLocation();
+            GetData()->HMDRotation = FirstPersonCam->GetRelativeRotation();
         }
         // The Vergence will be calculated with SRanipal if available, else just 1.0f
-        SensorData->Combined.Vergence = CalculateVergenceFromDirections();
+        GetData()->Combined.Vergence = CalculateVergenceFromDirections();
         // Update the DReyeVR Carla sensor with the most current values
-        /// NOTE: both the cpp and pyDReyeVRSensor share the same static SensorData, so we only need to update one
-        cppDReyeVRSensor->Update(SensorData);
     }
     else
     {
         // this gets reached when the simulator is replaying data from a carla log
-        // update the local SensorData with the global (replayer made) SensorData
-        SensorData = cppDReyeVRSensor->Snapshot;
         // assign first person camera orientation and location
-        FirstPersonCam->SetRelativeRotation(SensorData->HMDRotation, false, nullptr, ETeleportType::None);
-        FirstPersonCam->SetRelativeLocation(SensorData->HMDLocation, false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeRotation(GetData()->HMDRotation, false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeLocation(GetData()->HMDLocation, false, nullptr, ETeleportType::None);
     }
     // frame capture
     if (bCaptureFrameData && FrameCap && FirstPersonCam)
@@ -297,94 +282,42 @@ DReyeVR::SRanipalData AEyeTracker::TickSensor()
 /// ========================================== ///
 FVector AEyeTracker::GetCenterGazeRay() const
 {
-    return SensorData->Combined.GazeRay;
+    return GetData()->Combined.GazeRay;
 }
 
 FVector AEyeTracker::GetCenterOrigin() const
 {
-    return SensorData->Combined.Origin;
+    return GetData()->Combined.Origin;
 }
 
 float AEyeTracker::GetVergence() const
 {
-    return SensorData->Combined.Vergence;
+    return GetData()->Combined.Vergence;
 }
 
 FVector AEyeTracker::GetLeftGazeRay() const
 {
-    return SensorData->Left.GazeRay;
+    return GetData()->Left.GazeRay;
 }
 
 FVector AEyeTracker::GetLeftOrigin() const
 {
-    return SensorData->Left.Origin;
+    return GetData()->Left.Origin;
 }
 
 FVector AEyeTracker::GetRightGazeRay() const
 {
-    return SensorData->Right.GazeRay;
+    return GetData()->Right.GazeRay;
 }
 
 FVector AEyeTracker::GetRightOrigin() const
 {
-    return SensorData->Right.Origin;
+    return GetData()->Right.Origin;
 }
 
 /// ========================================== ///
 /// ---------------:HELPERS:------------------ ///
 /// ========================================== ///
-
-// Find an existing (already spawned) DReyeVR sensor instance in the world if one exists
-// This makes it very straightforward for a Python client to spawn and store the client-side sensor, which gets
-// updated from the server's (ego-vehicle's) POV
-bool AEyeTracker::FindPyDReyeVRSensor()
-{
-    // not efficient to call this function on every tick(), therefore we'll call it on a *record* trigger
-    // returns whether or not a DReyeVR sensor has been spawned and reset
-    TArray<AActor *> FoundDReyeVRSensors;
-    UGameplayStatics::GetAllActorsOfClass(World, ADReyeVRSensor::StaticClass(), FoundDReyeVRSensors);
-    // ensure only one is spawned else we are confused
-    if (FoundDReyeVRSensors.Num() <= 1) // first ADReyeVRSensor is the cppDReyeVRSensor
-    {
-        UE_LOG(LogTemp, Log, TEXT("Unable to find any DReyeVR sensors spawned in World!"));
-        return false;
-    }
-    else
-    {
-        /// NOTE: there will always be >=ONE ADReyeVRSensors because the cppDReyeVRSensor is spawned from this class
-        // so we are looking for >1
-        if (FoundDReyeVRSensors.Num() > 2)
-            UE_LOG(LogTemp, Log, TEXT("Found multiple DReyeVR sensors in the World, defaulting to the last one"));
-        const int lastIdx = FoundDReyeVRSensors.Num() - 1;
-        pyDReyeVRSensor = CastChecked<ADReyeVRSensor>(FoundDReyeVRSensors[lastIdx]); // always default to the first one
-        pyDReyeVRSensor->ClientInitialized = true; // this instance is allowed to stream
-    }
-    if (!pyDReyeVRSensor)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Did not assign a DReyeVR Sensor to the EyeTracker"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("Assigned a DReyeVR Sensor in the EyeTracker"));
-    }
-
-    return true;
-}
-
-bool AEyeTracker::ResetPyDReyeVRSensor()
-{
-    // reset the DReyeVRSensor
-    // returns whether or not a DReyeVR sensor has been spawned and reset
-    if (pyDReyeVRSensor != nullptr)
-    {
-        pyDReyeVRSensor = nullptr;
-        UE_LOG(LogTemp, Log, TEXT("Reset the DReyeVR Sensor to a nullptr"));
-        return true;
-    }
-    else
-        UE_LOG(LogTemp, Log, TEXT("DReyeVR Sensor already reset to nullptr"));
-    return false;
-}
 
 bool AEyeTracker::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DReyeVR::FocusInfo &F,
                                         const float radius = 0.f)
@@ -394,10 +327,10 @@ bool AEyeTracker::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DR
     bool hit = false;
     const float maxDist = 100.f * 100.f; // 100m
 
-    const FRotator WorldRot = SensorData->HMDRotation;
-    const FVector WorldPos = SensorData->HMDLocation;
-    const FVector GazeOrigin = WorldRot.RotateVector(SensorData->Combined.Origin) + WorldPos;
-    const FVector GazeTarget = WorldRot.RotateVector(maxDist * SensorData->Combined.GazeRay);
+    const FRotator WorldRot = GetData()->HMDRotation;
+    const FVector WorldPos = GetData()->HMDLocation;
+    const FVector GazeOrigin = WorldRot.RotateVector(GetData()->Combined.Origin) + WorldPos;
+    const FVector GazeTarget = WorldRot.RotateVector(maxDist * GetData()->Combined.GazeRay);
 
     // Create collision information container.
     FCollisionQueryParams traceParam;

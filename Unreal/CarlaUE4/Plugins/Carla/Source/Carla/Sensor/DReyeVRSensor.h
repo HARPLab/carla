@@ -21,7 +21,6 @@ class CARLA_API ADReyeVRSensor : public ASensor
     ADReyeVRSensor(const FObjectInitializer &ObjectInitializer);
 
     static FActorDefinition GetSensorDefinition();
-    bool ClientInitialized = false; // Python-spawned instances stream only if Client is initialized
 
     void Set(const FActorDescription &ActorDescription) override;
 
@@ -29,11 +28,22 @@ class CARLA_API ADReyeVRSensor : public ASensor
 
     virtual void PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSeconds) override;
 
-    static struct DReyeVR::SensorData *Snapshot; // static struct for the CarlaRecorder
+    // everything stored in the sensor is held in this struct
+    /// TODO: make this non-static and use a smarter scheme for cross-class communication
+    static struct DReyeVR::SensorData *Data;
 
-    void Update(const DReyeVR::SensorData *NewData);
+    struct DReyeVR::SensorData *GetData()
+    {
+        return ADReyeVRSensor::Data;
+    }
 
-    static void UpdateReplayData(const DReyeVR::SensorData &R_Snapshot, const FTransform &EgoTransform,
+    const struct DReyeVR::SensorData *GetData() const
+    {
+        // read-only variant of GetData
+        return ADReyeVRSensor::Data;
+    }
+
+    static void UpdateReplayData(const DReyeVR::SensorData &RecorderData, const FTransform &EgoTransform,
                                  const double Per);
 
     static void SetIsReplaying(const bool Replaying);

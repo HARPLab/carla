@@ -23,17 +23,12 @@ import carla
 
 import argparse
 from numpy import random
+from DReyeVR_utils import find_ego_vehicle
 
 
 def set_DReyeVR_autopilot(world, traffic_manager):
-    DReyeVR_vehicle = None
-    for actor in world.get_actors():
-        if "dreyevr" in actor.type_id.lower():
-            DReyeVR_vehicle = actor
-            break
-    if DReyeVR_vehicle is None:
-        print("Unable to find DReyeVR ego vehicle in world!")
-    else:
+    DReyeVR_vehicle = find_ego_vehicle(world)
+    if DReyeVR_vehicle is not None:
         DReyeVR_vehicle.set_autopilot(True, traffic_manager.get_port())
         print("Successfully set autopilot on ego vehicle")
     return DReyeVR_vehicle
