@@ -156,19 +156,20 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     Mirror RightMirror, LeftMirror, RearMirror;
 
     // Cosmetic
-    bool bDisableSpectatorScreen = false; // don't spent time rendering the spectator screen
-    bool bRectangularReticle = false;     // Draw a simple box reticle instead of crosshairs
-    void DrawReticle();                   // on Tick(), draw new reticle in eye-gaze posn
-    void InitReticleTexture();            // initializes the spectator-reticle texture
-    FVector2D ReticleThickness{8, 8};     // horizontal line and vertical line
-    FIntPoint ReticleDim{96, 96};         // size (px) of reticle texture (x, y)
-    TArray<FColor> ReticleSrc;            // pixel values array for eye reticle texture
-    UTexture2D *ReticleTexture;           // UE4 texture for eye reticle
-    FIntPoint ViewSize;                   // Size of the open window (viewport) not resolution (default to 1080p)
+    void InitReticleTexture();  // initializes the spectator-reticle texture
+    TArray<FColor> ReticleSrc;  // pixel values array for eye reticle texture
+    UTexture2D *ReticleTexture; // UE4 texture for eye reticle
 
     // HUD variables (NOTE: ONLY FOR NON VR)
     class ADReyeVRHUD *HUD;
-    void DrawHUD();
+    void DrawHUD(float DeltaSeconds);
+    int ReticleSize = 100;               // diameter of reticle (line thickness is 10% of this)
+    bool bDrawFPSCounter = true;         // draw FPS counter in top left corner
+    bool bDrawGaze = false;              // whether or not to draw a line for gaze-ray on HUD
+    bool bDrawSpectatorReticle = true;   // Reticle used in the VR-spectator mode
+    bool bDrawFlatReticle = true;        // Reticle used in the flat mode (uses HUD) (ONLY in non-vr mode)
+    bool bEnableSpectatorScreen = false; // don't spent time rendering the spectator screen
+    bool bRectangularReticle = false;    // draw the reticle texture on the HUD & Spectator (NOT RECOMMENDED)
 
     // Text Render components (Like the HUD but works in VR)
     void InitDReyeVRText();
@@ -204,9 +205,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     // Other variables
     void ReadConfigVariables();
     void InitVehicleMovement();
-    bool IsHMDConnected = false;      // checks for HMD connection on BeginPlay
-    bool DrawGazeOnHUD = false;       // whether or not to draw a line for gaze-ray on HUD
-    bool DrawSpectatorReticle = true; // Reticle used in the VR-spectator mode
-    bool DrawFlatReticle = true;      // Reticle used in the flat mode (uses HUD) (ONLY in non-vr mode)
-    bool IsLogiConnected = false;     // check if Logi device is connected (on BeginPlay)
+    bool IsHMDConnected = false;  // checks for HMD connection on BeginPlay
+    bool IsLogiConnected = false; // check if Logi device is connected (on BeginPlay)
 };

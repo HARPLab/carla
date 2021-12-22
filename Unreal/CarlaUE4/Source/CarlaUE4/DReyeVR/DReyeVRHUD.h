@@ -44,6 +44,15 @@ struct HUDRect
     float Thickness;
 };
 
+struct HUDCrosshair
+{
+    FVector2D Center;
+    float Diameter;
+    FColor Colour;
+    bool InnerT; // whether or not to draw the inner "+" cross
+    float Thickness;
+};
+
 /// DReyeVR class to draw on HUD
 UCLASS() class ADReyeVRHUD : public ACarlaHUD
 {
@@ -84,13 +93,20 @@ UCLASS() class ADReyeVRHUD : public ACarlaHUD
     void DrawDynamicRect(const FVector2D &TopLeft, const FVector2D &BottomRight, const FColor &Colour,
                          const float Thickness = 0); // 0 thickness is default
 
+    // drawing crosshair for reticule
+    void DrawDynamicCrosshair(const FVector &Center, const float Diameter, const FColor &Colour, const bool InnerT,
+                              const float Thickness = 0);
+    void DrawDynamicCrosshair(const FVector2D &Center, const float Diameter, const FColor &Colour, const bool InnerT,
+                              const float Thickness = 0);
+
   private:
     /// TODO: figure out a better way than this to dynamically render
     HUDTexture ReticleTexture;
-    TArray<HUDText> DynamicTextList;     // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicText
-    TArray<HUDTexture> DynamicTextures;  // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicTextures
-    TArray<HUDLine> DynamicLineList;     // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicLine
-    TArray<HUDRect> DynamicRectList;     // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicLine
-    TArray<TimedText> StaticTextList;    // get added and remain until lifetime ends
-    APlayerController *Player = nullptr; // PlayerComponent in world
+    TArray<HUDText> DynamicTextList;    // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicText
+    TArray<HUDTexture> DynamicTextures; // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicTextures
+    TArray<HUDLine> DynamicLineList;    // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicLine
+    TArray<HUDRect> DynamicRectList;    // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicRect
+    TArray<HUDCrosshair> DynamicCrosshairList; // get drawn once (on DrawHUD) then removed (replaced) by DrawDynamicRect
+    TArray<TimedText> StaticTextList;          // get added and remain until lifetime ends
+    APlayerController *Player = nullptr;       // PlayerComponent in world
 };

@@ -77,6 +77,28 @@ void ADReyeVRHUD::DrawHUD()
         }
     }
     DynamicRectList.Empty(); // clear to reuse on next DrawHUD
+
+    // Draw crosshairs
+    for (const HUDCrosshair &C : DynamicCrosshairList)
+    {
+        const float Radius = C.Diameter / 2.f;
+        FVector2D CirclePt = FVector2D(0, -Radius); // about origin so it can get rotated correctly
+        const int NumSides = 16;
+        const float RotAngleDeg = 360.f / NumSides;
+        for (i = 0; i < NumSides; i++) // draw all the line segments
+        {
+            FVector2D NextPt = CirclePt.GetRotated(RotAngleDeg);
+            DrawLine(C.Center.X + CirclePt.X, C.Center.Y + CirclePt.Y, C.Center.X + NextPt.X, C.Center.Y + NextPt.Y,
+                     C.Colour, C.Thickness);
+            CirclePt = NextPt; // draw next segment from here
+        }
+        if (C.InnerT) // draw the inner cross (+)
+        {
+            DrawLine(C.Center.X, C.Center.Y - Radius, C.Center.X, C.Center.Y + Radius, C.Colour, C.Thickness);
+            DrawLine(C.Center.X - Radius, C.Center.Y, C.Center.X + Radius, C.Center.Y, C.Colour, C.Thickness);
+        }
+    }
+    DynamicCrosshairList.Empty(); // clear to reuse on next DrawHUD
 }
 
 void ADReyeVRHUD::DrawDynamicText(const FString &Str, const FVector &Loc, const FColor &Colour, const float Scale,
@@ -163,4 +185,19 @@ void ADReyeVRHUD::DrawDynamicRect(const FVector2D &TopLeft, const FVector2D &Bot
 {
     HUDRect Square{TopLeft, BottomRight, Colour, Thickness};
     DynamicRectList.Add(std::move(Square));
+}
+
+void ADReyeVRHUD::DrawDynamicCrosshair(const FVector &Center, const float Diameter, const FColor &Colour,
+                                       const bool InnerT, const float Thickness)
+{
+    FVector2D CenterScreen;
+    if (Player->ProjectWorldLocationToScreen(Center, CenterScreen, true))
+        DrawDynamicCrosshair(CenterScreen, Diameter, Colour, InnerT, Thickness);
+}
+
+void ADReyeVRHUD::DrawDynamicCrosshair(const FVector2D &Center, const float Diameter, const FColor &Colour,
+                                       const bool InnerT, const float Thickness)
+{
+    HUDCrosshair Crosshair{Center, Diameter, Colour, InnerT, Thickness};
+    DynamicCrosshairList.Add(std::move(Crosshair));
 }

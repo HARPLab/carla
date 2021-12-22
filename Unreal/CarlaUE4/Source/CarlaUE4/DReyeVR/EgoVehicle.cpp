@@ -79,16 +79,16 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("Vehicle", "InvertMouseY", InvertMouseY);
     ReadConfigValue("Vehicle", "ScaleMouseY", ScaleMouseY);
     ReadConfigValue("Vehicle", "ScaleMouseX", ScaleMouseX);
+    // HUD (Head's Up Display)
+    ReadConfigValue("VehicleHUD", "DrawFPSCounter", bDrawFPSCounter);
+    ReadConfigValue("VehicleHUD", "DrawFlatReticle", bDrawFlatReticle);
+    ReadConfigValue("VehicleHUD", "ReticleSize", ReticleSize);
+    ReadConfigValue("VehicleHUD", "DrawGaze", bDrawGaze);
+    ReadConfigValue("VehicleHUD", "DrawSpectatorReticle", bDrawSpectatorReticle);
+    ReadConfigValue("VehicleHUD", "EnableSpectatorScreen", bEnableSpectatorScreen);
+
     // cosmetic
-    ReadConfigValue("EgoVehicle", "UseRectangularReticle", bRectangularReticle);
-    ReadConfigValue("EgoVehicle", "ReticleThicknessX", ReticleThickness.X);
-    ReadConfigValue("EgoVehicle", "ReticleThicknessY", ReticleThickness.Y);
-    ReadConfigValue("EgoVehicle", "ReticleDimX", ReticleDim.X);
-    ReadConfigValue("EgoVehicle", "ReticleDimY", ReticleDim.Y);
     ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
-    ReadConfigValue("EgoVehicle", "DrawSpectatorReticle", DrawSpectatorReticle);
-    ReadConfigValue("EgoVehicle", "DrawFlatReticle", DrawFlatReticle);
-    ReadConfigValue("EgoVehicle", "DrawGazeOnHUD", DrawGazeOnHUD);
 }
 
 void AEgoVehicle::InitVehicleMovement()
@@ -397,13 +397,14 @@ void AEgoVehicle::BeginPlay()
     EyeTrackerSensor->SetCamera(FirstPersonCam);
 
     // Enable VR spectator screen & eye reticle
-    InitReticleTexture(); // generate array of pixel values
-    if (bDisableSpectatorScreen)
+    if (bEnableSpectatorScreen)
     {
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
     }
-    else if (DrawSpectatorReticle && IsHMDConnected)
+    else if (bDrawSpectatorReticle && IsHMDConnected)
     {
+        InitReticleTexture(); // generate array of pixel values
+        check(ReticleTexture);
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
     }
@@ -473,15 +474,15 @@ void AEgoVehicle::ReplayUpdate()
 }
 
 // Called every frame
-void AEgoVehicle::Tick(float DeltaTime)
+void AEgoVehicle::Tick(float DeltaSeconds)
 {
-    Super::Tick(DeltaTime);
+    Super::Tick(DeltaSeconds);
 
     // Update the positions based off replay data
     ReplayUpdate();
 
     // Update sensor
-    UpdateSensor(DeltaTime);
+    UpdateSensor(DeltaSeconds);
 
     // Draw debug lines on editor
     DebugLines();
@@ -489,11 +490,11 @@ void AEgoVehicle::Tick(float DeltaTime)
     // Draw text on screen (like a HUD but works in VR)
     UpdateText();
 
-    // Draw the reticle on the Viewport (red square on the flat-screen window) while playing VR
-    DrawReticle();
+    // Draw the flat-screen HUD items like eye-reticle and FPS counter
+    DrawHUD(DeltaSeconds);
 
     // Update the world level
-    TickLevel(DeltaTime);
+    TickLevel(DeltaSeconds);
 
 #if USE_LOGITECH_WHEEL
     if (IsLogiConnected)
@@ -588,7 +589,7 @@ void AEgoVehicle::DebugLines() const
                       FColor::Yellow, false, -1, 0, 1);
     }
 #endif
-    if (DrawGazeOnHUD && HUD != nullptr)
+    if (bDrawGaze && HUD != nullptr)
     {
         // Draw line components in HUD
         HUD->DrawDynamicLine(CombinedOrigin, CombinedOrigin + 10.f * WorldRot.RotateVector(CombinedGaze), FColor::Red,
@@ -599,17 +600,18 @@ void AEgoVehicle::DebugLines() const
 void AEgoVehicle::InitReticleTexture()
 {
     // Used to initialize any bitmap-based image that will be used as a reticle
-    ReticleSrc.Reserve(ReticleDim.X * ReticleDim.Y); // allocate width*height space
-    for (int i = 0; i < ReticleDim.X; i++)
+    ReticleSrc.Reserve(ReticleSize * ReticleSize); // allocate width*height space
+    for (int i = 0; i < ReticleSize; i++)
     {
-        for (int j = 0; j < ReticleDim.Y; j++)
+        for (int j = 0; j < ReticleSize; j++)
         {
             // RGBA colours
             FColor Colour;
             if (bRectangularReticle)
             {
-                bool LeftOrRight = (i < ReticleThickness.X || i > ReticleDim.X - ReticleThickness.X);
-                bool TopOrBottom = (j < ReticleThickness.Y || j > ReticleDim.Y - ReticleThickness.Y);
+                const int ReticleThickness = ReticleSize / 10;
+                bool LeftOrRight = (i < ReticleThickness || i > ReticleSize - ReticleThickness);
+                bool TopOrBottom = (j < ReticleThickness || j > ReticleSize - ReticleThickness);
                 if (LeftOrRight || TopOrBottom)
                     Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
                 else
@@ -617,9 +619,9 @@ void AEgoVehicle::InitReticleTexture()
             }
             else
             {
-                const int x = i - ReticleDim.X / 2;
-                const int y = j - ReticleDim.Y / 2;
-                const float Radius = ReticleDim.X / 3.f;
+                const int x = i - ReticleSize / 2;
+                const int y = j - ReticleSize / 2;
+                const float Radius = ReticleSize / 3.f;
                 const int RadThickness = 3;
                 const int LineLen = 4 * RadThickness;
                 const float RadLo = Radius - LineLen;
@@ -646,49 +648,79 @@ void AEgoVehicle::InitReticleTexture()
     }
     /// NOTE: need to create transient like this bc of a UE4 bug in release mode
     // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
-    ReticleTexture = UTexture2D::CreateTransient(ReticleDim.X, ReticleDim.Y, PF_B8G8R8A8);
+    ReticleTexture = UTexture2D::CreateTransient(ReticleSize, ReticleSize, PF_B8G8R8A8);
     void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-    FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleDim.X * ReticleDim.Y);
+    FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleSize * ReticleSize);
     ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
     ReticleTexture->UpdateResource();
-    // ReticleTexture = FImageUtils::CreateTexture2D(ReticleDim.X, ReticleDim.Y, ReticleSrc, GetWorld(),
+    // ReticleTexture = FImageUtils::CreateTexture2D(ReticleSize, ReticleSize, ReticleSrc, GetWorld(),
     //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
 
     check(ReticleTexture);
     check(ReticleTexture->Resource);
 }
 
-void AEgoVehicle::DrawReticle()
+void AEgoVehicle::DrawHUD(float DeltaSeconds)
 {
-    if (bDisableSpectatorScreen)
-    {
+    if (HUD == nullptr || Player == nullptr)
         return;
-    }
-    const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
-    // 1m away from the origin
-    const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
-
-    if (Player) // Get size of the viewport
-        Player->GetViewportSize(ViewSize.X, ViewSize.Y);
-    /// NOTE: this is the better way to get the ViewportSize
-    const FVector2D ViewportSize = FVector2D(GEngine->GameViewport->Viewport->GetSizeXY());
-    FVector2D ReticlePos;
-    if (Player)
-        UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
-    /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
-    /// NOTE: to get the best drawing, the texture is offset slightly by this vector
-    const FVector2D ScreenOffset(ReticleDim.X * 0.5f,
-                                 -ReticleDim.Y); // move X right by Dim.X/2, move Y up by Dim.Y
-    /// TODO: clamp to be within [0,1]
-    FVector2D TextureRectMin((ReticlePos.X + ScreenOffset.X) / ViewSize.X,
-                             (ReticlePos.Y + ScreenOffset.Y) / ViewSize.Y);
-    // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
-    FVector2D TextureRectMax((ReticlePos.X + ScreenOffset.X + ReticleDim.X) / ViewSize.X,
-                             (ReticlePos.Y + ScreenOffset.Y + ReticleDim.Y) / ViewSize.Y);
-    if (IsHMDConnected)
+    // calculate View size (of open window). Note this is not the same as resolution
+    FIntPoint ViewSize;
+    Player->GetViewportSize(ViewSize.X, ViewSize.Y);
+    // Get eye tracker variables
+    const FRotator WorldRot = GetCamera()->GetComponentRotation();
+    const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
+    // Draw elements of the HUD
+    if (bDrawFlatReticle) // Draw reticle on flat-screen HUD
     {
-        if (DrawSpectatorReticle)
+        const float Diameter = ReticleSize;
+        const float Thickness = (ReticleSize / 2.f) / 10.f; // 10 % of radius
+        if (bRectangularReticle)
         {
+            HUD->DrawDynamicSquare(CombinedGazePosn, Diameter, FColor(255, 0, 0, 128), Thickness);
+        }
+        else
+        {
+            HUD->DrawDynamicCrosshair(CombinedGazePosn, Diameter, FColor(255, 0, 0, 128), true, Thickness);
+#if 0
+            // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
+            // crashes the thread its on by invalidating the ReticleTexture->Resource which is
+            // non-const (but should be!!) This has to be a bug in UE4 code that we unfortunately have
+            // to work around
+            if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
+            {
+                InitReticleTexture();
+            }
+            if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+            {
+                HUD->DrawReticle(ReticleTexture, ReticlePos + FVector2D(-ReticleSize * 0.5f, -ReticleSize * 0.5f));
+            }
+#endif
+        }
+    }
+    if (bDrawFPSCounter)
+    {
+        HUD->DrawDynamicText(FString::FromInt(int(1.f / DeltaSeconds)), FVector2D(ViewSize.X - 100, 50),
+                             FColor(0, 255, 0, 213), 2);
+    }
+    if (bEnableSpectatorScreen && IsHMDConnected)
+    {
+        /// TODO: draw other things on the spectator screen?
+        if (bDrawSpectatorReticle)
+        {
+            /// NOTE: this is the better way to get the ViewportSize
+            FVector2D ReticlePos;
+            UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
+            /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
+            /// NOTE: to get the best drawing, the texture is offset slightly by this vector
+            const FVector2D ScreenOffset(ReticleSize * 0.5f, -ReticleSize);
+            ReticlePos += ScreenOffset; // move X right by Dim.X/2, move Y up by Dim.Y
+            // define min and max bounds
+            FVector2D TextureRectMin(FMath::Clamp(ReticlePos.X / ViewSize.X, 0.f, 1.f),
+                                     FMath::Clamp(ReticlePos.Y / ViewSize.Y, 0.f, 1.f));
+            // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
+            FVector2D TextureRectMax(FMath::Clamp((ReticlePos.X + ReticleSize) / ViewSize.X, 0.f, 1.f),
+                                     FMath::Clamp((ReticlePos.Y + ReticleSize) / ViewSize.Y, 0.f, 1.f));
             UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
                 FVector2D{0.f, 0.f}, // whole window (top left)
                 FVector2D{1.f, 1.f}, // whole window (top ->*bottom? right)
@@ -698,53 +730,6 @@ void AEgoVehicle::DrawReticle()
                 false,               // clear w/ black
                 true                 // use alpha
             );
-        }
-    }
-    else
-    {
-        if (DrawFlatReticle)
-        {
-            // Draw on user HUD (only for flat-view)
-            if (bRectangularReticle && HUD != nullptr)
-            {
-                HUD->DrawDynamicSquare(CombinedGazePosn, 60, FColor(255, 0, 0, 255), 5);
-            }
-            else
-            {
-                // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
-                // crashes the thread its on by invalidating the ReticleTexture->Resource which is
-                // non-const (but should be!!) This has to be a bug in UE4 code that we unfortunately have
-                // to work around
-                if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
-                {
-                    InitReticleTexture();
-                }
-                if (HUD != nullptr && ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
-                {
-                    /// TODO: add scale
-                    HUD->DrawReticle(ReticleTexture,
-                                     ReticlePos + FVector2D(-ReticleDim.X * 0.5f, -ReticleDim.Y * 0.5f));
-                    // see here for guide on DrawTexture
-                    // https://answers.unrealengine.com/questions/41214/how-do-you-use-draw-texture.html
-                    // HUD->DrawTextureSimple(ReticleTexture, ReticlePos.X, ReticlePos.Y, 10.f, false);
-                    // HUD->DrawTexture(ReticleTexture,
-                    //                  ReticlePos.X, // screen space X coord
-                    //                  ReticlePos.Y, // screen space Y coord
-                    //                  96,           // screen space width
-                    //                  96,           // screen space height
-                    //                  0,            // top left X of texture
-                    //                  0,            // top left Y of texture
-                    //                  1,            // bottom right X of texture
-                    //                  1             // bottom right Y of texture
-                    //                                //  FLinearColor::White,           // tint colour
-                    //                                //  EBlendMode::BLEND_Translucent, // blend mode
-                    //                                //  1.f,                           // scale
-                    //                                //  false,                         // scale position
-                    //                                //  0.f,                           // rotation
-                    //                                //  FVector2D::ZeroVector          // rotation pivot
-                    // );
-                }
-            }
         }
     }
 }
