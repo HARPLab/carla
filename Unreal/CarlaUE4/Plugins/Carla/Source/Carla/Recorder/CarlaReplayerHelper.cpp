@@ -502,7 +502,7 @@ bool CarlaReplayerHelper::ProcessReplayerFinish(bool bApplyAutopilot, bool bIgno
   // update the DReyeVR sensor to NOT continue replaying
   if (EyeTrackerPtr != nullptr) {
     ADReyeVRSensor *EyeTracker = Cast<ADReyeVRSensor>(EyeTrackerPtr);
-    EyeTracker->SetIsReplaying(false);
+    EyeTracker->bIsReplaying = false;
   }
   return true;
 }

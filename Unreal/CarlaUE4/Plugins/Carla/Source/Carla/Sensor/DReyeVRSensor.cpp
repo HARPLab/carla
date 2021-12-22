@@ -79,7 +79,9 @@ carla::geom::Vector2D FVector2DToGeom2D(const FVector2D &In)
 }
 void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSeconds)
 {
-    auto Stream = GetDataStream(*this); // initialize Stream from boost::optional
+    if (!this->StreamSensorData) // param for enabling or disabling the data streaming
+        return;
+    auto Stream = GetDataStream(*this);
     DReyeVR::SensorData *Snapshot = this->GetData();
     auto &SR_Combo = Snapshot->Combined;
     auto &SR_Right = Snapshot->Right;
@@ -122,32 +124,23 @@ void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSec
     );
 }
 
-void ADReyeVRSensor::SetIsReplaying(const bool Replaying)
-{
-    IsReplaying = Replaying;
-}
-
-bool ADReyeVRSensor::GetIsReplaying()
-{
-    return IsReplaying;
-}
-
 /////////////////////////:DREYEVRSENSORDATA://////////////////////////////
 /// NOTE: this to define the static variables that are set by the replayer when
 //  replaying files to animate gaze ray data
-bool ADReyeVRSensor::IsReplaying = false; // not replaying initially
+bool ADReyeVRSensor::bIsReplaying = false; // not replaying initially
 FTransform ADReyeVRSensor::EgoReplayTransform = FTransform(FRotator(0, 0, 0), FVector(0, 0, 0), FVector(1, 1, 1));
 float ADReyeVRSensor::EgoReplayVelocity = 0;
 
 void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &RecorderData, const FTransform &EgoTrans,
                                       const double Per)
 {
-    // updates a bunch of local values
-    ADReyeVRSensor::SetIsReplaying(true);
+    // update global values
+    ADReyeVRSensor::bIsReplaying = true;
     ADReyeVRSensor::EgoReplayTransform = EgoTrans;
     ADReyeVRSensor::EgoReplayVelocity = RecorderData.Velocity;
     if (ADReyeVRSensor::Data != nullptr)
     {
+        // update local values
         FVector NewCameraPose;
         FRotator NewCameraRot;
         ADReyeVRSensor::InterpPositionAndRotation(ADReyeVRSensor::Data->HMDLocation, // old location

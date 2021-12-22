@@ -26,6 +26,7 @@ void throw_exception(const std::exception &e)
 
 AEyeTracker::AEyeTracker(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
+    ReadConfigValue("EyeTracker", "StreamSensorData", StreamSensorData);
     ReadConfigValue("EyeTracker", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("EyeTracker", "FrameWidth", FrameCapWidth);
     ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
@@ -158,7 +159,7 @@ void AEyeTracker::UpdateEgoVelocity(const float Velocity)
 
 void AEyeTracker::PrePhysTick(float DeltaSeconds)
 {
-    if (!this->GetIsReplaying()) // only update the sensor with local values if not replaying
+    if (!bIsReplaying) // only update the sensor with local values if not replaying
     {
         // ftime_s is used to get the UE4 (carla) timestamp of the world at this tick
         double ftime_s = UGameplayStatics::GetRealTimeSeconds(World);

@@ -464,7 +464,7 @@ void AEgoVehicle::BeginDestroy()
 void AEgoVehicle::ReplayUpdate()
 {
     // perform all updates that occur when replaying
-    if (ADReyeVRSensor::GetIsReplaying())
+    if (ADReyeVRSensor::bIsReplaying)
     {
         // if we don't have this positional update here, there is lag/jitter between the FPS camera and the vehicle
         // since they are likely updating on different ticks (Carla Replayers's vs here)
@@ -486,7 +486,7 @@ void AEgoVehicle::Tick(float DeltaTime)
     // Draw debug lines on editor
     DebugLines();
 
-    // Draw text on scren (like a HUD but works in VR)
+    // Draw text on screen (like a HUD but works in VR)
     UpdateText();
 
     // Draw the reticle on the Viewport (red square on the flat-screen window) while playing VR
@@ -516,7 +516,6 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     // Compute World positions and orientations
     EyeTrackerSensor->SetInputs(VehicleInputs);
     EyeTrackerSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
-    // EyeTrackerSensor->Tick(DeltaSeconds);
     // clear inputs to be updated on the next tick
     VehicleInputs.Clear();
 
@@ -756,7 +755,7 @@ void AEgoVehicle::UpdateText()
         return;
     // Draw text components
     float MPH;
-    if (ADReyeVRSensor::GetIsReplaying())
+    if (ADReyeVRSensor::bIsReplaying)
     {
         MPH = ADReyeVRSensor::EgoReplayVelocity * 0.0223694f; // cm/s to mph
         UE_LOG(LogTemp, Log, TEXT("Velocity %.3f"), MPH);

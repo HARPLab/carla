@@ -46,8 +46,7 @@ class CARLA_API ADReyeVRSensor : public ASensor
     static void UpdateReplayData(const DReyeVR::SensorData &RecorderData, const FTransform &EgoTransform,
                                  const double Per);
 
-    static void SetIsReplaying(const bool Replaying);
-    static bool GetIsReplaying();
+    static bool bIsReplaying;
     static FTransform EgoReplayTransform;
     static float EgoReplayVelocity;
 
@@ -57,8 +56,7 @@ class CARLA_API ADReyeVRSensor : public ASensor
 
     UWorld *World; // to get info about the world: time, frames, etc.
 
-    // Replay data (making them static is a hack to work with CarlaReplayerHelper)
-    static bool IsReplaying;
+    bool StreamSensorData = true;
 
     static void InterpPositionAndRotation(const FVector &Pos1, const FRotator &Rot1, const FVector &Pos2,
                                           const FRotator &Rot2, const double Per, FVector &Location,
