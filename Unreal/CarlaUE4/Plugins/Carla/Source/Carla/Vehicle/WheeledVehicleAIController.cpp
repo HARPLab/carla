@@ -69,44 +69,6 @@ static bool IsThereAnObstacleAhead(
     RayCast(Vehicle, StartLeft, EndLeft);
 }
 
-static void AvoidRearEndingDReyeVR(ACarlaWheeledVehicle *Vehicle, const float DistanceThreshold = 50)
-{
-    // ensures that a car won't collide with a rear-end collision
-
-    const auto ForwardVector = Vehicle->GetVehicleOrientation();
-    const auto VehicleBounds = Vehicle->GetVehicleBoundingBoxExtent();
-
-    const float Distance = DistanceThreshold;
-    const FRotator Rot = Vehicle->GetActorRotation();
-    const FVector RayCenter =
-        Vehicle->GetActorLocation() + (ForwardVector * (250.0f + VehicleBounds.X / 2.0f)) + FVector(0.0f, 0.0f, 20.0f);
-    const FVector LeftPt = RayCenter + Rot.RotateVector(FVector(0.f, VehicleBounds.Y / 2.0f, 0.f));
-    const FVector RightPt = RayCenter - Rot.RotateVector(FVector(0.f, VehicleBounds.Y / 2.0f, 0.f));
-
-    FHitResult OutHit;
-    static FName TraceTag = FName(TEXT("VehicleTrace"));
-    FCollisionQueryParams CollisionParams(TraceTag, true);
-    CollisionParams.AddIgnoredActor(Vehicle);
-
-    const bool LineTripped = Vehicle->GetWorld()->LineTraceSingleByObjectType(
-        OutHit, LeftPt, RightPt, FCollisionObjectQueryParams(FCollisionObjectQueryParams::AllDynamicObjects),
-        CollisionParams);
-    DrawDebugLine(Vehicle->GetWorld(), LeftPt, RightPt, LineTripped ? FColor(255, 0, 0) : FColor(0, 255, 0), false);
-    if (LineTripped)
-    {
-        const AActor *EgoVehicle = OutHit.Actor.Get();
-        const FRotator DiffAngle = EgoVehicle->GetActorRotation() - Vehicle->GetActorRotation();
-        if (std::abs(DiffAngle.Yaw) < 25.f)
-        {
-            FVehicleControl BrakeNow;
-            BrakeNow.Brake = 100.f;
-            BrakeNow.bHandBrake = true;
-            Vehicle->ApplyVehicleControl(BrakeNow, EVehicleInputPriority::User);
-            Vehicle->FlushVehicleControl();
-        }
-    }
-}
-
 template <typename T>
 static void ClearQueue(std::queue<T> &Queue)
 {
@@ -179,8 +141,6 @@ void AWheeledVehicleAIController::Tick(const float DeltaTime)
   }
 
   Vehicle->FlushVehicleControl();
-  
-  AvoidRearEndingDReyeVR(Vehicle);
 }
 
 // =============================================================================
