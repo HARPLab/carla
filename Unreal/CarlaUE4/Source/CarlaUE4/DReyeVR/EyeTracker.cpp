@@ -192,7 +192,6 @@ void AEyeTracker::PrePhysTick(float DeltaSeconds)
         }
         // The Vergence will be calculated with SRanipal if available, else just 1.0f
         GetData()->Combined.Vergence = CalculateVergenceFromDirections();
-        // Update the DReyeVR Carla sensor with the most current values
     }
     else
     {

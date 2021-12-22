@@ -19,21 +19,21 @@
 #include "Carla/Sensor/DReyeVRSensor.h"
 #include "Carla/Sensor/DReyeVRSensorData.h"
 
-bool CarlaReplayerHelper::FindSpectatorDReyeVR()
+bool CarlaReplayerHelper::FindDReyeVREgoVehicle()
 {
-  UE_LOG(LogCarla, Log, TEXT("Looking for spectator in registry"));
+  UE_LOG(LogCarla, Log, TEXT("Looking for DReyeVR EgoVehicle in registry"));
   auto Registry = Episode->GetActorRegistry();
   for (auto It = Registry.begin(); It != Registry.end(); It++) 
   {
     FString ActorTag = It->GetActorInfo()->Description.Id;
-    if (ActorTag.Equals("spectator")) 
+    if (ActorTag.Equals("vehicle.dreyevr.egovehicle")) 
     {
-      EgoVehicleID = It->GetActorId();
-      UE_LOG(LogCarla, Log, TEXT("Found spectator in registry with id: %d"), EgoVehicleID);
+      this->EgoVehicleID = It->GetActorId();
+      UE_LOG(LogCarla, Log, TEXT("Found EgoVehicle in registry with id: %d"), EgoVehicleID);
       return true;
     }
   }
-  UE_LOG(LogCarla, Error, TEXT("ERROR: Spectator not found in registry!"));
+  UE_LOG(LogCarla, Error, TEXT("ERROR: EgoVehicle not found in registry!"));
   return false;
 }
 
@@ -71,8 +71,6 @@ std::pair<int, FActorView>CarlaReplayerHelper::TryToCreateReplayerActor(
     // check if an actor of that type already exist with same id
     if (Episode->GetActorRegistry().Contains(DesiredId))
     {
-      UE_LOG(LogCarla, Log, TEXT("Found actor in registry with id %d"), DesiredId);
-
       auto view = Episode->GetActorRegistry().Find(DesiredId);
       const FActorDescription *desc = &view.GetActorInfo()->Description;
       if (desc->Id == ActorDesc.Id)
@@ -84,35 +82,6 @@ std::pair<int, FActorView>CarlaReplayerHelper::TryToCreateReplayerActor(
         view.GetActor()->SetActorTransform(Trans2, false, nullptr, ETeleportType::TeleportPhysics);
         return std::pair<int, FActorView>(2, view);
       }
-    }
-    else {
-      UE_LOG(LogCarla, Log, TEXT("Did not find actor in registry with id %d"), DesiredId);
-    }
-    if (ActorDesc.Id.StartsWith("spectator")) 
-    {
-      if (FindSpectatorDReyeVR())
-      {
-        check(EgoVehicleID >= 0); // should have been assigned in FindSpectatorDReyeVR()
-        DesiredId = EgoVehicleID;
-      }
-      else
-      {
-        UE_LOG(LogCarla, Error, TEXT("ERROR: Spectator not found in registry!"));
-        return std::pair<int, FActorView>(0, Episode->GetActorRegistry().Find(DesiredId)); // error value
-      }
-      auto view = Episode->GetActorRegistry().Find(DesiredId);
-      const FActorDescription *desc = &view.GetActorInfo()->Description;
-      if (desc->Id == ActorDesc.Id)
-      {
-        // we don't need to create, actor of same type already exist
-        // relocate
-        FRotator Rot = FRotator::MakeFromEuler(Rotation);
-        FTransform Trans2(Rot, Location, FVector(1, 1, 1));
-        view.GetActor()->SetActorTransform(Trans2, false, nullptr, ETeleportType::TeleportPhysics);
-        return std::pair<int, FActorView>(2, view);
-      }
-      UE_LOG(LogCarla, Error, TEXT("Should not have gotten here, spectator not found in registry"));
-      return std::pair<int, FActorView>(0, view); // error value
     }
     // create the transform
     FRotator Rot = FRotator::MakeFromEuler(Rotation);
@@ -322,7 +291,7 @@ bool CarlaReplayerHelper::ProcessReplayerPosition(CarlaRecorderPosition Pos1, Ca
     /// NOTE: if the EgoVehicleID == -1, then it has not been set before and we'll need to find it
     if (EgoVehicleID < 0 || !Episode->GetActorRegistry().Contains(EgoVehicleID))
     {
-      check(FindSpectatorDReyeVR());
+      check(FindDReyeVREgoVehicle());
       check(EgoVehicleID >= 0); // assigned a valid number
       check(Episode->GetActorRegistry().Contains(EgoVehicleID));
     }

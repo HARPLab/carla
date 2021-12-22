@@ -437,7 +437,7 @@ void AEgoVehicle::Register()
     /// TODO: parametrize
     FActorView::IdType ID = 512;
     FActorDescription Description;
-    Description.Id = "vehicle.dreyevr";
+    Description.Id = "vehicle.dreyevr.egovehicle";
     // ensure this vehicle is denoted by the 'hero' attribute
     FActorAttribute HeroRole;
     HeroRole.Id = "role_name";
@@ -477,6 +477,7 @@ void AEgoVehicle::ReplayUpdate()
 void AEgoVehicle::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    FirstPersonCam->SetRelativeLocation(FVector::ZeroVector, false, nullptr, ETeleportType::None);
 
     // Update the positions based off replay data
     ReplayUpdate();
@@ -677,11 +678,11 @@ void AEgoVehicle::DrawHUD(float DeltaSeconds)
         const float Thickness = (ReticleSize / 2.f) / 10.f; // 10 % of radius
         if (bRectangularReticle)
         {
-            HUD->DrawDynamicSquare(CombinedGazePosn, Diameter, FColor(255, 0, 0, 128), Thickness);
+            HUD->DrawDynamicSquare(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), Thickness);
         }
         else
         {
-            HUD->DrawDynamicCrosshair(CombinedGazePosn, Diameter, FColor(255, 0, 0, 128), true, Thickness);
+            HUD->DrawDynamicCrosshair(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), true, Thickness);
 #if 0
             // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
             // crashes the thread its on by invalidating the ReticleTexture->Resource which is
@@ -743,7 +744,6 @@ void AEgoVehicle::UpdateText()
     if (ADReyeVRSensor::bIsReplaying)
     {
         MPH = ADReyeVRSensor::EgoReplayVelocity * 0.0223694f; // cm/s to mph
-        UE_LOG(LogTemp, Log, TEXT("Velocity %.3f"), MPH);
     }
     else
         MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph

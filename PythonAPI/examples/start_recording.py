@@ -113,24 +113,24 @@ def main():
         SetAutopilot = carla.command.SetAutopilot
         FutureActor = carla.command.FutureActor
 
-        # batch = []
-        # for n, transform in enumerate(spawn_points):
-        #     if n >= count:
-        #         break
-        #     blueprint = random.choice(blueprints)
-        #     if blueprint.has_attribute('color'):
-        #         color = random.choice(blueprint.get_attribute('color').recommended_values)
-        #         blueprint.set_attribute('color', color)
-        #     blueprint.set_attribute('role_name', 'autopilot')
-        #     batch.append(SpawnActor(blueprint, transform).then(SetAutopilot(FutureActor, True)))
-        #
-        # for response in client.apply_batch_sync(batch):
-        #     if response.error:
-        #         logging.error(response.error)
-        #     else:
-        #         actor_list.append(response.actor_id)
-        #
-        # print('spawned %d vehicles, press Ctrl+C to exit.' % len(actor_list))
+        batch = []
+        for n, transform in enumerate(spawn_points):
+            if n >= count:
+                break
+            blueprint = random.choice(blueprints)
+            if blueprint.has_attribute('color'):
+                color = random.choice(blueprint.get_attribute('color').recommended_values)
+                blueprint.set_attribute('color', color)
+            blueprint.set_attribute('role_name', 'autopilot')
+            batch.append(SpawnActor(blueprint, transform).then(SetAutopilot(FutureActor, True)))
+
+        for response in client.apply_batch_sync(batch):
+            if response.error:
+                logging.error(response.error)
+            else:
+                actor_list.append(response.actor_id)
+
+        print('spawned %d vehicles, press Ctrl+C to exit.' % len(actor_list))
 
         if (args.recorder_time > 0):
             time.sleep(args.recorder_time)
@@ -141,8 +141,8 @@ def main():
 
     finally:
 
-        # print('\ndestroying %d actors' % len(actor_list))
-        # client.apply_batch_sync([carla.command.DestroyActor(x) for x in actor_list])
+        print('\ndestroying %d actors' % len(actor_list))
+        client.apply_batch_sync([carla.command.DestroyActor(x) for x in actor_list])
 
         print("Stop recording")
         client.stop_recorder()

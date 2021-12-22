@@ -8,7 +8,7 @@ import time
 try:
     sys.path.append(
         glob.glob(
-            "PythonAPI/carla/dist/carla-*%d.%d-%s.egg"
+            "../carla/dist/carla-*%d.%d-%s.egg"
             % (
                 sys.version_info.major,
                 sys.version_info.minor,

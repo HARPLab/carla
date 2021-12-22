@@ -91,6 +91,12 @@ void ACarlaRecorder::Ticking(float DeltaSeconds)
 
       switch (View.GetActorType())
       {
+        // (Ignore these to not record the EyeTracker Aactor)
+        // // save the transform for props 
+        // case FActorView::ActorType::Other:
+        //   AddActorPosition(View);
+        //   break;
+
         // save the transform of all vehicles
         case FActorView::ActorType::Vehicle:
           AddActorPosition(View);

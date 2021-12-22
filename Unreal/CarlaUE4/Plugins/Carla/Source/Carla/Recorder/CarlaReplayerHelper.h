@@ -59,8 +59,8 @@ public:
   // DReyeVR variables:
   AActor *EyeTrackerPtr = nullptr;
 
-  int EgoVehicleID = -1;       // Actor ID of the EgoVehicle (-1 means we need to search for it)
-  bool FindSpectatorDReyeVR(); // how to find the EgoVehicleID 
+  int EgoVehicleID = -1;        // Actor ID of the EgoVehicle (-1 means we need to search for it)
+  bool FindDReyeVREgoVehicle(); // how to find the EgoVehicleID 
 
   FTransform EgoTransform; // DReyeVR ego-vehicle transform
   void ProcessReplayerDReyeVRData(const DReyeVRDataRecorder &DReyeVRDataInstance, const double Per);

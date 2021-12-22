@@ -5,7 +5,7 @@ import carla
 
 def find_ego_vehicle(world: carla.libcarla.World) -> Optional[carla.libcarla.Vehicle]:
     DReyeVR_vehicle = None
-    ego_vehicles = world.get_actors().filter("vehicle.dreyevr")
+    ego_vehicles = world.get_actors().filter("vehicle.dreyevr.egovehicle")
     try:
         DReyeVR_vehicle = ego_vehicles[0]  # TODO: support for multiple ego vehicles?
     except IndexError:
