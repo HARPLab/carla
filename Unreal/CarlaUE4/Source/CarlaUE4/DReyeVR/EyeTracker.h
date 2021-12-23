@@ -69,7 +69,7 @@ class CARLAUE4_API AEyeTracker : public ADReyeVRSensor
 #if USE_SRANIPAL
     SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
     SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
-    ViveSR::anipal::Eye::EyeData EyeData;     // SRanipal_Eyes_Enums.h
+    ViveSR::anipal::Eye::EyeData *EyeData;     // SRanipal_Eyes_Enums.h
 #endif
     int64_t TimestampRef;               // reference timestamp (ms) since the hmd started ticking
     DReyeVR::SRanipalData TickSensor(); // tick hardware sensor (should be const function?)

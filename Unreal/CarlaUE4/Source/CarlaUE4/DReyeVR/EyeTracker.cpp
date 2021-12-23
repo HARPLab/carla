@@ -88,8 +88,8 @@ void AEyeTracker::BeginPlay()
     // SRanipal->SetEyeParameter_() // can set the eye gaze jitter parameter
     // see SRanipal_Eyes_Enums.h
     // Get the reference timing to synchronize the SRanipal timer with Carla
-    SRanipal->GetEyeData_(&EyeData);
-    TimestampRef = EyeData.timestamp;
+    SRanipal->GetEyeData_(EyeData);
+    TimestampRef = EyeData->timestamp;
 #else
     UE_LOG(LogTemp, Warning, TEXT("NOT using SRanipal eye tracking"));
 #endif
@@ -215,18 +215,18 @@ void AEyeTracker::PrePhysTick(float DeltaSeconds)
 
 DReyeVR::SRanipalData AEyeTracker::TickSensor()
 {
-    DReyeVR::SRanipalData Data;
-    auto Combined = &(Data.Combined);
-    auto Left = &(Data.Left);
-    auto Right = &(Data.Right);
+    DReyeVR::SRanipalData EyeSensorData;
+    auto Combined = &(EyeSensorData.Combined);
+    auto Left = &(EyeSensorData.Left);
+    auto Right = &(EyeSensorData.Right);
 #if USE_SRANIPAL
     /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
     // Getting real eye tracker data
     check(SRanipal != nullptr);
     // Get the "EyeData" which holds useful information such as the timestamp
     SRanipal->GetEyeData_(EyeData);
-    Data.TimestampSR = EyeData->timestamp - TimestampRef;
-    Data.FrameSequence = EyeData->frame_sequence;
+    EyeSensorData.TimestampSR = EyeData->timestamp - TimestampRef;
+    EyeSensorData.FrameSequence = EyeData->frame_sequence;
     // shortcuts to eye datum
     // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
     Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->Origin, Combined->GazeRay);
@@ -274,7 +274,7 @@ DReyeVR::SRanipalData AEyeTracker::TickSensor()
     Right->GazeRay = Combined->GazeRay;
 #endif
     // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
-    return Data;
+    return EyeSensorData;
 }
 
 /// ========================================== ///

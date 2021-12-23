@@ -2,6 +2,7 @@
 #include "Carla/Game/CarlaStatics.h"           // UCarlaStatics::GetRecorder
 #include "Carla/Sensor/DReyeVRSensor.h"        // ADReyeVRSensor
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
+#include "Components/InputComponent.h"         // BindKey (Also needs "SlateCore" & "Slate" in PublicDependencyModuleNames)
 #include "EgoVehicle.h"                        // AEgoVehicle
 #include "Kismet/GameplayStatics.h"            // GetPlayerController
 

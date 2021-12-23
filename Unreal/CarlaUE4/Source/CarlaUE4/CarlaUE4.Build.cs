@@ -12,7 +12,7 @@ public class CarlaUE4 : ModuleRules
 	{
 		PrivatePCHHeaderFile = "CarlaUE4.h";
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "UMG" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "UMG", "SlateCore", "Slate", });
 
 		if (Target.Type == TargetType.Editor)
 		{
