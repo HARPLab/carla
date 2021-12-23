@@ -369,8 +369,8 @@ void AEgoVehicle::BeginPlay()
 
     // Setup the HUD
     AHUD *Raw_HUD = Player->GetHUD();
-    HUD = CastChecked<ADReyeVRHUD>(Raw_HUD);
-    HUD->SetPlayer(Player);
+    HUD = Cast<ADReyeVRHUD>(Raw_HUD);
+    if(HUD) HUD->SetPlayer(Player);
 
     // Get information about the VR headset
     IsHMDConnected = UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled();
@@ -397,7 +397,7 @@ void AEgoVehicle::BeginPlay()
     EyeTrackerSensor->SetCamera(FirstPersonCam);
 
     // Enable VR spectator screen & eye reticle
-    if (bEnableSpectatorScreen)
+    if (!bEnableSpectatorScreen)
     {
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
     }
@@ -493,6 +493,9 @@ void AEgoVehicle::Tick(float DeltaSeconds)
 
     // Draw the flat-screen HUD items like eye-reticle and FPS counter
     DrawHUD(DeltaSeconds);
+
+    // Draw the spectator vr screen and overlay elements
+    DrawSpectatorScreen();
 
     // Update the world level
     TickLevel(DeltaSeconds);
@@ -704,35 +707,46 @@ void AEgoVehicle::DrawHUD(float DeltaSeconds)
         HUD->DrawDynamicText(FString::FromInt(int(1.f / DeltaSeconds)), FVector2D(ViewSize.X - 100, 50),
                              FColor(0, 255, 0, 213), 2);
     }
-    if (bEnableSpectatorScreen && IsHMDConnected)
+}
+
+void AEgoVehicle::DrawSpectatorScreen()
+{
+    if (!bEnableSpectatorScreen || Player == nullptr || !IsHMDConnected)
+        return;
+    // calculate View size (of open window). Note this is not the same as resolution
+    FIntPoint ViewSize;
+    Player->GetViewportSize(ViewSize.X, ViewSize.Y);
+    // Get eye tracker variables
+    const FRotator WorldRot = GetCamera()->GetComponentRotation();
+    const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
+   
+    /// TODO: draw other things on the spectator screen?
+    if (bDrawSpectatorReticle)
     {
-        /// TODO: draw other things on the spectator screen?
-        if (bDrawSpectatorReticle)
-        {
-            /// NOTE: this is the better way to get the ViewportSize
-            FVector2D ReticlePos;
-            UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
-            /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
-            /// NOTE: to get the best drawing, the texture is offset slightly by this vector
-            const FVector2D ScreenOffset(ReticleSize * 0.5f, -ReticleSize);
-            ReticlePos += ScreenOffset; // move X right by Dim.X/2, move Y up by Dim.Y
-            // define min and max bounds
-            FVector2D TextureRectMin(FMath::Clamp(ReticlePos.X / ViewSize.X, 0.f, 1.f),
-                                     FMath::Clamp(ReticlePos.Y / ViewSize.Y, 0.f, 1.f));
-            // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
-            FVector2D TextureRectMax(FMath::Clamp((ReticlePos.X + ReticleSize) / ViewSize.X, 0.f, 1.f),
-                                     FMath::Clamp((ReticlePos.Y + ReticleSize) / ViewSize.Y, 0.f, 1.f));
-            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
-                FVector2D{0.f, 0.f}, // whole window (top left)
-                FVector2D{1.f, 1.f}, // whole window (top ->*bottom? right)
-                TextureRectMin,      // top left of texture
-                TextureRectMax,      // bottom right of texture
-                true,                // draw eye data as background
-                false,               // clear w/ black
-                true                 // use alpha
-            );
-        }
+        /// NOTE: this is the better way to get the ViewportSize
+        FVector2D ReticlePos;
+        UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
+        /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
+        /// NOTE: to get the best drawing, the texture is offset slightly by this vector
+        const FVector2D ScreenOffset(ReticleSize * 0.5f, -ReticleSize);
+        ReticlePos += ScreenOffset; // move X right by Dim.X/2, move Y up by Dim.Y
+        // define min and max bounds
+        FVector2D TextureRectMin(FMath::Clamp(ReticlePos.X / ViewSize.X, 0.f, 1.f),
+                                 FMath::Clamp(ReticlePos.Y / ViewSize.Y, 0.f, 1.f));
+        // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
+        FVector2D TextureRectMax(FMath::Clamp((ReticlePos.X + ReticleSize) / ViewSize.X, 0.f, 1.f),
+                                 FMath::Clamp((ReticlePos.Y + ReticleSize) / ViewSize.Y, 0.f, 1.f));
+        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
+            FVector2D{0.f, 0.f}, // whole window (top left)
+            FVector2D{1.f, 1.f}, // whole window (top ->*bottom? right)
+            TextureRectMin,      // top left of texture
+            TextureRectMax,      // bottom right of texture
+            true,                // draw eye data as background
+            false,               // clear w/ black
+            true                 // use alpha
+        );
     }
+    
 }
 
 void AEgoVehicle::UpdateText()

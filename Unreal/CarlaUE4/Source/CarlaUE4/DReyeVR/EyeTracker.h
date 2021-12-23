@@ -9,7 +9,7 @@
 #include <cstdint>
 
 #define SRANIPAL_EYE_SWAP_FIXED false
-#define USE_SRANIPAL true
+#define USE_SRANIPAL false
 
 #ifndef _WIN32
 // can only use SRanipal plugin on Windows!

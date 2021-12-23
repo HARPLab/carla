@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <vector>
 
-#define USE_LOGITECH_WHEEL true
+#define USE_LOGITECH_WHEEL false
 
 #ifndef _WIN32
 // can only use LogitechWheel plugin on Windows!
@@ -173,6 +173,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Text Render components (Like the HUD but works in VR)
     void InitDReyeVRText();
+    void DrawSpectatorScreen();
     FVector DashboardLocnInVehicle{110, 0, 105};
     UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UTextRenderComponent *Speedometer;
