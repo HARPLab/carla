@@ -95,9 +95,16 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float FieldOfView = 90.f;
     float PixelDensity = 1.f;
 
+    // Camera control functions
     FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // tunable per vehicle
     void InitCamera();
     void CameraPositionAdjust(const FVector &displacement);
+    void CameraFwd();
+    void CameraBack();
+    void CameraLeft();
+    void CameraRight();
+    void CameraUp();
+    void CameraDown();
 
     // Sensor Components
     UPROPERTY(Category = DReyeVR, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))

@@ -2,9 +2,9 @@
 #include "Carla/Game/CarlaStatics.h"           // UCarlaStatics::GetRecorder
 #include "Carla/Sensor/DReyeVRSensor.h"        // ADReyeVRSensor
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
-#include "Components/InputComponent.h"         // BindKey (Also needs "SlateCore" & "Slate" in PublicDependencyModuleNames)
-#include "EgoVehicle.h"                        // AEgoVehicle
-#include "Kismet/GameplayStatics.h"            // GetPlayerController
+#include "Components/InputComponent.h" // BindKey (Also needs "SlateCore" & "Slate" in PublicDependencyModuleNames)
+#include "EgoVehicle.h"                // AEgoVehicle
+#include "Kismet/GameplayStatics.h"    // GetPlayerController
 
 ADReyeVRLevel::ADReyeVRLevel()
 {
@@ -122,12 +122,10 @@ void ADReyeVRLevel::SetupPlayerInputComponent()
     InputComponent->BindAction("Decr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::DecrTimestep);
     // Mute the audio component
     InputComponent->BindAction("Mute_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::ToggleMute);
-    /// TODO: refactor
-    // InputComponent->BindAction("ToggleGazeHUD_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::ToggleGazeHUD);
     // Driver Handoff examples
-    InputComponent->BindKey(EKeys::One, IE_Pressed, this, &ADReyeVRLevel::PossessEgoVehicle);
-    InputComponent->BindKey(EKeys::Two, IE_Pressed, this, &ADReyeVRLevel::PossessSpectator);
-    InputComponent->BindKey(EKeys::Three, IE_Pressed, this, &ADReyeVRLevel::HandoffDriverToAI);
+    InputComponent->BindAction("EgoVehicle_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::PossessEgoVehicle);
+    InputComponent->BindAction("Spectator_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::PossessSpectator);
+    InputComponent->BindAction("AI_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::HandoffDriverToAI);
 }
 
 void ADReyeVRLevel::PossessEgoVehicle()

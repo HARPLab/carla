@@ -20,14 +20,49 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
     /// Mouse X and Y input for looking up and turning
     PlayerInputComponent->BindAxis("MouseLookUp_DReyeVR", this, &AEgoVehicle::MouseLookUp);
     PlayerInputComponent->BindAxis("MouseTurn_DReyeVR", this, &AEgoVehicle::MouseTurn);
-    // Record button to log the EyeTracker data to the python client
-    PlayerInputComponent->BindAction("TogglePyRecord_DReyeVR", IE_Pressed, this, &AEgoVehicle::TogglePythonRecording);
+    // Camera position adjustments
+    PlayerInputComponent->BindAction("CameraFwd_DReyeVR", IE_Pressed, this, &AEgoVehicle::CameraFwd);
+    PlayerInputComponent->BindAction("CameraBack_DReyeVR", IE_Pressed, this, &AEgoVehicle::CameraBack);
+    PlayerInputComponent->BindAction("CameraLeft_DReyeVR", IE_Pressed, this, &AEgoVehicle::CameraLeft);
+    PlayerInputComponent->BindAction("CameraRight_DReyeVR", IE_Pressed, this, &AEgoVehicle::CameraRight);
+    PlayerInputComponent->BindAction("CameraUp_DReyeVR", IE_Pressed, this, &AEgoVehicle::CameraUp);
+    PlayerInputComponent->BindAction("CameraDown_DReyeVR", IE_Pressed, this, &AEgoVehicle::CameraDown);
+}
+
+void AEgoVehicle::CameraFwd()
+{
+    CameraPositionAdjust(FVector(1.f, 0.f, 0.f));
+}
+
+void AEgoVehicle::CameraBack()
+{
+    CameraPositionAdjust(FVector(-1.f, 0.f, 0.f));
+}
+
+void AEgoVehicle::CameraLeft()
+{
+    CameraPositionAdjust(FVector(0.f, -1.f, 0.f));
+}
+
+void AEgoVehicle::CameraRight()
+{
+    CameraPositionAdjust(FVector(0.f, 1.f, 0.f));
+}
+
+void AEgoVehicle::CameraUp()
+{
+    CameraPositionAdjust(FVector(0.f, 0.f, 1.f));
+}
+
+void AEgoVehicle::CameraDown()
+{
+    CameraPositionAdjust(FVector(0.f, 0.f, -1.f));
 }
 
 void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
 {
-    const FVector &CurrRelLocation = this->GetVRCameraRoot()->GetRelativeLocation();
-    this->GetVRCameraRoot()->SetRelativeLocation(CurrRelLocation + displacement);
+    const FVector &CurrentRelLocation = GetVRCameraRoot()->GetRelativeLocation();
+    GetVRCameraRoot()->SetRelativeLocation(CurrentRelLocation + displacement);
 }
 
 /// NOTE: the CarlaVehicle does not actually move the vehicle, only its state/animations
@@ -171,26 +206,6 @@ void AEgoVehicle::MouseTurn(const float mX_Input)
         TurnDir.Yaw = FMath::Clamp(TurnDir.Yaw, MinLeft, MaxRight);
         this->GetCamera()->SetRelativeRotation(TurnDir);
     }
-}
-
-void AEgoVehicle::TogglePythonRecording()
-{
-    /// TODO: refactor
-    bool FoundSensor = false;
-    if (IsRecording)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Ego-Vehicle stops logging"));
-        // if (EyeTrackerSensor)
-        //     FoundSensor = this->EyeTrackerSensor->ResetPyDReyeVRSensor();
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("Ego-Vehicle starts logging"));
-        // if (EyeTrackerSensor)
-        //     FoundSensor = this->EyeTrackerSensor->FindPyDReyeVRSensor();
-    }
-    if (FoundSensor) // at least one is found in the Simulator (spawned)
-        IsRecording = !IsRecording;
 }
 
 #if USE_LOGITECH_WHEEL
