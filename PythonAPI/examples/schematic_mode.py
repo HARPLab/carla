@@ -4,11 +4,12 @@
 import glob
 import os
 import sys
+from typing import Any, Dict
 
 try:
     sys.path.append(
         glob.glob(
-            "PythonAPI/carla/dist/carla-*%d.%d-%s.egg"
+            "../carla/dist/carla-*%d.%d-%s.egg"
             % (
                 sys.version_info.major,
                 sys.version_info.minor,
@@ -50,15 +51,15 @@ class DReyeVRWorld(World):
         self.sensor.eye_tracker.listen(self.sensor.update)  # subscribe to readout
 
     def render_eye_tracker(self, surface, world_to_pixel, ray_length=20):
-        if not self.sensor.has_data:
+        data: Dict[str, Any] = self.sensor.data
+        if len(data) == 0:
             return
-        rot = Rotation.from_euler("yxz", self.sensor.hmd_rotation, degrees=True)
-
-        ray_start_locn = self.sensor.hmd_location + rot.apply(self.sensor.eye_origin)
+        rot = Rotation.from_euler("yxz", data["hmd_rotation"], degrees=True)
+        ray_start = data["hmd_location"] / 100 + rot.apply(data["eye_origin"] / 100)
         # NOTE: ray_length is in carla metres
-        ray_end_locn = ray_start_locn + ray_length * rot.apply(self.sensor.gaze_ray)
+        ray_end_locn = ray_start + ray_length * rot.apply(data["gaze_ray"])
         gaze_ray_line = [
-            carla.Location(ray_start_locn[0], ray_start_locn[1], ray_start_locn[2]),
+            carla.Location(ray_start[0], ray_start[1], ray_start[2]),
             carla.Location(ray_end_locn[0], ray_end_locn[1], ray_end_locn[2]),
         ]
         color = COLOR_SCARLET_RED_1

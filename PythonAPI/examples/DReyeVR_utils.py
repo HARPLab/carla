@@ -1,5 +1,24 @@
 import numpy as np
-from typing import Optional
+from typing import Any, Dict, List, Optional
+
+import sys
+import glob
+import os
+
+try:
+    sys.path.append(
+        glob.glob(
+            "../carla/dist/carla-*%d.%d-%s.egg"
+            % (
+                sys.version_info.major,
+                sys.version_info.minor,
+                "win-amd64" if os.name == "nt" else "linux-x86_64",
+            )
+        )[0]
+    )
+except IndexError:
+    pass
+
 import carla
 
 
@@ -13,7 +32,7 @@ def find_ego_vehicle(world: carla.libcarla.World) -> Optional[carla.libcarla.Veh
     return DReyeVR_vehicle
 
 
-def find_eye_tracker(world):
+def find_eye_tracker(world: carla.libcarla.World) -> Optional[carla.libcarla.Sensor]:
     sensor = None
     eye_trackers = world.get_actors().filter("sensor.dreyevr.dreyevrsensor")
     try:
@@ -24,59 +43,31 @@ def find_eye_tracker(world):
 
 
 class DReyeVRSensor:
-
-    # just some enums to clear things up later
-    LEFT: str = "LEFT"
-    COMBO: str = "COMBO"
-    RIGHT: str = "RIGHT"
-
-    def __init__(self, world):
-        self.eye_tracker = find_eye_tracker(world)
-        self.has_data: bool = False
+    def __init__(self, world: carla.libcarla.World):
+        self.eye_tracker: carla.sensor.dreyevrsensor = find_eye_tracker(world)
+        self.data: Dict[str, Any] = {}
         print("initialized DReyeVRSensor PythonAPI client")
 
-    def update(self, data):
-        # all the local variables
-        self.has_data = True
-        self.timestamp_carla = data.timestamp_carla
-        self.timestamp_sranipal = data.timestamp_sranipal
-        self.timestamp_carla_stream = data.timestamp_carla_stream
-        self.gaze_ray = self.to_np(data.gaze_ray)
-        self.eye_origin = self.to_np(data.eye_origin) / 100.0
-        self.eye_origin[1] *= -1  # flipped y value to match Carla debugger
-        self.vergence = data.vergence
-        self.hmd_location = self.to_np(data.hmd_location) / 100.0
-        self.hmd_location[1] *= -1  # flipped y value to match Carla debugger
-        self.hmd_rotation = self.to_np(data.hmd_rotation)
-        self.gaze_ray_left = self.to_np(data.gaze_ray_left)
-        self.gaze_ray_left[1] *= -1  # flipped gaze y value to match debugger
-        self.eye_origin_left = self.to_np(data.eye_origin_left) / 100.0
-        # flipped y value to match Carla debugger
-        self.eye_origin_left[1] *= -1
-        self.gaze_ray_right = self.to_np(data.gaze_ray_right)
-        self.gaze_ray_right[1] *= -1  # flipped gaze y value to match debugger
-        self.eye_origin_right = self.to_np(data.eye_origin_right) / 100.0
-        # flipped y value to match Carla debugger
-        self.eye_origin_right[1] *= -1
-        self.eye_openness_left = data.eye_openness_left
-        self.eye_openness_right = data.eye_openness_right
-        # pupil positions
-        self.pupil_posn_left = self.to_np(data.pupil_posn_left)
-        self.pupil_posn_right = self.to_np(data.pupil_posn_right)
-        # pupil diameters
-        self.pupil_diam_left = data.pupil_diam_left
-        self.pupil_diam_right = data.pupil_diam_right
+    def postprocess(self, obj: Any) -> Any:
+        if isinstance(obj, carla.libcarla.Vector3D):
+            return np.array([obj.x, obj.y, obj.z])
+        if isinstance(obj, carla.libcarla.Vector2D):
+            return np.array([obj.x, obj.y])
+        if isinstance(obj, carla.libcarla.Transform):
+            return [
+                np.array([obj.location.x, obj.location.y, obj.location.z]),
+                np.array([obj.rotation.pitch, obj.rotation.yaw, obj.rotation.roll]),
+            ]
+        return obj
 
-    def to_np(self, vector):
-        # TODO: there has to be a better way to do this
-        try:
-            numpy_vec = np.array([vector.x, vector.y, vector.z])
-        except:
-            numpy_vec = np.array([vector.x, vector.y])
-        return numpy_vec
+    def update(self, data) -> None:
+        # update local variables
+        elements: List[str] = [key for key in dir(data) if "__" not in key]
+        for key in elements:
+            self.data[key] = self.postprocess(getattr(data, key))
 
     @classmethod
-    def spawn(cls, world):
+    def spawn(cls, world: carla.libcarla.World):
         # TODO: check if dreyevr sensor already exsists, then use it
         # spawn a DReyeVR sensor and begin listening
         if find_eye_tracker(world) is None:
