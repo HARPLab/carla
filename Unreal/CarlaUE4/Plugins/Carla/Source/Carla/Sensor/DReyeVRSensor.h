@@ -30,20 +30,20 @@ class CARLA_API ADReyeVRSensor : public ASensor
 
     // everything stored in the sensor is held in this struct
     /// TODO: make this non-static and use a smarter scheme for cross-class communication
-    static struct DReyeVR::SensorData *Data;
+    static class DReyeVR::SensorData *Data;
 
-    struct DReyeVR::SensorData *GetData()
+    class DReyeVR::SensorData *GetData()
     {
         return ADReyeVRSensor::Data;
     }
 
-    const struct DReyeVR::SensorData *GetData() const
+    const class DReyeVR::SensorData *GetData() const
     {
         // read-only variant of GetData
         return ADReyeVRSensor::Data;
     }
 
-    static void UpdateReplayData(const DReyeVR::SensorData &RecorderData, const FTransform &EgoTransform,
+    static void UpdateReplayData(const class DReyeVR::SensorData &RecorderData, const FTransform &EgoTransform,
                                  const double Per);
 
     static bool bIsReplaying;

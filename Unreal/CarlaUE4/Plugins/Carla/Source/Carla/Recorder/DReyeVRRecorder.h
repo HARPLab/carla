@@ -9,9 +9,9 @@
 struct DReyeVRDataRecorder
 {
     DReyeVRDataRecorder() = default;
-    DReyeVRDataRecorder(const DReyeVR::SensorData *Snapshot)
+    DReyeVRDataRecorder(const DReyeVR::SensorData *DataIn)
     {
-        Data = *Snapshot;
+        Data = (*DataIn);
     }
     DReyeVR::SensorData Data;
     void Read(std::ifstream &InFile);
@@ -30,5 +30,5 @@ class DReyeVRDataRecorders
 
   private:
     // using a vector as a queue that holds everything, gets written and flushed on every tick
-    std::vector<DReyeVRDataRecorder> AllSnapshots;
+    std::vector<DReyeVRDataRecorder> AllData;
 };

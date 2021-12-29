@@ -57,7 +57,7 @@ public:
   bool ProcessReplayerFinish(bool bApplyAutopilot, bool bIgnoreHero, std::unordered_map<uint32_t, bool> &IsHero);
 
   // DReyeVR variables:
-  AActor *EyeTrackerPtr = nullptr;
+  AActor *DReyeVRActorPtr = nullptr; // is an AActor so the DReyeVR includes are only present in the .cpp files
 
   int EgoVehicleID = -1;        // Actor ID of the EgoVehicle (-1 means we need to search for it)
   bool FindDReyeVREgoVehicle(); // how to find the EgoVehicleID 

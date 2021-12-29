@@ -323,8 +323,8 @@ void AEgoVehicle::BeginPlay()
     FActorSpawnParameters EyeTrackerSpawnInfo;
     EyeTrackerSpawnInfo.Owner = this;
     EyeTrackerSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    EgoSensor = World->SpawnActor<AEyeTracker>(FirstPersonCam->GetComponentLocation(), FRotator(0.0f, 0.0f, 0.0f),
-                                               EyeTrackerSpawnInfo);
+    EgoSensor = World->SpawnActor<AEgoSensor>(FirstPersonCam->GetComponentLocation(), FRotator(0.0f, 0.0f, 0.0f),
+                                              EyeTrackerSpawnInfo);
     // Attach the EgoSensor as a child to the EgoVehicle BP
     EgoSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
     EgoSensor->SetPlayer(Player);
@@ -459,27 +459,27 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     VehicleInputs.Clear();
 
     // Calculate gaze data using eye tracker data
-    const DReyeVR::SRanipalData *EyeData = EgoSensor->GetEyeTrackerData();
+    const DReyeVR::SensorData *Data = EgoSensor->GetData();
     // Compute World positions and orientations
     const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
     const FVector WorldPos = FirstPersonCam->GetComponentLocation();
 
     // First get the gaze origin and direction and vergence from the EyeTracker Sensor
-    const float Vergence = EyeData->GetEyeVergence(); // vergence already in m
+    const float Vergence = Data->GetEyeVergence(); // vergence already in m
     // scaling gaze ray to world units
     const float UE4MeterScale = UHeadMountedDisplayFunctionLibrary::GetWorldToMetersScale(World);
 
     // Both eyes
-    CombinedGaze = Vergence * UE4MeterScale * EyeData->GetCombinedGazeDir();
-    CombinedOrigin = WorldRot.RotateVector(EyeData->GetCombinedGazeOrigin()) + WorldPos;
+    CombinedGaze = Vergence * UE4MeterScale * Data->GetCombinedGazeDir();
+    CombinedOrigin = WorldRot.RotateVector(Data->GetCombinedGazeOrigin()) + WorldPos;
 
     // Left eye
-    LeftGaze = UE4MeterScale * EyeData->GetLeftGazeDir();
-    LeftOrigin = WorldRot.RotateVector(EyeData->GetLeftGazeOrigin()) + WorldPos;
+    LeftGaze = UE4MeterScale * Data->GetLeftGazeDir();
+    LeftOrigin = WorldRot.RotateVector(Data->GetLeftGazeOrigin()) + WorldPos;
 
     // Right eye
-    RightGaze = UE4MeterScale * EyeData->GetRightGazeDir();
-    RightOrigin = WorldRot.RotateVector(EyeData->GetRightGazeOrigin()) + WorldPos;
+    RightGaze = UE4MeterScale * Data->GetRightGazeDir();
+    RightOrigin = WorldRot.RotateVector(Data->GetRightGazeOrigin()) + WorldPos;
 }
 
 /// ========================================== ///

@@ -469,9 +469,9 @@ bool CarlaReplayerHelper::ProcessReplayerFinish(bool bApplyAutopilot, bool bIgno
     }
   }
   // update the DReyeVR sensor to NOT continue replaying
-  if (EyeTrackerPtr != nullptr) {
-    ADReyeVRSensor *EyeTracker = Cast<ADReyeVRSensor>(EyeTrackerPtr);
-    EyeTracker->bIsReplaying = false;
+  if (DReyeVRActorPtr != nullptr) {
+    ADReyeVRSensor *DReyeVRSensor = Cast<ADReyeVRSensor>(DReyeVRActorPtr);
+    DReyeVRSensor->bIsReplaying = false;
   }
   return true;
 }
@@ -481,17 +481,17 @@ void CarlaReplayerHelper::ProcessReplayerDReyeVRData(const DReyeVRDataRecorder &
   check(Episode != nullptr);  
   UWorld* World = Episode->GetWorld();
   if(World) {
-    if (EyeTrackerPtr == nullptr) {
+    if (DReyeVRActorPtr == nullptr) {
       TArray<AActor*> FoundActors;
       UGameplayStatics::GetAllActorsOfClass(World, ADReyeVRSensor::StaticClass(), FoundActors);
       if (FoundActors.Num() > 0) {
-        EyeTrackerPtr = FoundActors[0];
+        DReyeVRActorPtr = FoundActors[0];
       }
     }
     else {
-      ADReyeVRSensor *EyeTracker = Cast<ADReyeVRSensor>(EyeTrackerPtr);
+      ADReyeVRSensor *DReyeVRSensor = Cast<ADReyeVRSensor>(DReyeVRActorPtr);
       // hacky solution to not using a custom Carla Vehicle, instead just using a static global variable
-      EyeTracker->UpdateReplayData(DReyeVRDataInstance.Data, EgoTransform, Per);
+      DReyeVRSensor->UpdateReplayData(DReyeVRDataInstance.Data, EgoTransform, Per);
     }
   }
 }

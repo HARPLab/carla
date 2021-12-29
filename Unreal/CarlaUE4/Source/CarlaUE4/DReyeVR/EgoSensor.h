@@ -4,7 +4,6 @@
 #include "Carla/Sensor/DReyeVRSensorData.h"     // DReyeVRSensorData
 #include "Components/SceneCaptureComponent2D.h" // USceneCaptureComponent2D
 #include "CoreMinimal.h"
-#include "Utils.h"
 #include <chrono> // timing threads
 #include <cstdint>
 
@@ -40,8 +39,6 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 
     void PrePhysTick(float DeltaSeconds);
     int64_t TickCount = 0;
-
-    DReyeVR::SRanipalData *GetEyeTrackerData() const;
 
     // getters from EgoVehicle
     void SetPlayer(APlayerController *P);

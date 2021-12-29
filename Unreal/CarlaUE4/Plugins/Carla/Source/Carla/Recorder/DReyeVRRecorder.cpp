@@ -11,137 +11,90 @@
 /// ========================================== ///
 /// ---------------:READERS:------------------ ///
 /// ========================================== ///
-
-void ReadTimings(std::ifstream &InFile, DReyeVR::SensorData &Snapshot)
-{
-    // all the timing values in SRanipal
-    ReadValue<int64_t>(InFile, Snapshot.TimestampSR);
-    ReadValue<int64_t>(InFile, Snapshot.TimestampCarla);
-    ReadValue<int64_t>(InFile, Snapshot.FrameSequence);
-}
-
-void ReadEyeData(std::ifstream &InFile, DReyeVR::EyeData &Eye)
-{
-    ReadFVector(InFile, Eye.GazeRay);
-    ReadFVector(InFile, Eye.Origin);
-    ReadValue<bool>(InFile, Eye.GazeValid);
-}
-
-void ReadComboEyeData(std::ifstream &InFile, DReyeVR::ComboEyeData &Eye)
-{
-    // specifically for the combined eye gaze data
-    ReadEyeData(InFile, Eye);
-    ReadValue<float>(InFile, Eye.Vergence);
-}
-
-void ReadSingleEyeData(std::ifstream &InFile, DReyeVR::SingleEyeData &Eye)
-{
-    // specifically for the left/right eye gaze data
-    ReadEyeData(InFile, Eye);
-    ReadValue<float>(InFile, Eye.EyeOpenness);
-    ReadValue<bool>(InFile, Eye.EyeOpenValid);
-    ReadValue<float>(InFile, Eye.PupilDiam);
-    ReadFVector2D(InFile, Eye.PupilPos);
-    ReadValue<bool>(InFile, Eye.PupilPosValid);
-}
-
-void ReadFocusActor(std::ifstream &InFile, DReyeVR::SensorData &Snapshot)
-{
-    ReadFString(InFile, Snapshot.FocusActorName);
-    ReadFVector(InFile, Snapshot.FocusActorPoint);
-    ReadValue<float>(InFile, Snapshot.FocusActorDist);
-}
-
-void ReadInputs(std::ifstream &InFile, DReyeVR::UserInputs &In)
-{
-    ReadValue<float>(InFile, In.Throttle);
-    ReadValue<float>(InFile, In.Steering);
-    ReadValue<float>(InFile, In.Brake);
-    ReadValue<bool>(InFile, In.ToggledReverse);
-    ReadValue<bool>(InFile, In.TurnSignalLeft);
-    ReadValue<bool>(InFile, In.TurnSignalRight);
-    ReadValue<bool>(InFile, In.HoldHandbrake);
-}
-
 void DReyeVRDataRecorder::Read(std::ifstream &InFile)
 {
-    ReadTimings(InFile, this->Data);
-    ReadComboEyeData(InFile, this->Data.Combined);
-    ReadSingleEyeData(InFile, this->Data.Left);
-    ReadSingleEyeData(InFile, this->Data.Right);
-    ReadFVector(InFile, this->Data.HMDLocation);
-    ReadFRotator(InFile, this->Data.HMDRotation);
-    ReadFocusActor(InFile, this->Data);
-    ReadInputs(InFile, this->Data.Inputs);
-    ReadValue<float>(InFile, this->Data.Velocity);
+    /// CAUTION: make sure the order of writes/reads is the same
+    ReadValue<int64_t>(InFile, Data.GetTimestampCarla());
+    ReadValue<int64_t>(InFile, Data.GetTimestampDevice());
+    ReadValue<int64_t>(InFile, Data.GetFrameSequence());
+    ReadValue<float>(InFile, Data.GetEyeVergence());
+    ReadFVector(InFile, Data.GetCombinedGazeDir());
+    ReadFVector(InFile, Data.GetCombinedGazeOrigin());
+    ReadValue<bool>(InFile, Data.GetCombinedValidity());
+    ReadFVector(InFile, Data.GetLeftGazeDir());
+    ReadFVector(InFile, Data.GetLeftGazeOrigin());
+    ReadValue<bool>(InFile, Data.GetLeftValidity());
+    ReadValue<float>(InFile, Data.GetLeftEyeOpenness());
+    ReadValue<bool>(InFile, Data.GetLeftEyeOpennessValidity());
+    ReadValue<float>(InFile, Data.GetLeftPupilDiameter());
+    ReadFVector2D(InFile, Data.GetLeftPupilPosition());
+    ReadValue<bool>(InFile, Data.GetLeftPupilPositionValidity());
+    ReadFVector(InFile, Data.GetRightGazeDir());
+    ReadFVector(InFile, Data.GetRightGazeOrigin());
+    ReadValue<bool>(InFile, Data.GetRightValidity());
+    ReadValue<float>(InFile, Data.GetRightEyeOpenness());
+    ReadValue<bool>(InFile, Data.GetRightEyeOpennessValidity());
+    ReadValue<float>(InFile, Data.GetRightPupilDiameter());
+    ReadFVector2D(InFile, Data.GetRightPupilPosition());
+    ReadValue<bool>(InFile, Data.GetRightPupilPositionValidity());
+    ReadFVector(InFile, Data.GetHMDLocation());
+    ReadFRotator(InFile, Data.GetHMDRotation());
+    ReadValue<float>(InFile, Data.GetEgoVelocity());
+    ReadFString(InFile, Data.GetFocusActorName());
+    ReadFVector(InFile, Data.GetFocusActorPoint());
+    ReadValue<float>(InFile, Data.GetFocusActorDistance());
+    ReadValue<float>(InFile, Data.GetUserInputs().Throttle);
+    ReadValue<float>(InFile, Data.GetUserInputs().Steering);
+    ReadValue<float>(InFile, Data.GetUserInputs().Brake);
+    ReadValue<bool>(InFile, Data.GetUserInputs().ToggledReverse);
+    ReadValue<bool>(InFile, Data.GetUserInputs().TurnSignalLeft);
+    ReadValue<bool>(InFile, Data.GetUserInputs().TurnSignalRight);
+    ReadValue<bool>(InFile, Data.GetUserInputs().HoldHandbrake);
 }
 
 /// ========================================== ///
 /// ---------------:WRITERS:------------------ ///
 /// ========================================== ///
 
-void WriteTimings(std::ofstream &OutFile, const DReyeVR::SensorData &Snapshot)
-{
-    // all the timing values in SRanipal
-    WriteValue<int64_t>(OutFile, Snapshot.TimestampSR);
-    WriteValue<int64_t>(OutFile, Snapshot.TimestampCarla);
-    WriteValue<int64_t>(OutFile, Snapshot.FrameSequence);
-}
-
-void WriteEyeData(std::ofstream &OutFile, const DReyeVR::EyeData &Eye)
-{
-    WriteFVector(OutFile, Eye.GazeRay);
-    WriteFVector(OutFile, Eye.Origin);
-    WriteValue<bool>(OutFile, Eye.GazeValid);
-}
-
-void WriteComboEyeData(std::ofstream &OutFile, const DReyeVR::ComboEyeData &Eye)
-{
-    // specifically for the combined eye gaze data
-    WriteEyeData(OutFile, Eye);
-    WriteValue<float>(OutFile, Eye.Vergence);
-}
-
-void WriteSingleEyeData(std::ofstream &OutFile, const DReyeVR::SingleEyeData &Eye)
-{
-    // specifically for the left/right eye gaze data
-    WriteEyeData(OutFile, Eye);
-    WriteValue<float>(OutFile, Eye.EyeOpenness);
-    WriteValue<bool>(OutFile, Eye.EyeOpenValid);
-    WriteValue<float>(OutFile, Eye.PupilDiam);
-    WriteFVector2D(OutFile, Eye.PupilPos);
-    WriteValue<bool>(OutFile, Eye.PupilPosValid);
-}
-
-void WriteFocusActor(std::ofstream &OutFile, const DReyeVR::SensorData &Snapshot)
-{
-    WriteFString(OutFile, Snapshot.FocusActorName);
-    WriteFVector(OutFile, Snapshot.FocusActorPoint);
-    WriteValue<float>(OutFile, Snapshot.FocusActorDist);
-}
-
-void WriteInputs(std::ofstream &OutFile, const DReyeVR::UserInputs &In)
-{
-    WriteValue<float>(OutFile, In.Throttle);
-    WriteValue<float>(OutFile, In.Steering);
-    WriteValue<float>(OutFile, In.Brake);
-    WriteValue<bool>(OutFile, In.ToggledReverse);
-    WriteValue<bool>(OutFile, In.TurnSignalLeft);
-    WriteValue<bool>(OutFile, In.TurnSignalRight);
-    WriteValue<bool>(OutFile, In.HoldHandbrake);
-}
-
 void DReyeVRDataRecorder::Write(std::ofstream &OutFile) const
 {
-    WriteTimings(OutFile, this->Data);
-    WriteComboEyeData(OutFile, this->Data.Combined);
-    WriteSingleEyeData(OutFile, this->Data.Left);
-    WriteSingleEyeData(OutFile, this->Data.Right);
-    WriteFVector(OutFile, this->Data.HMDLocation);
-    WriteFRotator(OutFile, this->Data.HMDRotation);
-    WriteFocusActor(OutFile, this->Data);
-    WriteInputs(OutFile, this->Data.Inputs);
-    WriteValue<float>(OutFile, this->Data.Velocity);
+    /// CAUTION: make sure the order of writes/reads is the same
+    WriteValue<int64_t>(OutFile, Data.GetTimestampCarla());
+    WriteValue<int64_t>(OutFile, Data.GetTimestampDevice());
+    WriteValue<int64_t>(OutFile, Data.GetFrameSequence());
+    WriteValue<float>(OutFile, Data.GetEyeVergence());
+    WriteFVector(OutFile, Data.GetCombinedGazeDir());
+    WriteFVector(OutFile, Data.GetCombinedGazeOrigin());
+    WriteValue<bool>(OutFile, Data.GetCombinedValidity());
+    WriteFVector(OutFile, Data.GetLeftGazeDir());
+    WriteFVector(OutFile, Data.GetLeftGazeOrigin());
+    WriteValue<bool>(OutFile, Data.GetLeftValidity());
+    WriteValue<float>(OutFile, Data.GetLeftEyeOpenness());
+    WriteValue<bool>(OutFile, Data.GetLeftEyeOpennessValidity());
+    WriteValue<float>(OutFile, Data.GetLeftPupilDiameter());
+    WriteFVector2D(OutFile, Data.GetLeftPupilPosition());
+    WriteValue<bool>(OutFile, Data.GetLeftPupilPositionValidity());
+    WriteFVector(OutFile, Data.GetRightGazeDir());
+    WriteFVector(OutFile, Data.GetRightGazeOrigin());
+    WriteValue<bool>(OutFile, Data.GetRightValidity());
+    WriteValue<float>(OutFile, Data.GetRightEyeOpenness());
+    WriteValue<bool>(OutFile, Data.GetRightEyeOpennessValidity());
+    WriteValue<float>(OutFile, Data.GetRightPupilDiameter());
+    WriteFVector2D(OutFile, Data.GetRightPupilPosition());
+    WriteValue<bool>(OutFile, Data.GetRightPupilPositionValidity());
+    WriteFVector(OutFile, Data.GetHMDLocation());
+    WriteFRotator(OutFile, Data.GetHMDRotation());
+    WriteValue<float>(OutFile, Data.GetEgoVelocity());
+    WriteFString(OutFile, Data.GetFocusActorName());
+    WriteFVector(OutFile, Data.GetFocusActorPoint());
+    WriteValue<float>(OutFile, Data.GetFocusActorDistance());
+    WriteValue<float>(OutFile, Data.GetUserInputs().Throttle);
+    WriteValue<float>(OutFile, Data.GetUserInputs().Steering);
+    WriteValue<float>(OutFile, Data.GetUserInputs().Brake);
+    WriteValue<bool>(OutFile, Data.GetUserInputs().ToggledReverse);
+    WriteValue<bool>(OutFile, Data.GetUserInputs().TurnSignalLeft);
+    WriteValue<bool>(OutFile, Data.GetUserInputs().TurnSignalRight);
+    WriteValue<bool>(OutFile, Data.GetUserInputs().HoldHandbrake);
 }
 
 /// ========================================== ///
@@ -172,49 +125,46 @@ inline std::string VecToString(const FRotator &X)
 std::string DReyeVRDataRecorder::Print() const
 {
     std::ostringstream oss;
-    auto &SR_Combo = Data.Combined;
-    auto &SR_Right = Data.Right;
-    auto &SR_Left = Data.Left;
 
-    const std::string delim = "; ";                                       // semicolon + space
-    oss << "T_SRanipal: " << Data.TimestampSR << delim                    // Sranipal time
-        << "T_Carla: " << Data.TimestampCarla << delim                    // Carla time
-        << "FrameSeq: " << Data.FrameSequence << delim                    // SRanipal Framesequence
-        << "GazeRay: " << VecToString(SR_Combo.GazeRay) << delim          // Gaze ray vector
-        << "EyeOrigin: " << VecToString(SR_Combo.Origin) << delim         // Combined Eye origin vector
-        << "Vergence: " << SR_Combo.Vergence << delim                     // Calculated vergence
-        << "HMDLoc: " << VecToString(Data.HMDLocation) << delim           // HMD location
-        << "HMDRot: " << VecToString(Data.HMDRotation) << delim           // HMD rotation
-        << "EgoVel: " << Data.Velocity << delim                           // Ego Velocity
-        << "LGazeRay: " << VecToString(SR_Left.GazeRay) << delim          // LEFT gaze ray
-        << "LEyeOrigin: " << VecToString(SR_Left.Origin) << delim         // LEFT gaze ray
-        << "RGazeRay: " << VecToString(SR_Right.GazeRay) << delim         // RIGHT gaze ray
-        << "REyeOrigin: " << VecToString(SR_Right.Origin) << delim        // RIGHT gaze ray
-        << "LEyeOpenness: " << SR_Left.EyeOpenness << delim               // LEFT eye openness
-        << "REyeOpenness: " << SR_Right.EyeOpenness << delim              // RIGHT eye openness
-        << "LPupilPos: " << VecToString(SR_Left.PupilPos) << delim        // LEFT pupil position
-        << "RPupilPos: " << VecToString(SR_Right.PupilPos) << delim       // RIGHT pupil position
-        << "LPupilDiam: " << SR_Left.PupilDiam << delim                   // LEFT pupil diameter
-        << "RPupilDiam: " << SR_Right.PupilDiam << delim                  // LEFT pupil diameter
-        << "FActorName: " << TCHAR_TO_UTF8(*Data.FocusActorName) << delim // Name (tag) of actor being focused on
-        << "FActorPoint: " << VecToString(Data.FocusActorPoint) << delim  // Location of focused actor
-        << "FActorDist: " << Data.FocusActorDist << delim                 // Distance to focused actor
-        << "VALIDITY: "                                                   // validity booleans
-        << "GazeV: " << SR_Combo.GazeValid << delim                       // validity bool for gaze ray
-        << "LGazeV: " << SR_Left.GazeValid << delim                       // validity for LEFT gaze ray
-        << "RGazeV: " << SR_Right.GazeValid << delim                      // validity for RIGHT gaze ray
-        << "LEyeOpenV: " << SR_Left.EyeOpenValid << delim                 // validity for LEFT eye openness
-        << "REyeOpenV: " << SR_Right.EyeOpenValid << delim                // validity for RIGHT eye openness
-        << "LPupilPosV: " << SR_Left.PupilPosValid << delim               // validity for LEFT pupil position
-        << "RPupilPosV: " << SR_Right.PupilPosValid << delim              // validity for LEFT pupil position
-        << "INPUTS: "                                                     // User inputs
-        << "Throttle: " << Data.Inputs.Throttle << delim                  // Value of Throttle
-        << "Steering: " << Data.Inputs.Steering << delim                  // Value of Steering
-        << "Brake: " << Data.Inputs.Brake << delim                        // Value of brake
-        << "ToggleRev: " << Data.Inputs.ToggledReverse << delim           // Whether or not toggled reverse
-        << "TurnSignalLeft: " << Data.Inputs.TurnSignalLeft << delim      // Whether or not enabled left turn signal
-        << "TurnSignalRight: " << Data.Inputs.TurnSignalRight << delim    // Whether or not enabled right turn signal
-        << "Handbrake: " << Data.Inputs.HoldHandbrake << delim            // Whether or not the handbrake is held
+    const std::string sep = "; ";                                              // semicolon + space sepiter
+    oss << "T_SRanipal: " << Data.GetTimestampDevice() << sep                  // Sranipal time
+        << "T_Carla: " << Data.GetTimestampCarla() << sep                      // Carla time
+        << "FrameSeq: " << Data.GetFrameSequence() << sep                      // SRanipal Framesequence
+        << "CGazeDir: " << VecToString(Data.GetCombinedGazeDir()) << sep       // Gaze ray vector
+        << "CGazeOrigin: " << VecToString(Data.GetCombinedGazeOrigin()) << sep // Combined Eye origin vector
+        << "Vergence: " << Data.GetEyeVergence() << sep                        // Calculated vergence
+        << "HMDLoc: " << VecToString(Data.GetHMDLocation()) << sep             // HMD location
+        << "HMDRot: " << VecToString(Data.GetHMDRotation()) << sep             // HMD rotation
+        << "EgoVel: " << Data.GetEgoVelocity() << sep                          // Ego Velocity
+        << "LGazeDir: " << VecToString(Data.GetLeftGazeDir()) << sep           // LEFT gaze ray
+        << "LEyeOrigin: " << VecToString(Data.GetLeftGazeOrigin()) << sep      // LEFT gaze ray
+        << "RGazeDir: " << VecToString(Data.GetRightGazeDir()) << sep          // RIGHT gaze ray
+        << "REyeOrigin: " << VecToString(Data.GetRightGazeOrigin()) << sep     // RIGHT gaze ray
+        << "LEyeOpenness: " << Data.GetLeftEyeOpenness() << sep                // LEFT eye openness
+        << "REyeOpenness: " << Data.GetRightEyeOpenness() << sep               // RIGHT eye openness
+        << "LPupilPos: " << VecToString(Data.GetLeftPupilPosition()) << sep    // LEFT pupil position
+        << "RPupilPos: " << VecToString(Data.GetRightPupilPosition()) << sep   // RIGHT pupil position
+        << "LPupilDiam: " << Data.GetLeftPupilDiameter() << sep                // LEFT pupil diameter
+        << "RPupilDiam: " << Data.GetRightPupilDiameter() << sep               // LEFT pupil diameter
+        << "FActorName: " << TCHAR_TO_UTF8(*Data.GetFocusActorName()) << sep   // Name (tag) of actor being focused on
+        << "FActorPoint: " << VecToString(Data.GetFocusActorPoint()) << sep    // Location of focused actor
+        << "FActorDist: " << Data.GetFocusActorDistance() << sep               // Distance to focused actor
+        << "VALIDITY: "                                                        // validity booleans
+        << "GazeV: " << Data.GetCombinedValidity() << sep                      // validity bool for gaze ray
+        << "LGazeV: " << Data.GetLeftValidity() << sep                         // validity for LEFT gaze ray
+        << "RGazeV: " << Data.GetRightValidity() << sep                        // validity for RIGHT gaze ray
+        << "LEyeOpenV: " << Data.GetLeftEyeOpennessValidity() << sep           // validity for LEFT eye openness
+        << "REyeOpenV: " << Data.GetRightEyeOpennessValidity() << sep          // validity for RIGHT eye openness
+        << "LPupilPosV: " << Data.GetLeftPupilPositionValidity() << sep        // validity for LEFT pupil position
+        << "RPupilPosV: " << Data.GetRightPupilPositionValidity() << sep       // validity for LEFT pupil position
+        << "INPUTS: "                                                          // User inputs
+        << "Throttle: " << Data.GetUserInputs().Throttle << sep                // Value of Throttle
+        << "Steering: " << Data.GetUserInputs().Steering << sep                // Value of Steering
+        << "Brake: " << Data.GetUserInputs().Brake << sep                      // Value of brake
+        << "ToggleRev: " << Data.GetUserInputs().ToggledReverse << sep         // toggled reverse
+        << "TurnSignalLeft: " << Data.GetUserInputs().TurnSignalLeft << sep    // enabled left turn signal
+        << "TurnSignalRight: " << Data.GetUserInputs().TurnSignalRight << sep  // enabled right turn signal
+        << "Handbrake: " << Data.GetUserInputs().HoldHandbrake << sep          // the handbrake is held
         ;
     return oss.str();
 }
@@ -222,12 +172,12 @@ std::string DReyeVRDataRecorder::Print() const
 
 void DReyeVRDataRecorders::Clear(void)
 {
-    AllSnapshots.clear();
+    AllData.clear();
 }
 
 void DReyeVRDataRecorders::Add(const DReyeVRDataRecorder &NewData)
 {
-    AllSnapshots.push_back(NewData);
+    AllData.push_back(NewData);
 }
 
 void DReyeVRDataRecorders::Write(std::ofstream &OutFile)
@@ -241,10 +191,10 @@ void DReyeVRDataRecorders::Write(std::ofstream &OutFile)
     WriteValue<uint32_t>(OutFile, Total);
 
     // write total records
-    Total = AllSnapshots.size();
+    Total = AllData.size();
     WriteValue<uint16_t>(OutFile, Total);
 
-    for (auto &Snapshot : AllSnapshots)
+    for (auto &Snapshot : AllData)
         Snapshot.Write(OutFile);
 
     /// TODO: check if we need this? or can just write Total * sizeof(DReyeVRData)

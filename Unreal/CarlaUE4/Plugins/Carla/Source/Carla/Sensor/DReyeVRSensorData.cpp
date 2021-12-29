@@ -1,158 +1,281 @@
 #include "DReyeVRSensorData.h"
 
+/// NOTE: provides implementations for both const and non-const return-by-reference getters
+// the non-const versions can modify the internal object, while the const versions cannot (for reading only)
+
 namespace DReyeVR
 {
-int64_t DReyeVRSensorData::GetTimestampCarla() const
+const int64_t &SensorData::GetTimestampCarla() const
+{
+    return TimestampCarla;
+}
+int64_t &SensorData::GetTimestampCarla()
 {
     return TimestampCarla;
 }
 
 // from EyeTrackerData
-int64_t DReyeVRSensorData::GetTimestampDevice() const
+const int64_t &SensorData::GetTimestampDevice() const
+{
+    return EyeTrackerData.TimestampDevice;
+}
+int64_t &SensorData::GetTimestampDevice()
 {
     return EyeTrackerData.TimestampDevice;
 }
 
-int64_t DReyeVRSensorData::GetFrameSequence() const
+const int64_t &SensorData::GetFrameSequence() const
+{
+    return EyeTrackerData.FrameSequence;
+}
+int64_t &SensorData::GetFrameSequence()
 {
     return EyeTrackerData.FrameSequence;
 }
 
 // combined (both) eyes
-float DReyeVRSensorData::GetEyeVergence() const
+const float &SensorData::GetEyeVergence() const
+{
+    return EyeTrackerData.Combined.Vergence;
+}
+float &SensorData::GetEyeVergence()
 {
     return EyeTrackerData.Combined.Vergence;
 }
 
-FVector DReyeVRSensorData::GetCombinedGazeDir() const
+const FVector &SensorData::GetCombinedGazeDir() const
+{
+    return EyeTrackerData.Combined.GazeDir;
+}
+FVector &SensorData::GetCombinedGazeDir()
 {
     return EyeTrackerData.Combined.GazeDir;
 }
 
-FVector DReyeVRSensorData::GetCombinedGazeOrigin() const
+const FVector &SensorData::GetCombinedGazeOrigin() const
 {
-    return EyeTracker.Combined.GazeOrigin;
+    return EyeTrackerData.Combined.GazeOrigin;
+}
+FVector &SensorData::GetCombinedGazeOrigin()
+{
+    return EyeTrackerData.Combined.GazeOrigin;
 }
 
-bool DReyeVRSensorData::GetCombinedValidity() const
+const bool &SensorData::GetCombinedValidity() const
 {
-    return EyeTracker.Combined.GazeValid;
+    return EyeTrackerData.Combined.GazeValid;
+}
+bool &SensorData::GetCombinedValidity()
+{
+    return EyeTrackerData.Combined.GazeValid;
 }
 
 // left eye
-FVector DReyeVRSensorData::GetLeftGazeDir() const
+const FVector &SensorData::GetLeftGazeDir() const
 {
-    return EyeTracker.Left.GazeDir;
+    return EyeTrackerData.Left.GazeDir;
+}
+FVector &SensorData::GetLeftGazeDir()
+{
+    return EyeTrackerData.Left.GazeDir;
 }
 
-FVector DReyeVRSensorData::GetLeftGazeOrigin() const
+const FVector &SensorData::GetLeftGazeOrigin() const
 {
-    return EyeTracker.Left.GazeOrigin;
+    return EyeTrackerData.Left.GazeOrigin;
+}
+FVector &SensorData::GetLeftGazeOrigin()
+{
+    return EyeTrackerData.Left.GazeOrigin;
 }
 
-bool DReyeVRSensorData::GetLeftValidity() const
+const bool &SensorData::GetLeftValidity() const
 {
-    return EyeTracker.Left.GazeValid;
+    return EyeTrackerData.Left.GazeValid;
+}
+bool &SensorData::GetLeftValidity()
+{
+    return EyeTrackerData.Left.GazeValid;
 }
 
-float DReyeVRSensorData::GetLeftEyeOpenness() const
+const float &SensorData::GetLeftEyeOpenness() const
 {
-    return EyeTracker.Left.EyeOpenness;
+    return EyeTrackerData.Left.EyeOpenness;
+}
+float &SensorData::GetLeftEyeOpenness()
+{
+    return EyeTrackerData.Left.EyeOpenness;
 }
 
-bool DReyeVRSensorData::GetLeftEyeOpennessValidity() const
+const bool &SensorData::GetLeftEyeOpennessValidity() const
 {
-    return EyeTracker.Left.EyeOpennesValid;
+    return EyeTrackerData.Left.EyeOpennessValid;
+}
+bool &SensorData::GetLeftEyeOpennessValidity()
+{
+    return EyeTrackerData.Left.EyeOpennessValid;
 }
 
-float DReyeVRSensorData::GetLeftPupilDiameter() const
+const float &SensorData::GetLeftPupilDiameter() const
 {
-    return EyeTracker.Left.PupilDiameter;
+    return EyeTrackerData.Left.PupilDiameter;
+}
+float &SensorData::GetLeftPupilDiameter()
+{
+    return EyeTrackerData.Left.PupilDiameter;
 }
 
-FVector2D DReyeVRSensorData::GetLeftPupilPosition() const
+const FVector2D &SensorData::GetLeftPupilPosition() const
 {
-    return EyeTracker.Left.PupilPosition;
+    return EyeTrackerData.Left.PupilPosition;
+}
+FVector2D &SensorData::GetLeftPupilPosition()
+{
+    return EyeTrackerData.Left.PupilPosition;
 }
 
-bool DReyeVRSensorData::GetLeftPupilPositionValidity() const
+const bool &SensorData::GetLeftPupilPositionValidity() const
 {
-    return EyeTracker.Left.PupilPositionValid;
+    return EyeTrackerData.Left.PupilPositionValid;
+}
+bool &SensorData::GetLeftPupilPositionValidity()
+{
+    return EyeTrackerData.Left.PupilPositionValid;
 }
 
 // right eye
-FVector DReyeVRSensorData::GetRightGazeDir() const
+const FVector &SensorData::GetRightGazeDir() const
 {
-    return EyeTracker.Right.GazeDir;
+    return EyeTrackerData.Right.GazeDir;
+}
+FVector &SensorData::GetRightGazeDir()
+{
+    return EyeTrackerData.Right.GazeDir;
 }
 
-FVector DReyeVRSensorData::GetRightGazeOrigin() const
+const FVector &SensorData::GetRightGazeOrigin() const
 {
-    return EyeTracker.Right.GazeOrigin;
+    return EyeTrackerData.Right.GazeOrigin;
+}
+FVector &SensorData::GetRightGazeOrigin()
+{
+    return EyeTrackerData.Right.GazeOrigin;
 }
 
-bool DReyeVRSensorData::GetRightValidity() const
+const bool &SensorData::GetRightValidity() const
 {
-    return EyeTracker.Right.GazeValid;
+    return EyeTrackerData.Right.GazeValid;
+}
+bool &SensorData::GetRightValidity()
+{
+    return EyeTrackerData.Right.GazeValid;
 }
 
-float DReyeVRSensorData::GetRightEyeOpenness() const
+const float &SensorData::GetRightEyeOpenness() const
 {
-    return EyeTracker.Right.EyeOpenness;
+    return EyeTrackerData.Right.EyeOpenness;
+}
+float &SensorData::GetRightEyeOpenness()
+{
+    return EyeTrackerData.Right.EyeOpenness;
 }
 
-bool DReyeVRSensorData::GetRightEyeOpennessValidity() const
+const bool &SensorData::GetRightEyeOpennessValidity() const
 {
-    return EyeTracker.Right.EyeOpennesValid;
+    return EyeTrackerData.Right.EyeOpennessValid;
+}
+bool &SensorData::GetRightEyeOpennessValidity()
+{
+    return EyeTrackerData.Right.EyeOpennessValid;
 }
 
-float DReyeVRSensorData::GetRightPupilDiameter() const
+const float &SensorData::GetRightPupilDiameter() const
 {
-    return EyeTracker.Right.PupilDiameter;
+    return EyeTrackerData.Right.PupilDiameter;
+}
+float &SensorData::GetRightPupilDiameter()
+{
+    return EyeTrackerData.Right.PupilDiameter;
 }
 
-FVector2D DReyeVRSensorData::GetRightPupilPosition() const
+const FVector2D &SensorData::GetRightPupilPosition() const
 {
-    return EyeTracker.Right.PupilPosition;
+    return EyeTrackerData.Right.PupilPosition;
+}
+FVector2D &SensorData::GetRightPupilPosition()
+{
+    return EyeTrackerData.Right.PupilPosition;
 }
 
-bool DReyeVRSensorData::GetRightPupilPositionValidity() const
+const bool &SensorData::GetRightPupilPositionValidity() const
 {
-    return EyeTracker.Right.PupilPositionValid;
+    return EyeTrackerData.Right.PupilPositionValid;
+}
+bool &SensorData::GetRightPupilPositionValidity()
+{
+    return EyeTrackerData.Right.PupilPositionValid;
 }
 
-// from DReyeVRSensorData
-FVector DReyeVRSensorData::GetHMDLocation() const
+// from SensorData
+const FVector &SensorData::GetHMDLocation() const
+{
+    return HMDLocation;
+}
+FVector &SensorData::GetHMDLocation()
 {
     return HMDLocation;
 }
 
-FRotator DReyeVRSensorData::GetHMDRotation() const
+const FRotator &SensorData::GetHMDRotation() const
+{
+    return HMDRotation;
+}
+FRotator &SensorData::GetHMDRotation()
 {
     return HMDRotation;
 }
 
-float DReyeVRSensorData::GetEgoVelocity() const
+const float &SensorData::GetEgoVelocity() const
+{
+    return EgoVelocity;
+}
+float &SensorData::GetEgoVelocity()
 {
     return EgoVelocity;
 }
 
-FString DReyeVRSensorData::GetFocusActorName() const
+const FString &SensorData::GetFocusActorName() const
+{
+    return FocusActorName;
+}
+FString &SensorData::GetFocusActorName()
 {
     return FocusActorName;
 }
 
-FVector DReyeVRSensorData::GetFocusActorPoint() const
+const FVector &SensorData::GetFocusActorPoint() const
+{
+    return FocusActorPoint;
+}
+FVector &SensorData::GetFocusActorPoint()
 {
     return FocusActorPoint;
 }
 
-float DReyeVRSensorData::GetFocusActorDist() const
+const float &SensorData::GetFocusActorDistance() const
+{
+    return FocusActorDistance;
+}
+float &SensorData::GetFocusActorDistance()
 {
     return FocusActorDistance;
 }
 
-DReyeVR::UserInputs DReyeVRSensorData::GetUserInputs() const
+const DReyeVR::UserInputs &SensorData::GetUserInputs() const
+{
+    return Inputs;
+}
+DReyeVR::UserInputs &SensorData::GetUserInputs()
 {
     return Inputs;
 }

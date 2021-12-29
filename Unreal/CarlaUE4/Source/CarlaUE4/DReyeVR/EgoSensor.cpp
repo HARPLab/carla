@@ -1,6 +1,7 @@
 #include "EgoSensor.h"
 
 #include "Carla/Game/CarlaStatics.h"    // GetEpisode
+#include "DReyeVRUtils.h"               // ReadConfigValue
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "UObject/UObjectBaseUtility.h" // GetName
 
@@ -149,7 +150,7 @@ void AEgoSensor::SetCamera(UCameraComponent *FPSCamInEgoVehicle)
 
 void AEgoSensor::SetInputs(const DReyeVR::UserInputs &inputs)
 {
-    GetData()->Inputs = inputs;
+    GetData()->GetUserInputs() = inputs;
 }
 
 void AEgoSensor::UpdateEgoVelocity(const float Velocity)
@@ -170,35 +171,39 @@ void AEgoSensor::PrePhysTick(float DeltaSeconds)
         /// NOTE: the ECC_GameTraceChannel4 line trace allows the trace to ignore the vehicle
         // you can see ECC_GameTraceChannel4 in DefaultEngine.ini as one of the 18 custom channels
         const float TraceRadius = 0.f; // 0 for a point, >0 for a sphear trace
-        DReyeVR::FocusInfo F;
-        ComputeTraceFocusInfo(ECC_GameTraceChannel4, F, TraceRadius);
-        if (F.Actor != nullptr)
-            F.Actor->GetName(GetData()->FocusActorName);
+        DReyeVR::FocusInfo Focus;
+        ComputeTraceFocusInfo(ECC_GameTraceChannel4, Focus, TraceRadius);
+        if (Focus.Actor != nullptr)
+        {
+            Focus.Actor->GetName(GetData()->GetFocusActorName());
+        }
         else
-            GetData()->FocusActorName = FString("None"); // empty string, not looking at any actor
-        GetData()->FocusActorPoint = F.Point;
-        GetData()->FocusActorDist = F.Distance;
+        {
+            GetData()->GetFocusActorName() = FString("None"); // empty string, not looking at any actor
+        }
+        GetData()->GetFocusActorPoint() = Focus.Point;
+        GetData()->GetFocusActorDistance() = Focus.Distance;
         // UE_LOG(LogTemp, Log, TEXT("Focus Actor: %s"), *Data->FocusActorName);
 
         // Update the ego velocity
-        GetData()->Velocity = EgoVelocity;
+        GetData()->GetEgoVelocity() = EgoVelocity;
         // Update the Carla tick timestamp
-        GetData()->TimestampCarla = int64_t(ftime_s * 1000); // convert seconds to milliseconds
+        GetData()->GetTimestampCarla() = int64_t(ftime_s * 1000); // convert seconds to milliseconds
         if (FirstPersonCam != nullptr)
         {
             // Update the hmd location
-            GetData()->HMDLocation = FirstPersonCam->GetRelativeLocation();
-            GetData()->HMDRotation = FirstPersonCam->GetRelativeRotation();
+            GetData()->GetHMDLocation() = FirstPersonCam->GetRelativeLocation();
+            GetData()->GetHMDRotation() = FirstPersonCam->GetRelativeRotation();
         }
         // The Vergence will be calculated with SRanipal if available, else just 1.0f
-        GetData()->Combined.Vergence = CalculateVergenceFromDirections();
+        GetData()->GetEyeVergence() = CalculateVergenceFromDirections();
     }
     else
     {
         // this gets reached when the simulator is replaying data from a carla log
         // assign first person camera orientation and location
-        FirstPersonCam->SetRelativeRotation(GetData()->HMDRotation, false, nullptr, ETeleportType::None);
-        FirstPersonCam->SetRelativeLocation(GetData()->HMDLocation, false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeRotation(GetData()->GetHMDRotation(), false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeLocation(GetData()->GetHMDLocation(), false, nullptr, ETeleportType::None);
     }
     // frame capture
     if (bCaptureFrameData && FrameCap && FirstPersonCam)
@@ -225,11 +230,11 @@ DReyeVR::SRanipalData AEgoSensor::TickEyeTracker()
     check(SRanipal != nullptr);
     // Get the "EyeData" which holds useful information such as the timestamp
     SRanipal->GetEyeData_(EyeData);
-    EyeSensorData.TimestampSR = EyeData->timestamp - TimestampRef;
+    EyeSensorData.TimestampDevice = EyeData->timestamp - TimestampRef;
     EyeSensorData.FrameSequence = EyeData->frame_sequence;
     // shortcuts to eye datum
     // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
-    Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->Origin, Combined->GazeRay);
+    Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->GazeOrigin, Combined->GazeDir);
     // Assign Left/Right Gaze direction
     /// NOTE: the eye gazes are reversed at the lowest level bc SRanipal has a bug in their
     // libraries that flips these when collected from the sensor. We can verify this by
@@ -238,51 +243,43 @@ DReyeVR::SRanipalData AEgoSensor::TickEyeTracker()
     // see: https://forum.vive.com/topic/9306-possible-bug-in-unreal-sdk-for-leftright-eye-gazes
     if (SRANIPAL_EYE_SWAP_FIXED) // if the latest SRanipal does not have this bug
     {
-        Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->Origin, Left->GazeRay);
-        Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->Origin, Right->GazeRay);
+        Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->GazeOrigin, Left->GazeDir);
+        Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->GazeOrigin, Right->GazeDir);
     }
     else // this is the default case which we were dealing with during development
     {
-        Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->Origin, Right->GazeRay);
-        Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->Origin, Left->GazeRay);
+        Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->GazeOrigin, Right->GazeDir);
+        Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->GazeOrigin, Left->GazeDir);
     }
     // Assign Eye openness
-    Left->EyeOpenValid = SRanipal->GetEyeOpenness(EyeIndex::LEFT, Left->EyeOpenness);
-    Right->EyeOpenValid = SRanipal->GetEyeOpenness(EyeIndex::RIGHT, Right->EyeOpenness);
+    Left->EyeOpennessValid = SRanipal->GetEyeOpenness(EyeIndex::LEFT, Left->EyeOpenness);
+    Right->EyeOpennessValid = SRanipal->GetEyeOpenness(EyeIndex::RIGHT, Right->EyeOpenness);
     // Assign Pupil positions
-    Left->PupilPosValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPos);
-    Right->PupilPosValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPos);
+    Left->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPosition);
+    Right->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPosition);
     // Assign Pupil Diameters
-    Left->PupilDiam = EyeData->verbose_data.left.pupil_diameter_mm;
-    Right->PupilDiam = EyeData->verbose_data.right.pupil_diameter_mm;
+    Left->PupilDiameter = EyeData->verbose_data.left.pupil_diameter_mm;
+    Right->PupilDiameter = EyeData->verbose_data.right.pupil_diameter_mm;
 #else
     // Generate dummy values for Gaze Ray based off time, goes in circles in front of the user
-    Combined->GazeRay.X = 5.0;
+    Combined->GazeDir.X = 5.0;
     // std::chrono::duration<double> Time = std::chrono::system_clock::now();
     const auto DeltaT = std::chrono::system_clock::now() - StartTime; // time difference since begin play
     const float TimeNow = std::chrono::duration_cast<std::chrono::milliseconds>(DeltaT).count() / 1000.f;
-    Combined->GazeRay.Y = UKismetMathLibrary::Cos(TimeNow);
-    Combined->GazeRay.Z = UKismetMathLibrary::Sin(TimeNow);
-    UKismetMathLibrary::Vector_Normalize(Combined->GazeRay, 0.0001);
+    Combined->GazeDir.Y = UKismetMathLibrary::Cos(TimeNow);
+    Combined->GazeDir.Z = UKismetMathLibrary::Sin(TimeNow);
+    UKismetMathLibrary::Vector_Normalize(Combined->GazeDir, 0.0001);
 
     // Assign the origin position to the (3D space) origin
     Combined->GazeValid = true; // for our Linux case, this is valid
                                 // not going to assign anything for the L/R eye tracker fields
 
     // Assign the endpoint of the combined position (faked in Linux) to the left & right gazes too
-    Left->GazeRay = Combined->GazeRay;
-    Right->GazeRay = Combined->GazeRay;
+    Left->GazeDir = Combined->GazeDir;
+    Right->GazeDir = Combined->GazeDir;
 #endif
     // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
     return EyeSensorData;
-}
-
-/// ========================================== ///
-/// ---------------:GETTERS:------------------ ///
-/// ========================================== ///
-DReyeVR::SRanipalData *AEgoSensor::GetEyeTrackerData() const
-{
-    return this->GetData();
 }
 
 /// ========================================== ///
@@ -297,10 +294,10 @@ bool AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DRe
     bool hit = false;
     const float maxDist = 100.f * 100.f; // 100m
 
-    const FRotator WorldRot = GetData()->HMDRotation;
-    const FVector WorldPos = GetData()->HMDLocation;
-    const FVector GazeOrigin = WorldRot.RotateVector(GetData()->Combined.Origin) + WorldPos;
-    const FVector GazeTarget = WorldRot.RotateVector(maxDist * GetData()->Combined.GazeRay);
+    const FRotator WorldRot = GetData()->GetHMDRotation();
+    const FVector WorldPos = GetData()->GetHMDLocation();
+    const FVector GazeOrigin = WorldRot.RotateVector(GetData()->GetCombinedGazeOrigin()) + WorldPos;
+    const FVector GazeTarget = WorldRot.RotateVector(maxDist * GetData()->GetCombinedGazeDir());
 
     // Create collision information container.
     FCollisionQueryParams traceParam;
@@ -339,10 +336,10 @@ float AEgoSensor::CalculateVergenceFromDirections() const
     // Compute intersection of the rays in 3D space to compute distance to that point
 
     // Recall that a 'line' can be defined here as (L = origin(0) + t * direction(Dir)) for some t
-    FVector L0 = GetLeftOrigin();
-    FVector LDir = GetLeftGazeRay();
-    FVector R0 = GetRightOrigin();
-    FVector RDir = GetRightGazeRay();
+    const FVector &L0 = GetData()->GetLeftGazeOrigin();
+    const FVector &LDir = GetData()->GetLeftGazeDir();
+    const FVector &R0 = GetData()->GetRightGazeOrigin();
+    const FVector &RDir = GetData()->GetRightGazeDir();
 
     // Calculating shortest line segment intersecting both lines
     // Implementation sourced from http://paulbourke.net/geometry/pointlineplane/

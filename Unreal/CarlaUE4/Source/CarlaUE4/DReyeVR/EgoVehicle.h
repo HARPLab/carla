@@ -6,11 +6,11 @@
 #include "Components/InputComponent.h"         // InputComponent
 #include "Components/SceneComponent.h"         // USceneComponent
 #include "CoreMinimal.h"                       // Unreal functions
-#include "DReyeVRHUD.h"                        // ADReyeVRHUD
-#include "DReyeVRLevel.h"                      // ADReyeVRLevel
 #include "DReyeVRUtils.h"                      // ReadConfigValue
 #include "EgoSensor.h"                         // AEgoSensor
+#include "FlatHUD.h"                           // ADReyeVRHUD
 #include "ImageUtils.h"                        // CreateTexture2D
+#include "LevelScript.h"                       // ADReyeVRLevel
 #include "WheeledVehicle.h"                    // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>

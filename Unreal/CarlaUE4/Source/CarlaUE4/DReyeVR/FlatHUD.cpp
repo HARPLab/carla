@@ -1,4 +1,4 @@
-#include "DReyeVRHUD.h"
+#include "FlatHUD.h"
 
 void ADReyeVRHUD::SetPlayer(APlayerController *P)
 {

@@ -3,7 +3,7 @@
 #include "EgoVehicle.h"              // DReyeVR ego vehicle ptr
 #include "Engine/LevelScriptActor.h" // ALevelScriptActor
 
-#include "DReyeVRLevel.generated.h"
+#include "LevelScript.generated.h"
 
 class AEgoVehicle;
 

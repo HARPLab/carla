@@ -11,13 +11,13 @@
 #include "carla/geom/Vector2D.h"
 #include "carla/geom/Vector3D.h"
 
-struct DReyeVR::SensorData *ADReyeVRSensor::Data = nullptr;
+class DReyeVR::SensorData *ADReyeVRSensor::Data = nullptr;
 
 ADReyeVRSensor::ADReyeVRSensor(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
     // no need for any other initialization
     PrimaryActorTick.bCanEverTick = true;
-    ADReyeVRSensor::Data = new struct DReyeVR::SensorData;
+    ADReyeVRSensor::Data = new DReyeVR::SensorData();
 }
 
 FActorDefinition ADReyeVRSensor::GetSensorDefinition()
@@ -79,48 +79,46 @@ carla::geom::Vector2D FVector2DToGeom2D(const FVector2D &In)
 }
 void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSeconds)
 {
+    /// NOTE: this function defines the routine for streaming data to the PythonAPI
     if (!this->StreamSensorData) // param for enabling or disabling the data streaming
         return;
     auto Stream = GetDataStream(*this);
-    DReyeVR::SensorData *Snapshot = this->GetData();
-    auto &SR_Combo = Snapshot->Combined;
-    auto &SR_Right = Snapshot->Right;
-    auto &SR_Left = Snapshot->Left;
-    /// TODO: refactor this somehow (add param to keep stream online or not)
+    const DReyeVR::SensorData *AllData = this->GetData();
+    /// TODO: refactor this somehow
     Stream.Send(*this,
-                Snapshot->TimestampSR,                             // Timestamp of SRanipal (ms)
-                Snapshot->TimestampCarla,                          // Timestamp of Carla (ms)
-                Snapshot->FrameSequence,                           // Frame sequence
-                FVectorToGeom(SR_Combo.GazeRay),                   // Stream GazeRay Vec3
-                FVectorToGeom(SR_Combo.Origin),                    // Stream EyeOrigin Vec3
-                SR_Combo.GazeValid,                                // Validity of combined gaze
-                SR_Combo.Vergence,                                 // Vergence (float) of combined ray
-                FVectorToGeom(Snapshot->HMDLocation),              // HMD absolute location
-                FRotatorToGeom(Snapshot->HMDRotation),             // HMD absolute rotation
-                FVectorToGeom(SR_Left.GazeRay),                    // Left eye gaze ray
-                FVectorToGeom(SR_Left.Origin),                     // left eye origin
-                SR_Left.GazeValid,                                 // Validity of left gaze
-                FVectorToGeom(SR_Right.GazeRay),                   // right eye gaze ray
-                FVectorToGeom(SR_Right.Origin),                    // right eye origin
-                SR_Right.GazeValid,                                // Validity of right gaze
-                SR_Left.EyeOpenness,                               // left eye openness
-                SR_Left.EyeOpenValid,                              // Validity of left eye openness
-                SR_Right.EyeOpenness,                              // right eye openness
-                SR_Right.EyeOpenValid,                             // Validity of right eye openness
-                FVector2DToGeom2D(SR_Left.PupilPos),               // left pupil position
-                SR_Left.PupilPosValid,                             // Validity of left eye posn
-                FVector2DToGeom2D(SR_Right.PupilPos),              // right pupil position
-                SR_Right.PupilPosValid,                            // Validity of left eye posn
-                SR_Left.PupilDiam,                                 // Left eye diameter (mm)
-                SR_Right.PupilDiam,                                // Right eye diameter (mm)
-                carla::rpc::FromFString(Snapshot->FocusActorName), // Focus Actor's name
-                FVectorToGeom(Snapshot->FocusActorPoint),          // Focus Actor's location in world space
-                Snapshot->FocusActorDist,                          // Focus Actor's distance to the sensor
-                Snapshot->Inputs.Throttle,                         // Vehicle input throttle
-                Snapshot->Inputs.Steering,                         // Vehicle input steering
-                Snapshot->Inputs.Brake,                            // Vehicle input brake
-                Snapshot->Inputs.ToggledReverse,                   // Vehicle input gear (reverse, fwd)
-                Snapshot->Inputs.HoldHandbrake                     // Vehicle input handbrake
+                AllData->GetTimestampDevice(),                         // Timestamp of SRanipal (ms)
+                AllData->GetTimestampCarla(),                          // Timestamp of Carla (ms)
+                AllData->GetFrameSequence(),                           // Frame sequence
+                FVectorToGeom(AllData->GetCombinedGazeDir()),          // Combined gaze ray direction
+                FVectorToGeom(AllData->GetCombinedGazeOrigin()),       // Stream EyeOrigin Vec3
+                AllData->GetCombinedValidity(),                        // Validity of combined gaze
+                AllData->GetEyeVergence(),                             // Vergence (float) of combined ray
+                FVectorToGeom(AllData->GetHMDLocation()),              // HMD absolute location
+                FRotatorToGeom(AllData->GetHMDRotation()),             // HMD absolute rotation
+                FVectorToGeom(AllData->GetLeftGazeDir()),              // Left eye gaze ray direction
+                FVectorToGeom(AllData->GetLeftGazeOrigin()),           // Left eye gaze origin
+                AllData->GetLeftValidity(),                            // Validity of left gaze
+                FVectorToGeom(AllData->GetRightGazeDir()),             // Right eye gaze ray direction
+                FVectorToGeom(AllData->GetRightGazeOrigin()),          // Dight eye gaze origin
+                AllData->GetRightValidity(),                           // Validity of right gaze
+                AllData->GetLeftEyeOpenness(),                         // Left eye openness
+                AllData->GetLeftEyeOpennessValidity(),                 // Validity of left eye openness
+                AllData->GetRightEyeOpenness(),                        // Right eye openness
+                AllData->GetRightEyeOpennessValidity(),                // Validity of right eye openness
+                FVector2DToGeom2D(AllData->GetLeftPupilPosition()),    // Left pupil position
+                AllData->GetLeftPupilPositionValidity(),               // Validity of left eye posn
+                FVector2DToGeom2D(AllData->GetRightPupilPosition()),   // Right pupil position
+                AllData->GetRightPupilPositionValidity(),              // Validity of left eye posn
+                AllData->GetLeftPupilDiameter(),                       // Left eye diameter (mm)
+                AllData->GetRightPupilDiameter(),                      // Right eye diameter (mm)
+                carla::rpc::FromFString(AllData->GetFocusActorName()), // Focus Actor's name
+                FVectorToGeom(AllData->GetFocusActorPoint()),          // Focus Actor's location in world space
+                AllData->GetFocusActorDistance(),                      // Focus Actor's distance to the sensor
+                AllData->GetUserInputs().Throttle,                     // Vehicle input throttle
+                AllData->GetUserInputs().Steering,                     // Vehicle input steering
+                AllData->GetUserInputs().Brake,                        // Vehicle input brake
+                AllData->GetUserInputs().ToggledReverse,               // Vehicle input gear (reverse, fwd)
+                AllData->GetUserInputs().HoldHandbrake                 // Vehicle input handbrake
     );
 }
 
@@ -137,22 +135,22 @@ void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &RecorderData, c
     // update global values
     ADReyeVRSensor::bIsReplaying = true;
     ADReyeVRSensor::EgoReplayTransform = EgoTrans;
-    ADReyeVRSensor::EgoReplayVelocity = RecorderData.Velocity;
+    ADReyeVRSensor::EgoReplayVelocity = RecorderData.GetEgoVelocity();
     if (ADReyeVRSensor::Data != nullptr)
     {
         // update local values
         FVector NewCameraPose;
         FRotator NewCameraRot;
-        ADReyeVRSensor::InterpPositionAndRotation(ADReyeVRSensor::Data->HMDLocation, // old location
-                                                  ADReyeVRSensor::Data->HMDRotation, // old rotation
-                                                  RecorderData.HMDLocation,          // new location
-                                                  RecorderData.HMDRotation,          // new rotation
+        ADReyeVRSensor::InterpPositionAndRotation(ADReyeVRSensor::Data->GetHMDLocation(), // old location
+                                                  ADReyeVRSensor::Data->GetHMDRotation(), // old rotation
+                                                  RecorderData.GetHMDLocation(),          // new location
+                                                  RecorderData.GetHMDRotation(),          // new rotation
                                                   Per, NewCameraPose, NewCameraRot);
         // apply most of the update, but will need to assign the new values next
         (*ADReyeVRSensor::Data) = RecorderData;
         // assign new values
-        ADReyeVRSensor::Data->HMDLocation = NewCameraPose;
-        ADReyeVRSensor::Data->HMDRotation = NewCameraRot;
+        ADReyeVRSensor::Data->GetHMDLocation() = NewCameraPose;
+        ADReyeVRSensor::Data->GetHMDRotation() = NewCameraRot;
     }
 }
 
