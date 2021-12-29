@@ -150,7 +150,7 @@ void AEgoSensor::SetCamera(UCameraComponent *FPSCamInEgoVehicle)
 
 void AEgoSensor::SetInputs(const DReyeVR::UserInputs &inputs)
 {
-    GetData()->GetUserInputs() = inputs;
+    GetData()->UserInputs() = inputs;
 }
 
 void AEgoSensor::UpdateEgoVelocity(const float Velocity)
@@ -165,7 +165,7 @@ void AEgoSensor::PrePhysTick(float DeltaSeconds)
         // ftime_s is used to get the UE4 (carla) timestamp of the world at this tick
         double ftime_s = UGameplayStatics::GetRealTimeSeconds(World);
         // Get data from the hardware sensor
-        GetData()->UpdateEyeTrackerData(this->TickEyeTracker());
+        GetData()->SetEyeTrackerData(this->TickEyeTracker());
 
         // Assign FFocus information
         /// NOTE: the ECC_GameTraceChannel4 line trace allows the trace to ignore the vehicle
@@ -175,35 +175,35 @@ void AEgoSensor::PrePhysTick(float DeltaSeconds)
         ComputeTraceFocusInfo(ECC_GameTraceChannel4, Focus, TraceRadius);
         if (Focus.Actor != nullptr)
         {
-            Focus.Actor->GetName(GetData()->GetFocusActorName());
+            Focus.Actor->GetName(GetData()->FocusActorName());
         }
         else
         {
-            GetData()->GetFocusActorName() = FString("None"); // empty string, not looking at any actor
+            GetData()->FocusActorName() = FString("None"); // empty string, not looking at any actor
         }
-        GetData()->GetFocusActorPoint() = Focus.Point;
-        GetData()->GetFocusActorDistance() = Focus.Distance;
+        GetData()->FocusActorPoint() = Focus.Point;
+        GetData()->FocusActorDistance() = Focus.Distance;
         // UE_LOG(LogTemp, Log, TEXT("Focus Actor: %s"), *Data->FocusActorName);
 
         // Update the ego velocity
-        GetData()->GetEgoVelocity() = EgoVelocity;
+        GetData()->EgoVelocity() = EgoVelocity;
         // Update the Carla tick timestamp
-        GetData()->GetTimestampCarla() = int64_t(ftime_s * 1000); // convert seconds to milliseconds
+        GetData()->TimestampCarla() = int64_t(ftime_s * 1000); // convert seconds to milliseconds
         if (FirstPersonCam != nullptr)
         {
             // Update the hmd location
-            GetData()->GetHMDLocation() = FirstPersonCam->GetRelativeLocation();
-            GetData()->GetHMDRotation() = FirstPersonCam->GetRelativeRotation();
+            GetData()->HMDLocation() = FirstPersonCam->GetRelativeLocation();
+            GetData()->HMDRotation() = FirstPersonCam->GetRelativeRotation();
         }
         // The Vergence will be calculated with SRanipal if available, else just 1.0f
-        GetData()->GetEyeVergence() = CalculateVergenceFromDirections();
+        GetData()->GazeVergence() = CalculateVergenceFromDirections();
     }
     else
     {
         // this gets reached when the simulator is replaying data from a carla log
         // assign first person camera orientation and location
-        FirstPersonCam->SetRelativeRotation(GetData()->GetHMDRotation(), false, nullptr, ETeleportType::None);
-        FirstPersonCam->SetRelativeLocation(GetData()->GetHMDLocation(), false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeRotation(GetData()->HMDRotation(), false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeLocation(GetData()->HMDLocation(), false, nullptr, ETeleportType::None);
     }
     // frame capture
     if (bCaptureFrameData && FrameCap && FirstPersonCam)
@@ -294,10 +294,10 @@ bool AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DRe
     bool hit = false;
     const float maxDist = 100.f * 100.f; // 100m
 
-    const FRotator WorldRot = GetData()->GetHMDRotation();
-    const FVector WorldPos = GetData()->GetHMDLocation();
-    const FVector GazeOrigin = WorldRot.RotateVector(GetData()->GetCombinedGazeOrigin()) + WorldPos;
-    const FVector GazeTarget = WorldRot.RotateVector(maxDist * GetData()->GetCombinedGazeDir());
+    const FRotator WorldRot = GetData()->HMDRotation();
+    const FVector WorldPos = GetData()->HMDLocation();
+    const FVector GazeOrigin = WorldRot.RotateVector(GetData()->GazeOrigin()) + WorldPos;
+    const FVector GazeTarget = WorldRot.RotateVector(maxDist * GetData()->GazeDir());
 
     // Create collision information container.
     FCollisionQueryParams traceParam;
@@ -336,10 +336,10 @@ float AEgoSensor::CalculateVergenceFromDirections() const
     // Compute intersection of the rays in 3D space to compute distance to that point
 
     // Recall that a 'line' can be defined here as (L = origin(0) + t * direction(Dir)) for some t
-    const FVector &L0 = GetData()->GetLeftGazeOrigin();
-    const FVector &LDir = GetData()->GetLeftGazeDir();
-    const FVector &R0 = GetData()->GetRightGazeOrigin();
-    const FVector &RDir = GetData()->GetRightGazeDir();
+    const FVector &L0 = GetData()->GazeOrigin(DReyeVR::Gaze::LEFT);
+    const FVector &LDir = GetData()->GazeDir(DReyeVR::Gaze::LEFT);
+    const FVector &R0 = GetData()->GazeOrigin(DReyeVR::Gaze::RIGHT);
+    const FVector &RDir = GetData()->GazeDir(DReyeVR::Gaze::RIGHT);
 
     // Calculating shortest line segment intersecting both lines
     // Implementation sourced from http://paulbourke.net/geometry/pointlineplane/

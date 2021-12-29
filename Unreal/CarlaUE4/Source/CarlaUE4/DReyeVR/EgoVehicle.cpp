@@ -465,21 +465,21 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     const FVector WorldPos = FirstPersonCam->GetComponentLocation();
 
     // First get the gaze origin and direction and vergence from the EyeTracker Sensor
-    const float Vergence = Data->GetEyeVergence(); // vergence already in m
+    const float Vergence = Data->GazeVergence(); // vergence already in m
     // scaling gaze ray to world units
     const float UE4MeterScale = UHeadMountedDisplayFunctionLibrary::GetWorldToMetersScale(World);
 
     // Both eyes
-    CombinedGaze = Vergence * UE4MeterScale * Data->GetCombinedGazeDir();
-    CombinedOrigin = WorldRot.RotateVector(Data->GetCombinedGazeOrigin()) + WorldPos;
+    CombinedGaze = Vergence * UE4MeterScale * Data->GazeDir();
+    CombinedOrigin = WorldRot.RotateVector(Data->GazeOrigin()) + WorldPos;
 
     // Left eye
-    LeftGaze = UE4MeterScale * Data->GetLeftGazeDir();
-    LeftOrigin = WorldRot.RotateVector(Data->GetLeftGazeOrigin()) + WorldPos;
+    LeftGaze = UE4MeterScale * Data->GazeDir(DReyeVR::Gaze::LEFT);
+    LeftOrigin = WorldRot.RotateVector(Data->GazeOrigin(DReyeVR::Gaze::LEFT)) + WorldPos;
 
     // Right eye
-    RightGaze = UE4MeterScale * Data->GetRightGazeDir();
-    RightOrigin = WorldRot.RotateVector(Data->GetRightGazeOrigin()) + WorldPos;
+    RightGaze = UE4MeterScale * Data->GazeDir(DReyeVR::Gaze::RIGHT);
+    RightOrigin = WorldRot.RotateVector(Data->GazeOrigin(DReyeVR::Gaze::RIGHT)) + WorldPos;
 }
 
 /// ========================================== ///
