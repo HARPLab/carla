@@ -1,18 +1,17 @@
 #pragma once
 
-#include "Camera/CameraComponent.h"               // UCameraComponent
-#include "Carla/Vehicle/CarlaWheeledVehicle.h"    // Steering, Throttle, Brake, etc.
-#include "Components/AudioComponent.h"            // UAudioComponent
-#include "Components/InputComponent.h"            // InputComponent
-#include "Components/PlanarReflectionComponent.h" // Planar Reflection
-#include "Components/SceneComponent.h"            // USceneComponent
-#include "CoreMinimal.h"                          // Unreal functions
-#include "DReyeVRHUD.h"                           // ADReyeVRHUD
-#include "DReyeVRLevel.h"                         // ADReyeVRLevel
-#include "DReyeVRUtils.h"                         // ReadConfigValue
-#include "EyeTracker.h"                           // AEyeTracker
-#include "ImageUtils.h"                           // CreateTexture2D
-#include "WheeledVehicle.h"                       // VehicleMovementComponent
+#include "Camera/CameraComponent.h"            // UCameraComponent
+#include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
+#include "Components/AudioComponent.h"         // UAudioComponent
+#include "Components/InputComponent.h"         // InputComponent
+#include "Components/SceneComponent.h"         // USceneComponent
+#include "CoreMinimal.h"                       // Unreal functions
+#include "DReyeVRHUD.h"                        // ADReyeVRHUD
+#include "DReyeVRLevel.h"                      // ADReyeVRLevel
+#include "DReyeVRUtils.h"                      // ReadConfigValue
+#include "EyeTracker.h"                        // AEyeTracker
+#include "ImageUtils.h"                        // CreateTexture2D
+#include "WheeledVehicle.h"                    // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
 
@@ -93,7 +92,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
     class UCameraComponent *FirstPersonCam;
     float FieldOfView = 90.f;
-    float PixelDensity = 1.f;
 
     // Camera control functions
     FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // tunable per vehicle
@@ -142,25 +140,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void LogitechWheelUpdate();      // for logitech wheel integration
     void ApplyForceFeedback() const; // for logitech wheel integration
 #endif
-
-    // Mirrors
-    void InitDReyeVRMirrors();
-    class Mirror
-    {
-      public:
-        bool Enabled;
-        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-        class UStaticMeshComponent *MirrorSM;
-        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-        class UPlanarReflectionComponent *Reflection;
-        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
-        FRotator MirrorRot, ReflectionRot;
-        float ScreenPercentage;
-        FString Name;
-        friend class EgoVehicle;
-    };
-    void InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM);
-    Mirror RightMirror, LeftMirror, RearMirror;
 
     // Cosmetic
     void InitReticleTexture();  // initializes the spectator-reticle texture

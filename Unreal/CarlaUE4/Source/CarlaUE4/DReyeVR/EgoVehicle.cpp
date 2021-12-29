@@ -45,9 +45,6 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 
     // Initialize audio components
     InitDReyeVRSounds();
-
-    // Initialize mirrors
-    InitDReyeVRMirrors();
 }
 
 void AEgoVehicle::ReadConfigVariables()
@@ -56,22 +53,6 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
     // vr
     ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
-    ReadConfigValue("EgoVehicle", "PixelDensity", PixelDensity);
-    // mirrors
-    auto InitMirrorParams = [](const FString &Name, Mirror &M) {
-        M.Name = Name;
-        ReadConfigValue("EgoVehicle", Name + "MirrorEnabled", M.Enabled);
-        ReadConfigValue("EgoVehicle", Name + "MirrorPos", M.MirrorPos);
-        ReadConfigValue("EgoVehicle", Name + "MirrorScale", M.MirrorScale);
-        ReadConfigValue("EgoVehicle", Name + "MirrorRot", M.MirrorRot);
-        ReadConfigValue("EgoVehicle", Name + "ReflectionPos", M.ReflectionPos);
-        ReadConfigValue("EgoVehicle", Name + "ReflectionScale", M.ReflectionScale);
-        ReadConfigValue("EgoVehicle", Name + "ReflectionRot", M.ReflectionRot);
-        ReadConfigValue("EgoVehicle", Name + "ScreenPercentage", M.ScreenPercentage);
-    };
-    InitMirrorParams("Right", RightMirror);
-    InitMirrorParams("Left", LeftMirror);
-    InitMirrorParams("Rear", RearMirror);
     // inputs
     ReadConfigValue("Vehicle", "ScaleSteeringDamping", ScaleSteeringInput);
     ReadConfigValue("Vehicle", "ScaleThrottleInput", ScaleThrottleInput);
@@ -267,54 +248,6 @@ void AEgoVehicle::PlayTurnSignalSound(const float DelayBeforePlay)
     }
 }
 
-void AEgoVehicle::InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM)
-{
-    if (!M.Enabled)
-    {
-        return;
-    }
-    UE_LOG(LogTemp, Log, TEXT("Initializing %s mirror"), *M.Name)
-    M.MirrorSM = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(M.Name + "MirrorSM")));
-    M.MirrorSM->SetStaticMesh(SM);
-    M.MirrorSM->SetMaterial(0, MirrorTexture);
-    M.MirrorSM->AttachTo(GetMesh());
-    M.MirrorSM->SetRelativeLocation(M.MirrorPos);
-    M.MirrorSM->SetRelativeRotation(M.MirrorRot); // Y Z X (euler angles)
-    M.MirrorSM->SetRelativeScale3D(M.MirrorScale);
-    M.MirrorSM->SetGenerateOverlapEvents(false); // don't collide with itself
-    M.MirrorSM->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    M.MirrorSM->SetVisibility(true);
-
-    M.Reflection = CreateDefaultSubobject<UPlanarReflectionComponent>(FName(*(M.Name + "Reflection")));
-    M.Reflection->AttachTo(M.MirrorSM);
-    M.Reflection->SetRelativeLocation(M.ReflectionPos);
-    M.Reflection->SetRelativeRotation(M.ReflectionRot);
-    M.Reflection->SetRelativeScale3D(M.ReflectionScale);
-    M.Reflection->NormalDistortionStrength = 0.0f;
-    M.Reflection->PrefilterRoughness = 0.0f;
-    M.Reflection->DistanceFromPlaneFadeoutStart = 1500.f;
-    M.Reflection->DistanceFromPlaneFadeoutEnd = 0.f;
-    M.Reflection->AngleFromPlaneFadeStart = 90.f;
-    M.Reflection->AngleFromPlaneFadeEnd = 90.f;
-    M.Reflection->PrefilterRoughnessDistance = 10000.f;
-    M.Reflection->ScreenPercentage = M.ScreenPercentage; // change this to reduce quality & improve performance
-    M.Reflection->bShowPreviewPlane = false;
-    M.Reflection->HideComponent(GetMesh());
-    M.Reflection->SetVisibility(true);
-}
-
-void AEgoVehicle::InitDReyeVRMirrors()
-{
-    static ConstructorHelpers::FObjectFinder<UMaterial> MirrorTexture(
-        TEXT("Material'/Game/Carla/Blueprints/Vehicles/DReyeVR/"
-             "Mirror_DReyeVR.Mirror_DReyeVR'"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneSM(TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
-
-    InitializeMirror(RearMirror, MirrorTexture.Object, PlaneSM.Object);
-    InitializeMirror(LeftMirror, MirrorTexture.Object, PlaneSM.Object);
-    InitializeMirror(RightMirror, MirrorTexture.Object, PlaneSM.Object);
-}
-
 FVector AEgoVehicle::GetCameraPosn() const
 {
     return FirstPersonCam->GetComponentLocation();
@@ -363,14 +296,15 @@ void AEgoVehicle::BeginPlay()
 
     // Get information about the world
     World = GetWorld();
-    // const FString SetVRPixelDensity = "vr.PixelDensity " + FString::SanitizeFloat(PixelDensity);
-    // World->Exec(World, *SetVRPixelDensity);
     Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
 
     // Setup the HUD
     AHUD *Raw_HUD = Player->GetHUD();
     HUD = Cast<ADReyeVRHUD>(Raw_HUD);
-    if(HUD) HUD->SetPlayer(Player);
+    if (HUD)
+    {
+        HUD->SetPlayer(Player);
+    }
 
     // Get information about the VR headset
     IsHMDConnected = UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled();
@@ -719,7 +653,7 @@ void AEgoVehicle::DrawSpectatorScreen()
     // Get eye tracker variables
     const FRotator WorldRot = GetCamera()->GetComponentRotation();
     const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
-   
+
     /// TODO: draw other things on the spectator screen?
     if (bDrawSpectatorReticle)
     {
@@ -746,7 +680,6 @@ void AEgoVehicle::DrawSpectatorScreen()
             true                 // use alpha
         );
     }
-    
 }
 
 void AEgoVehicle::UpdateText()
