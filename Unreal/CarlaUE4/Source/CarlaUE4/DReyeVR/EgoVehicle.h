@@ -1,18 +1,17 @@
 #pragma once
 
-#include "Camera/CameraComponent.h"               // UCameraComponent
-#include "Carla/Vehicle/CarlaWheeledVehicle.h"    // Steering, Throttle, Brake, etc.
-#include "Components/AudioComponent.h"            // UAudioComponent
-#include "Components/InputComponent.h"            // InputComponent
-#include "Components/PlanarReflectionComponent.h" // Planar Reflection
-#include "Components/SceneComponent.h"            // USceneComponent
-#include "CoreMinimal.h"                          // Unreal functions
-#include "DReyeVRHUD.h"                           // ADReyeVRHUD
-#include "DReyeVRLevel.h"                         // ADReyeVRLevel
-#include "DReyeVRUtils.h"                         // ReadConfigValue
-#include "EyeTracker.h"                           // AEyeTracker
-#include "ImageUtils.h"                           // CreateTexture2D
-#include "WheeledVehicle.h"                       // VehicleMovementComponent
+#include "Camera/CameraComponent.h"            // UCameraComponent
+#include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
+#include "Components/AudioComponent.h"         // UAudioComponent
+#include "Components/InputComponent.h"         // InputComponent
+#include "Components/SceneComponent.h"         // USceneComponent
+#include "CoreMinimal.h"                       // Unreal functions
+#include "DReyeVRHUD.h"                        // ADReyeVRHUD
+#include "DReyeVRLevel.h"                      // ADReyeVRLevel
+#include "EyeTracker.h"                        // AEyeTracker
+#include "ImageUtils.h"                        // CreateTexture2D
+#include "Mirror.h"                            // AMirror
+#include "WheeledVehicle.h"                    // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
 
@@ -79,13 +78,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void TickLevel(float DeltaSeconds);
     ADReyeVRLevel *DReyeVRLevel = nullptr;
 
-    // For debug purposes
-    void ErrMsg(const FString &message, const bool isFatal);
-
-    // Start recording the data from EyeTrackerSensor
-    void TogglePythonRecording();
-    bool IsRecording = false;
-
   private:
     // Camera Variables
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -145,22 +137,12 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Mirrors
     void InitDReyeVRMirrors();
-    class Mirror
-    {
-      public:
-        bool Enabled;
-        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-        class UStaticMeshComponent *MirrorSM;
-        UPROPERTY(Category = Mirrors, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-        class UPlanarReflectionComponent *Reflection;
-        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
-        FRotator MirrorRot, ReflectionRot;
-        float ScreenPercentage;
-        FString Name;
-        friend class EgoVehicle;
-    };
-    void InitializeMirror(Mirror &M, UMaterial *MirrorTexture, UStaticMesh *SM);
-    Mirror RightMirror, LeftMirror, RearMirror;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    AMirror *RightMirror;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    AMirror *LeftMirror;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    AMirror *RearMirror;
 
     // Cosmetic
     void InitReticleTexture();  // initializes the spectator-reticle texture
