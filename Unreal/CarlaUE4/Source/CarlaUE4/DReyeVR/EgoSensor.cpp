@@ -1,4 +1,4 @@
-#include "EyeTracker.h"
+#include "EgoSensor.h"
 
 #include "Carla/Game/CarlaStatics.h"    // GetEpisode
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
@@ -24,14 +24,14 @@ void throw_exception(const std::exception &e)
 } // namespace carla
 #endif
 
-AEyeTracker::AEyeTracker(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
+AEgoSensor::AEgoSensor(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
-    ReadConfigValue("EyeTracker", "StreamSensorData", StreamSensorData);
-    ReadConfigValue("EyeTracker", "RecordFrames", bCaptureFrameData);
-    ReadConfigValue("EyeTracker", "FrameWidth", FrameCapWidth);
-    ReadConfigValue("EyeTracker", "FrameHeight", FrameCapHeight);
-    ReadConfigValue("EyeTracker", "FrameDir", FrameCapLocation);
-    ReadConfigValue("EyeTracker", "FrameName", FrameCapFilename);
+    ReadConfigValue("EgoSensor", "StreamSensorData", StreamSensorData);
+    ReadConfigValue("EgoSensor", "RecordFrames", bCaptureFrameData);
+    ReadConfigValue("EgoSensor", "FrameWidth", FrameCapWidth);
+    ReadConfigValue("EgoSensor", "FrameHeight", FrameCapHeight);
+    ReadConfigValue("EgoSensor", "FrameDir", FrameCapLocation);
+    ReadConfigValue("EgoSensor", "FrameName", FrameCapFilename);
 
     if (bCaptureFrameData)
     {
@@ -69,7 +69,7 @@ AEyeTracker::AEyeTracker(const FObjectInitializer &ObjectInitializer) : Super(Ob
     }
 }
 
-void AEyeTracker::BeginPlay()
+void AEgoSensor::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -113,7 +113,7 @@ void AEyeTracker::BeginPlay()
         }
     }
 
-    // Register EyeTracker with ActorRegistry
+    // Register EgoSensor with ActorRegistry
     FActorView::IdType ID = 513;
     FActorDescription SensorDescr;
     SensorDescr.Id = "sensor.dreyevr.dreyevrsensor";
@@ -122,7 +122,7 @@ void AEyeTracker::BeginPlay()
     UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR Eye Tracker"));
 }
 
-void AEyeTracker::BeginDestroy()
+void AEgoSensor::BeginDestroy()
 {
     Super::BeginDestroy();
 #if USE_SRANIPAL
@@ -136,35 +136,35 @@ void AEyeTracker::BeginDestroy()
 #endif
 }
 
-void AEyeTracker::SetPlayer(APlayerController *P)
+void AEgoSensor::SetPlayer(APlayerController *P)
 {
     Player = P;
 }
 
-void AEyeTracker::SetCamera(UCameraComponent *FPSCamInEgoVehicle)
+void AEgoSensor::SetCamera(UCameraComponent *FPSCamInEgoVehicle)
 {
     // Assign the FPS camera pointer
     FirstPersonCam = FPSCamInEgoVehicle;
 }
 
-void AEyeTracker::SetInputs(const DReyeVR::UserInputs &inputs)
+void AEgoSensor::SetInputs(const DReyeVR::UserInputs &inputs)
 {
     GetData()->Inputs = inputs;
 }
 
-void AEyeTracker::UpdateEgoVelocity(const float Velocity)
+void AEgoSensor::UpdateEgoVelocity(const float Velocity)
 {
     EgoVelocity = Velocity;
 }
 
-void AEyeTracker::PrePhysTick(float DeltaSeconds)
+void AEgoSensor::PrePhysTick(float DeltaSeconds)
 {
     if (!bIsReplaying) // only update the sensor with local values if not replaying
     {
         // ftime_s is used to get the UE4 (carla) timestamp of the world at this tick
         double ftime_s = UGameplayStatics::GetRealTimeSeconds(World);
         // Get data from the hardware sensor
-        GetData()->UpdateEyeTrackerData(this->TickSensor());
+        GetData()->UpdateEyeTrackerData(this->TickEyeTracker());
 
         // Assign FFocus information
         /// NOTE: the ECC_GameTraceChannel4 line trace allows the trace to ignore the vehicle
@@ -183,7 +183,7 @@ void AEyeTracker::PrePhysTick(float DeltaSeconds)
         // Update the ego velocity
         GetData()->Velocity = EgoVelocity;
         // Update the Carla tick timestamp
-        GetData()->TimestampCarla = int64_t(ftime_s * 1000);
+        GetData()->TimestampCarla = int64_t(ftime_s * 1000); // convert seconds to milliseconds
         if (FirstPersonCam != nullptr)
         {
             // Update the hmd location
@@ -213,7 +213,7 @@ void AEyeTracker::PrePhysTick(float DeltaSeconds)
     TickCount++;
 }
 
-DReyeVR::SRanipalData AEyeTracker::TickSensor()
+DReyeVR::SRanipalData AEgoSensor::TickEyeTracker()
 {
     DReyeVR::SRanipalData EyeSensorData;
     auto Combined = &(EyeSensorData.Combined);
@@ -280,47 +280,17 @@ DReyeVR::SRanipalData AEyeTracker::TickSensor()
 /// ========================================== ///
 /// ---------------:GETTERS:------------------ ///
 /// ========================================== ///
-FVector AEyeTracker::GetCenterGazeRay() const
+DReyeVR::SRanipalData *AEgoSensor::GetEyeTrackerData() const
 {
-    return GetData()->Combined.GazeRay;
-}
-
-FVector AEyeTracker::GetCenterOrigin() const
-{
-    return GetData()->Combined.Origin;
-}
-
-float AEyeTracker::GetVergence() const
-{
-    return GetData()->Combined.Vergence;
-}
-
-FVector AEyeTracker::GetLeftGazeRay() const
-{
-    return GetData()->Left.GazeRay;
-}
-
-FVector AEyeTracker::GetLeftOrigin() const
-{
-    return GetData()->Left.Origin;
-}
-
-FVector AEyeTracker::GetRightGazeRay() const
-{
-    return GetData()->Right.GazeRay;
-}
-
-FVector AEyeTracker::GetRightOrigin() const
-{
-    return GetData()->Right.Origin;
+    return this->GetData();
 }
 
 /// ========================================== ///
 /// ---------------:HELPERS:------------------ ///
 /// ========================================== ///
 
-bool AEyeTracker::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DReyeVR::FocusInfo &F,
-                                        const float radius = 0.f)
+bool AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DReyeVR::FocusInfo &F,
+                                       const float radius = 0.f)
 {
     if (Player == nullptr) // required for line trace
         return false;
@@ -363,7 +333,7 @@ bool AEyeTracker::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DR
 
 // Calculate the distance from the origin (between both eyes) to the focus point
 /// NOTE: requires SRanipal (and therefore Windows)
-float AEyeTracker::CalculateVergenceFromDirections() const
+float AEgoSensor::CalculateVergenceFromDirections() const
 {
 #if USE_SRANIPAL
     // Compute intersection of the rays in 3D space to compute distance to that point

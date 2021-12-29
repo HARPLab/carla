@@ -323,12 +323,12 @@ void AEgoVehicle::BeginPlay()
     FActorSpawnParameters EyeTrackerSpawnInfo;
     EyeTrackerSpawnInfo.Owner = this;
     EyeTrackerSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    EyeTrackerSensor = World->SpawnActor<AEyeTracker>(FirstPersonCam->GetComponentLocation(),
-                                                      FRotator(0.0f, 0.0f, 0.0f), EyeTrackerSpawnInfo);
-    // Attach the EyeTrackerSensor as a child to the EgoVehicle BP
-    EyeTrackerSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
-    EyeTrackerSensor->SetPlayer(Player);
-    EyeTrackerSensor->SetCamera(FirstPersonCam);
+    EgoSensor = World->SpawnActor<AEyeTracker>(FirstPersonCam->GetComponentLocation(), FRotator(0.0f, 0.0f, 0.0f),
+                                               EyeTrackerSpawnInfo);
+    // Attach the EgoSensor as a child to the EgoVehicle BP
+    EgoSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+    EgoSensor->SetPlayer(Player);
+    EgoSensor->SetCamera(FirstPersonCam);
 
     // Enable VR spectator screen & eye reticle
     if (!bEnableSpectatorScreen)
@@ -390,8 +390,8 @@ void AEgoVehicle::Register()
 void AEgoVehicle::BeginDestroy()
 {
     // destroy all spawned entities
-    if (EyeTrackerSensor)
-        EyeTrackerSensor->Destroy();
+    if (EgoSensor)
+        EgoSensor->Destroy();
 
     Super::BeginDestroy();
 }
@@ -453,32 +453,33 @@ void AEgoVehicle::Tick(float DeltaSeconds)
 void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
     // Compute World positions and orientations
-    EyeTrackerSensor->SetInputs(VehicleInputs);
-    EyeTrackerSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
+    EgoSensor->SetInputs(VehicleInputs);
+    EgoSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
     // clear inputs to be updated on the next tick
     VehicleInputs.Clear();
 
-    // Calculate gaze data
+    // Calculate gaze data using eye tracker data
+    const DReyeVR::SRanipalData *EyeData = EgoSensor->GetEyeTrackerData();
     // Compute World positions and orientations
     const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
     const FVector WorldPos = FirstPersonCam->GetComponentLocation();
 
     // First get the gaze origin and direction and vergence from the EyeTracker Sensor
-    const float Vergence = EyeTrackerSensor->GetVergence(); // vergence already in m
+    const float Vergence = EyeData->GetEyeVergence(); // vergence already in m
     // scaling gaze ray to world units
     const float UE4MeterScale = UHeadMountedDisplayFunctionLibrary::GetWorldToMetersScale(World);
 
     // Both eyes
-    CombinedGaze = Vergence * UE4MeterScale * EyeTrackerSensor->GetCenterGazeRay();
-    CombinedOrigin = WorldRot.RotateVector(EyeTrackerSensor->GetCenterOrigin()) + WorldPos;
+    CombinedGaze = Vergence * UE4MeterScale * EyeData->GetCombinedGazeDir();
+    CombinedOrigin = WorldRot.RotateVector(EyeData->GetCombinedGazeOrigin()) + WorldPos;
 
     // Left eye
-    LeftGaze = UE4MeterScale * EyeTrackerSensor->GetLeftGazeRay();
-    LeftOrigin = WorldRot.RotateVector(EyeTrackerSensor->GetLeftOrigin()) + WorldPos;
+    LeftGaze = UE4MeterScale * EyeData->GetLeftGazeDir();
+    LeftOrigin = WorldRot.RotateVector(EyeData->GetLeftGazeOrigin()) + WorldPos;
 
     // Right eye
-    RightGaze = UE4MeterScale * EyeTrackerSensor->GetRightGazeRay();
-    RightOrigin = WorldRot.RotateVector(EyeTrackerSensor->GetRightOrigin()) + WorldPos;
+    RightGaze = UE4MeterScale * EyeData->GetRightGazeDir();
+    RightOrigin = WorldRot.RotateVector(EyeData->GetRightGazeOrigin()) + WorldPos;
 }
 
 /// ========================================== ///

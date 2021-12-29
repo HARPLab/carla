@@ -4,7 +4,7 @@
 #include "Carla/Sensor/DReyeVRSensorData.h"     // DReyeVRSensorData
 #include "Components/SceneCaptureComponent2D.h" // USceneCaptureComponent2D
 #include "CoreMinimal.h"
-#include "DReyeVRUtils.h"
+#include "Utils.h"
 #include <chrono> // timing threads
 #include <cstdint>
 
@@ -28,27 +28,20 @@
 #include "SRanipalEye_Framework.h"
 #endif
 
-#include "EyeTracker.generated.h"
+#include "EgoSensor.generated.h"
 
 UCLASS()
-class CARLAUE4_API AEyeTracker : public ADReyeVRSensor
+class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 {
     GENERATED_BODY()
 
   public:
-    AEyeTracker(const FObjectInitializer &ObjectInitializer);
+    AEgoSensor(const FObjectInitializer &ObjectInitializer);
 
     void PrePhysTick(float DeltaSeconds);
     int64_t TickCount = 0;
 
-    // Getters of low level Eye Tracking data
-    FVector GetCenterGazeRay() const;
-    FVector GetCenterOrigin() const;
-    float GetVergence() const;
-    FVector GetLeftGazeRay() const;
-    FVector GetLeftOrigin() const;
-    FVector GetRightGazeRay() const;
-    FVector GetRightOrigin() const;
+    DReyeVR::SRanipalData *GetEyeTrackerData() const;
 
     // getters from EgoVehicle
     void SetPlayer(APlayerController *P);
@@ -69,15 +62,15 @@ class CARLAUE4_API AEyeTracker : public ADReyeVRSensor
 #if USE_SRANIPAL
     SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
     SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
-    ViveSR::anipal::Eye::EyeData *EyeData;     // SRanipal_Eyes_Enums.h
+    ViveSR::anipal::Eye::EyeData *EyeData;    // SRanipal_Eyes_Enums.h
 #endif
-    int64_t TimestampRef;               // reference timestamp (ms) since the hmd started ticking
-    DReyeVR::SRanipalData TickSensor(); // tick hardware sensor (should be const function?)
+    int64_t TimestampRef;                   // reference timestamp (ms) since the hmd started ticking
+    DReyeVR::SRanipalData TickEyeTracker(); // tick hardware sensor (should be a const function?)
 
     // Ego velocity is tracked bc it is hard to reprouce with a variable timestamp
     float EgoVelocity = 0.f;
 
-    // Frame cap helpers
+    // Frame capture
     class UTextureRenderTarget2D *CaptureRenderTarget = nullptr;
     class USceneCaptureComponent2D *FrameCap = nullptr;
     FString FrameCapLocation; // relative to game dir

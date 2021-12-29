@@ -9,7 +9,7 @@
 #include "DReyeVRHUD.h"                        // ADReyeVRHUD
 #include "DReyeVRLevel.h"                      // ADReyeVRLevel
 #include "DReyeVRUtils.h"                      // ReadConfigValue
-#include "EyeTracker.h"                        // AEyeTracker
+#include "EgoSensor.h"                         // AEgoSensor
 #include "ImageUtils.h"                        // CreateTexture2D
 #include "WheeledVehicle.h"                    // VehicleMovementComponent
 #include <stdio.h>
@@ -78,13 +78,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void TickLevel(float DeltaSeconds);
     ADReyeVRLevel *DReyeVRLevel = nullptr;
 
-    // For debug purposes
-    void ErrMsg(const FString &message, const bool isFatal);
-
-    // Start recording the data from EyeTrackerSensor
-    void TogglePythonRecording();
-    bool IsRecording = false;
-
   private:
     // Camera Variables
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -105,9 +98,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void CameraDown();
 
     // Sensor Components
-    UPROPERTY(Category = DReyeVR, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class AEyeTracker *EyeTrackerSensor; // custom sensor class that holds all our data
-    DReyeVR::UserInputs VehicleInputs;   // struct for user inputs
+    class AEgoSensor *EgoSensor;       // custom sensor class that holds all our DReyeVR data
+    DReyeVR::UserInputs VehicleInputs; // struct for user inputs
     void UpdateSensor(const float DeltaTime);
     void DebugLines() const;
 
