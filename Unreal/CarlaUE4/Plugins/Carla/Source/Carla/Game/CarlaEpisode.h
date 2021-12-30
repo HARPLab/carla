@@ -257,6 +257,8 @@ public:
   UFUNCTION(BlueprintCallable)
   bool DestroyActor(AActor *Actor)
   {
+      if (Actor->GetName().ToLower().Contains("dreyevr"))
+        return false; // don't destroy the DReyeVR EgoVehicle!
       if (Recorder->IsEnabled())
       {
         // recorder event

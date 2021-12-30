@@ -104,6 +104,8 @@ void FActorRegistry::Deregister(AActor *Actor)
 {
   check(Actor != nullptr);
   auto View = Find(Actor);
+  if (!View.IsValid())
+    return;
   check(View.GetActor() == Actor);
   Deregister(View.GetActorId());
 }
