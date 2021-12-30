@@ -44,19 +44,6 @@ struct UserInputs
     bool TurnSignalRight = false;
     bool HoldHandbrake = false;
     // Add more inputs here!
-
-    // helper functions
-    void Clear()
-    {
-        // clear all inputs to their original values
-        Throttle = 0.f;
-        Steering = 0.f;
-        Brake = 0.f;
-        ToggledReverse = false;
-        TurnSignalLeft = false;
-        TurnSignalRight = false;
-        HoldHandbrake = false;
-    }
 };
 
 struct FocusInfo
@@ -334,7 +321,7 @@ class SensorData // everything being held by this sensor
     FVector CameraLocation = FVector::ZeroVector;    // initialized as {0,0,0}
     FRotator CameraRotation = FRotator::ZeroRotator; // initialized to {0,0,0}
     // Ego variables
-    float EgoVehicleVelocity;
+    float EgoVehicleVelocity; // note this is in cm/s (default UE4 units)
     // FFocusInfo data
     FString FocusActorNameTag = "None";               // Tag of the actor being focused on
     FVector FocusActorHitPoint = FVector::ZeroVector; // Hit point of the Focus Actor

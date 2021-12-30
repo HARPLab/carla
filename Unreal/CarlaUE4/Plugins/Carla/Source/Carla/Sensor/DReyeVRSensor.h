@@ -48,7 +48,6 @@ class CARLA_API ADReyeVRSensor : public ASensor
 
     static bool bIsReplaying;
     static FTransform EgoReplayTransform;
-    static float EgoReplayVelocity;
 
   protected:
     void BeginPlay() override;

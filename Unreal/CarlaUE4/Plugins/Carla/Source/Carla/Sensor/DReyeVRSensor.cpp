@@ -127,7 +127,6 @@ void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSec
 //  replaying files to animate gaze ray data
 bool ADReyeVRSensor::bIsReplaying = false; // not replaying initially
 FTransform ADReyeVRSensor::EgoReplayTransform = FTransform(FRotator(0, 0, 0), FVector(0, 0, 0), FVector(1, 1, 1));
-float ADReyeVRSensor::EgoReplayVelocity = 0;
 
 void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &RecorderData, const FTransform &EgoTrans,
                                       const double Per)
@@ -135,7 +134,6 @@ void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &RecorderData, c
     // update global values
     ADReyeVRSensor::bIsReplaying = true;
     ADReyeVRSensor::EgoReplayTransform = EgoTrans;
-    ADReyeVRSensor::EgoReplayVelocity = RecorderData.EgoVelocity();
     if (ADReyeVRSensor::Data != nullptr)
     {
         // update local values

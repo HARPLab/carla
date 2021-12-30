@@ -457,8 +457,11 @@ void AEgoVehicle::Tick(float DeltaSeconds)
 void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
     // Compute World positions and orientations
-    EgoSensor->SetInputs(VehicleInputs);
-    EgoSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
+    if (!ADReyeVRSensor::bIsReplaying)
+    {
+        EgoSensor->SetInputs(VehicleInputs);
+        EgoSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
+    }
     VehicleInputs = {}; // clear inputs to be updated on the next tick
 
     // Calculate gaze data using eye tracker data
@@ -694,10 +697,18 @@ void AEgoVehicle::UpdateText()
     float MPH;
     if (ADReyeVRSensor::bIsReplaying)
     {
-        MPH = ADReyeVRSensor::EgoReplayVelocity * 0.0223694f; // cm/s to mph
+        MPH = EgoSensor->GetData()->EgoVelocity() * 0.0223694f; // cm/s to mph
+        if (EgoSensor->GetData()->UserInputs().ToggledReverse)
+            bReverse = !bReverse;
+        if (EgoSensor->GetData()->UserInputs().TurnSignalLeft)
+            LeftSignalTimeToDie = FPlatformTime::Seconds() + TurnSignalDuration;
+        if (EgoSensor->GetData()->UserInputs().TurnSignalRight)
+            RightSignalTimeToDie = FPlatformTime::Seconds() + TurnSignalDuration;
     }
     else
+    {
         MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
+    }
 
     const FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
     Speedometer->SetText(FText::FromString(Data));
