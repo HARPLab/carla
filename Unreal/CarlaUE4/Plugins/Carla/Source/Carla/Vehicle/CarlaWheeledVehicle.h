@@ -206,7 +206,8 @@ public:
 
   void SetWheelsFrictionScale(TArray<float> &WheelsFrictionScale);
 
-  virtual void SetVolume(const float Mult);
+  static float NonEgoVolume;
+  virtual void SetVolume(const float VolumeIn);
   /// @}
   // ===========================================================================
   /// @name Overriden from AActor

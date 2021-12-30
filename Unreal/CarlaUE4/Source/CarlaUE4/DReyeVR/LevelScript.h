@@ -27,6 +27,12 @@ class ADReyeVRLevel : public ALevelScriptActor
     bool FindEgoVehicle();
 
     // EgoVehicle functions
+    enum DRIVER
+    {
+        HUMAN,
+        SPECTATOR,
+        AI,
+    } ControlMode;
     void PossessEgoVehicle();
     void PossessSpectator();
     void HandoffDriverToAI();
@@ -40,14 +46,7 @@ class ADReyeVRLevel : public ALevelScriptActor
     void DecrTimestep();
 
     // Meta world functions
-    void ToggleMute();
-    void ToggleGazeHUD();
-    enum DRIVER
-    {
-        HUMAN,
-        SPECTATOR,
-        AI,
-    } ControlMode;
+    void SetVolume();
 
   private:
     // for handling inputs and possessions
@@ -59,8 +58,8 @@ class ADReyeVRLevel : public ALevelScriptActor
     APawn *SpectatorPtr = nullptr;
     AEgoVehicle *EgoVehiclePtr = nullptr;
 
-    // for muting all the world sounds
-    bool bIsMuted = false;
-    const float EgoVehicleMaxVolume = 0.8f;
-    const float NonEgoMaxVolume = 0.4f;
+    // for audio control
+    float EgoVolumePercent;
+    float NonEgoVolumePercent;
+    float AmbientVolumePercent;
 };

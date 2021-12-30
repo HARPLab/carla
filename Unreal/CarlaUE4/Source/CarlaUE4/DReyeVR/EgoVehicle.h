@@ -47,6 +47,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     // Called to bind functionality to input
     virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
     void SetLevel(ADReyeVRLevel *Level);
+    void SetVolume(const float VolumeIn);
 
     FVector GetCameraOffset() const;
 
@@ -60,8 +61,9 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     const USceneComponent *GetVRCameraRoot() const;
     USceneComponent *GetVRCameraRoot();
 
-    void PlayGearShiftSound(const float DelayBeforePlay = 0.f);
-    void PlayTurnSignalSound(const float DelayBeforePlay = 0.f);
+    void PlayGearShiftSound(const float DelayBeforePlay = 0.f) const;
+    void PlayTurnSignalSound(const float DelayBeforePlay = 0.f) const;
+    void PlayCrashSound(const float DelayBeforePlay = 0.f) const;
 
     void ReplayUpdate();
 

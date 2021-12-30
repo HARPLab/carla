@@ -47,6 +47,7 @@ ACarlaWheeledVehicle::ACarlaWheeledVehicle(const FObjectInitializer& ObjectIniti
   InitSounds();
 }
 
+float ACarlaWheeledVehicle::NonEgoVolume = 1.f;
 void ACarlaWheeledVehicle::InitSounds()
 {
   // add all sounds here
@@ -58,6 +59,7 @@ void ACarlaWheeledVehicle::InitSounds()
   EngineRevSound->SetRelativeLocation(EngineLocnInVehicle); // location of "engine" in vehicle (3D sound)
   EngineRevSound->SetFloatParameter(FName("RPM"), 0.f);     // initially idle
   EngineRevSound->Play();
+  SetVolume(ACarlaWheeledVehicle::NonEgoVolume);
 }
 
 ACarlaWheeledVehicle::~ACarlaWheeledVehicle() {}
@@ -153,12 +155,10 @@ void ACarlaWheeledVehicle::SoundUpdate()
   }
 }
 
-void ACarlaWheeledVehicle::SetVolume(const float Mult)
+void ACarlaWheeledVehicle::SetVolume(const float VolumeIn)
 {
   if (EngineRevSound)
-  {
-      EngineRevSound->SetVolumeMultiplier(Mult);
-  }
+      EngineRevSound->SetVolumeMultiplier(VolumeIn);
 }
 
 void ACarlaWheeledVehicle::AdjustVehicleBounds()

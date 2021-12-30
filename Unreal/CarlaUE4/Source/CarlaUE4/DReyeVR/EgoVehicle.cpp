@@ -232,20 +232,33 @@ void AEgoVehicle::InitDReyeVRSounds()
     CrashSound->SetSound(CarCrashSound.Object);
 }
 
-void AEgoVehicle::PlayGearShiftSound(const float DelayBeforePlay)
+void AEgoVehicle::PlayGearShiftSound(const float DelayBeforePlay) const
 {
     if (this->GearShiftSound)
-    {
         GearShiftSound->Play(DelayBeforePlay);
-    }
 }
 
-void AEgoVehicle::PlayTurnSignalSound(const float DelayBeforePlay)
+void AEgoVehicle::PlayTurnSignalSound(const float DelayBeforePlay) const
 {
     if (this->TurnSignalSound)
-    {
         this->TurnSignalSound->Play(DelayBeforePlay);
-    }
+}
+
+void AEgoVehicle::PlayCrashSound(const float DelayBeforePlay) const
+{
+    if (this->CrashSound)
+        this->CrashSound->Play(DelayBeforePlay);
+}
+
+void AEgoVehicle::SetVolume(const float VolumeIn)
+{
+    if (GearShiftSound)
+        GearShiftSound->SetVolumeMultiplier(VolumeIn);
+    if (TurnSignalSound)
+        TurnSignalSound->SetVolumeMultiplier(VolumeIn);
+    if (CrashSound)
+        CrashSound->SetVolumeMultiplier(VolumeIn);
+    Super::SetVolume(VolumeIn);
 }
 
 FVector AEgoVehicle::GetCameraPosn() const
