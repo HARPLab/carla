@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Camera/CameraComponent.h"            // UCameraComponent
+#include "Carla/Game/CarlaEpisode.h"           // CarlaEpisode
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
 #include "Components/AudioComponent.h"         // UAudioComponent
 #include "Components/InputComponent.h"         // InputComponent
@@ -67,8 +68,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
   protected:
     // Called when the game starts (spawned) or ends (destroyed)
     virtual void BeginPlay() override;
-    void Register();
     virtual void BeginDestroy() override;
+    void Register();
 
     // World variables
     class UWorld *World;
@@ -186,4 +187,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void InitVehicleMovement();
     bool IsHMDConnected = false;  // checks for HMD connection on BeginPlay
     bool IsLogiConnected = false; // check if Logi device is connected (on BeginPlay)
+
+    // Actor registry
+    int EgoVehicleID = 512;
+    UCarlaEpisode *Episode = nullptr;
 };

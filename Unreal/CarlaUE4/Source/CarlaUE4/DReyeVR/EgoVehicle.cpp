@@ -297,6 +297,7 @@ void AEgoVehicle::BeginPlay()
     // Get information about the world
     World = GetWorld();
     Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
+    Episode = UCarlaStatics::GetCurrentEpisode(World);
 
     // Setup the HUD
     AHUD *Raw_HUD = Player->GetHUD();
@@ -369,9 +370,11 @@ void AEgoVehicle::BeginPlay()
 void AEgoVehicle::Register()
 {
     /// TODO: parametrize
-    FActorView::IdType ID = 512;
+    FActorView::IdType ID = EgoVehicleID;
     FActorDescription Description;
+    Description.Class = ACarlaWheeledVehicle::StaticClass();
     Description.Id = "vehicle.dreyevr.egovehicle";
+    Description.UId = ID;
     // ensure this vehicle is denoted by the 'hero' attribute
     FActorAttribute HeroRole;
     HeroRole.Id = "role_name";
@@ -384,7 +387,8 @@ void AEgoVehicle::Register()
     NumWheels.Type = EActorAttributeType::Int;
     NumWheels.Value = "4";
     Description.Variations.Add(NumWheels.Id, std::move(NumWheels));
-    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, Description, ID);
+    FString Tags = "EgoVehicle,DReyeVR";
+    Episode->RegisterActor(*this, Description, Tags, ID);
 }
 
 void AEgoVehicle::BeginDestroy()
@@ -455,8 +459,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     // Compute World positions and orientations
     EgoSensor->SetInputs(VehicleInputs);
     EgoSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
-    // clear inputs to be updated on the next tick
-    VehicleInputs.Clear();
+    VehicleInputs = {}; // clear inputs to be updated on the next tick
 
     // Calculate gaze data using eye tracker data
     const DReyeVR::SensorData *Data = EgoSensor->GetData();

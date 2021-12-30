@@ -118,7 +118,8 @@ void AEgoSensor::BeginPlay()
     FActorView::IdType ID = 513;
     FActorDescription SensorDescr;
     SensorDescr.Id = "sensor.dreyevr.dreyevrsensor";
-    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, ID);
+    FString Tags = "EgoSensor,DReyeVR";
+    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, Tags, ID);
 
     UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR Eye Tracker"));
 }

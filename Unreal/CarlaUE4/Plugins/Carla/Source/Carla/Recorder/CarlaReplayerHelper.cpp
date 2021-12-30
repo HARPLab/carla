@@ -19,24 +19,6 @@
 #include "Carla/Sensor/DReyeVRSensor.h"
 #include "Carla/Sensor/DReyeVRSensorData.h"
 
-bool CarlaReplayerHelper::FindDReyeVREgoVehicle()
-{
-  UE_LOG(LogCarla, Log, TEXT("Looking for DReyeVR EgoVehicle in registry"));
-  auto Registry = Episode->GetActorRegistry();
-  for (auto It = Registry.begin(); It != Registry.end(); It++) 
-  {
-    FString ActorTag = It->GetActorInfo()->Description.Id;
-    if (ActorTag.Equals("vehicle.dreyevr.egovehicle")) 
-    {
-      this->EgoVehicleID = It->GetActorId();
-      UE_LOG(LogCarla, Log, TEXT("Found EgoVehicle in registry with id: %d"), EgoVehicleID);
-      return true;
-    }
-  }
-  UE_LOG(LogCarla, Error, TEXT("ERROR: EgoVehicle not found in registry!"));
-  return false;
-}
-
 // create or reuse an actor for replaying
 std::pair<int, FActorView>CarlaReplayerHelper::TryToCreateReplayerActor(
     FVector &Location,
@@ -287,16 +269,9 @@ bool CarlaReplayerHelper::ProcessReplayerPosition(CarlaRecorderPosition Pos1, Ca
     }
     // set new transform
     FTransform Trans(Rotation, Location, FVector(1, 1, 1));
-    // check if this actor is the DReyeVR ego-vehicle, if so keep track of its current/prev locations
-    /// NOTE: if the EgoVehicleID == -1, then it has not been set before and we'll need to find it
-    if (EgoVehicleID < 0 || !Episode->GetActorRegistry().Contains(EgoVehicleID))
-    {
-      check(FindDReyeVREgoVehicle());
-      check(EgoVehicleID >= 0); // assigned a valid number
-      check(Episode->GetActorRegistry().Contains(EgoVehicleID));
-    }
 
-    if (Pos1.DatabaseId == EgoVehicleID)
+    /// TODO: ensure there is only one DReyeVR ego vehicle in the world
+    if (Actor->GetName().ToLower().Contains("dreyevr"))
     {
       /// NOTE: for our DReyeVR ego-vehicle which is unique, apply its
       // positional updates (transform & rotation) in EgoVehicle.cpp's tick

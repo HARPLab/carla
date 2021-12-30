@@ -26,6 +26,7 @@ from no_rendering_mode import (
     COLOR_SCARLET_RED_1,
     World,
     main,
+    game_loop,
 )
 
 import carla
@@ -82,6 +83,12 @@ class DReyeVRWorld(World):
         )
         # render additional eye tracker components
         self.render_eye_tracker(surface, self.map_image.world_to_pixel)
+
+
+def schematic_run(args):
+    # used when isolated and run in a script such as run_experiment.py
+    no_rendering_mode.World = DReyeVRWorld  # hack to make the no_rendering_mode game_loop use the new DReyeVRWorld
+    game_loop(args)
 
 
 if __name__ == "__main__":
