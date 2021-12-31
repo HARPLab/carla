@@ -27,7 +27,7 @@ void throw_exception(const std::exception &e)
 
 AEgoSensor::AEgoSensor(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
-    ReadConfigValue("EgoSensor", "StreamSensorData", StreamSensorData);
+    ReadConfigValue("EgoSensor", "StreamSensorData", bStreamData);
     ReadConfigValue("EgoSensor", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("EgoSensor", "FrameWidth", FrameCapWidth);
     ReadConfigValue("EgoSensor", "FrameHeight", FrameCapHeight);

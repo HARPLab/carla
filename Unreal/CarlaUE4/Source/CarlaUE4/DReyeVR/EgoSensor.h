@@ -1,7 +1,7 @@
 #pragma once
 
+#include "Carla/Sensor/DReyeVRData.h"           // DReyeVR namespace
 #include "Carla/Sensor/DReyeVRSensor.h"         // DReyeVRSensor
-#include "Carla/Sensor/DReyeVRSensorData.h"     // DReyeVRSensorData
 #include "Components/SceneCaptureComponent2D.h" // USceneCaptureComponent2D
 #include "CoreMinimal.h"
 #include <chrono> // timing threads
@@ -61,7 +61,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
   private:
     int64_t TickCount = 0;    // how many ticks have been executed
     int64_t TimestampRef = 0; // reference timestamp (ms) since the hmd started ticking
-    // Local instances of DReyeVR::SensorData fields for internal use and eventual copying
+    // Local instances of DReyeVR::AggregateData fields for internal use and eventual copying
     DReyeVR::SRanipalData EyeSensorData;
     DReyeVR::UserInputs InputData;
     DReyeVR::FocusInfo FocusInfoData;

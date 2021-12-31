@@ -478,7 +478,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     else
     {
         // this gets reached when the simulator is replaying data from a carla log
-        const DReyeVR::SensorData *Replay = EgoSensor->GetData();
+        const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
         // assign first person camera orientation and location
         FirstPersonCam->SetRelativeRotation(Replay->GetCameraRotation(), false, nullptr, ETeleportType::None);
         FirstPersonCam->SetRelativeLocation(Replay->GetCameraLocation(), false, nullptr, ETeleportType::None);
@@ -486,7 +486,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     VehicleInputs = {}; // clear inputs to be updated on the next tick
 
     // Calculate gaze data using eye tracker data
-    const DReyeVR::SensorData *Data = EgoSensor->GetData();
+    const DReyeVR::AggregateData *Data = EgoSensor->GetData();
     // Compute World positions and orientations
     const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
     const FVector WorldPos = FirstPersonCam->GetComponentLocation();
@@ -717,7 +717,7 @@ void AEgoVehicle::UpdateDash()
     float MPH;
     if (ADReyeVRSensor::bIsReplaying)
     {
-        const DReyeVR::SensorData *Replay = EgoSensor->GetData();
+        const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
         MPH = Replay->GetEgoVelocity() * 0.0223694f; // cm/s to mph
         if (Replay->GetUserInputs().ToggledReverse)
         {

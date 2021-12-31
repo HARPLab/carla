@@ -1,8 +1,7 @@
-#include "Carla/Sensor/DReyeVRSensor.h"
-#include "Carla.h"
-#include "Carla/Actor/ActorBlueprintFunctionLibrary.h"
-#include "Carla/Game/CarlaEpisode.h"
-#include "Carla/Game/CarlaStatics.h" // GetGameInstance
+#include "Carla/Sensor/DReyeVRSensor.h"                // ADReyeVRSensor
+#include "Carla.h"                                     // all carla things
+#include "Carla/Actor/ActorBlueprintFunctionLibrary.h" // MakeGenericSensorDefinition
+#include "Carla/Game/CarlaStatics.h"                   // GetGameInstance
 
 #include <sstream>
 #include <string>
@@ -12,13 +11,13 @@
 #include "carla/geom/Vector3D.h"
 #include "carla/sensor/s11n/DReyeVRSerializer.h" // DReyeVRSerializer::Data
 
-class DReyeVR::SensorData *ADReyeVRSensor::Data = nullptr;
+class DReyeVR::AggregateData *ADReyeVRSensor::Data = nullptr;
 
 ADReyeVRSensor::ADReyeVRSensor(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
     // no need for any other initialization
     PrimaryActorTick.bCanEverTick = true;
-    ADReyeVRSensor::Data = new DReyeVR::SensorData();
+    ADReyeVRSensor::Data = new DReyeVR::AggregateData();
 }
 
 FActorDefinition ADReyeVRSensor::GetSensorDefinition()
@@ -69,7 +68,7 @@ void ADReyeVRSensor::BeginDestroy()
 void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSeconds)
 {
     /// NOTE: this function defines the routine for streaming data to the PythonAPI
-    if (!this->StreamSensorData) // param for enabling or disabling the data streaming
+    if (!this->bStreamData) // param for enabling or disabling the data streaming
         return;
     auto Stream = GetDataStream(*this);
 
@@ -139,13 +138,12 @@ void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSec
                 });
 }
 
-/////////////////////////:DREYEVRSENSORDATA://////////////////////////////
 /// NOTE: this to define the static variables that are set by the replayer when
 //  replaying files to animate gaze ray data
 bool ADReyeVRSensor::bIsReplaying = false; // not replaying initially
 FTransform ADReyeVRSensor::EgoReplayTransform = FTransform(FRotator(0, 0, 0), FVector(0, 0, 0), FVector(1, 1, 1));
 
-void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &RecorderData, const FTransform &EgoTrans,
+void ADReyeVRSensor::UpdateReplayData(const DReyeVR::AggregateData &RecorderData, const FTransform &EgoTrans,
                                       const double Per)
 {
     // update global values

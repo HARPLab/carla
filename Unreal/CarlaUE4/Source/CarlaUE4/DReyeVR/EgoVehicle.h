@@ -2,6 +2,7 @@
 
 #include "Camera/CameraComponent.h"            // UCameraComponent
 #include "Carla/Game/CarlaEpisode.h"           // CarlaEpisode
+#include "Carla/Sensor/DReyeVRData.h"          // DReyeVR namespace
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
 #include "Components/AudioComponent.h"         // UAudioComponent
 #include "Components/InputComponent.h"         // InputComponent
@@ -174,9 +175,12 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     // Audio components
     void InitDReyeVRSounds();
     // void SoundUpdate(); // handled in parent class (with Engine rev)
-    class UAudioComponent *GearShiftSound;  // nice for toggling reverse
+    UPROPERTY(Category = Audio, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UAudioComponent *GearShiftSound; // nice for toggling reverse
+    UPROPERTY(Category = Audio, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UAudioComponent *TurnSignalSound; // good for turn signals
-    class UAudioComponent *CrashSound;      // crashing with another actor
+    UPROPERTY(Category = Audio, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UAudioComponent *CrashSound; // crashing with another actor
 
     // Eye gaze variables
     bool bDrawDebugEditor = false;

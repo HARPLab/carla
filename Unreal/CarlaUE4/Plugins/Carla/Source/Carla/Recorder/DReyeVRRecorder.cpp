@@ -1,33 +1,16 @@
-// Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma
-// de Barcelona (UAB).
-//
-// This work is licensed under the terms of the MIT license.
-// For a copy, see <https://opensource.org/licenses/MIT>.
-
 #include "DReyeVRRecorder.h"
 #include "CarlaRecorder.h"
 #include "CarlaRecorderHelpers.h"
 
-/// ========================================== ///
-/// ---------------:READERS:------------------ ///
-/// ========================================== ///
 void DReyeVRDataRecorder::Read(std::ifstream &InFile)
 {
     Data.Read(InFile);
 }
 
-/// ========================================== ///
-/// ---------------:WRITERS:------------------ ///
-/// ========================================== ///
-
 void DReyeVRDataRecorder::Write(std::ofstream &OutFile) const
 {
     Data.Write(OutFile);
 }
-
-/// ========================================== ///
-/// ---------------:PRINTING:----------------- ///
-/// ========================================== ///
 
 std::string DReyeVRDataRecorder::Print() const
 {
@@ -63,8 +46,6 @@ void DReyeVRDataRecorders::Write(std::ofstream &OutFile)
 
     for (auto &Snapshot : AllData)
         Snapshot.Write(OutFile);
-
-    /// TODO: check if we need this? or can just write Total * sizeof(DReyeVRData)
 
     // write the real packet size
     std::streampos PosEnd = OutFile.tellp();

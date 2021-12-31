@@ -180,10 +180,10 @@ enum class Eye
     LEFT,
 };
 
-class SensorData // everything being held by this sensor
+class AggregateData // all DReyeVR sensor data is held here
 {
   public:
-    SensorData() = default;
+    AggregateData() = default;
     /////////////////////////:GETTERS://////////////////////////////
 
     int64_t GetTimestampCarla() const
@@ -289,7 +289,7 @@ class SensorData // everything being held by this sensor
         }
     }
 
-    // from SensorData
+    // from AggregateData
     const FVector &GetCameraLocation() const
     {
         return CameraLocation;

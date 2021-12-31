@@ -24,7 +24,7 @@ class DReyeVRSerializer
     struct Data
     {
         /// EW: this is gross but necessary for the MSGPACK array
-        /// TODO: refactor this struct to contain smaller structs similar to DReyeVR::SensorData
+        /// TODO: refactor this struct to contain smaller structs similar to DReyeVR::AggregateData
         /// NOTE: this is missing some fields that can totally be added, but you get the idea.
         // Step 1: add new field field here in Data struct
         // Step 2: add new field in MSGPACK_DEFINE_ARRAY) in the SAME ORDER

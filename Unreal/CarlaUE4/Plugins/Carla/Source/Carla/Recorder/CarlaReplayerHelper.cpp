@@ -17,7 +17,7 @@
 
 // DReyeVR include
 #include "Carla/Sensor/DReyeVRSensor.h"
-#include "Carla/Sensor/DReyeVRSensorData.h"
+#include "Carla/Sensor/DReyeVRData.h"
 
 // create or reuse an actor for replaying
 std::pair<int, FActorView>CarlaReplayerHelper::TryToCreateReplayerActor(
