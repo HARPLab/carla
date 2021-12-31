@@ -256,8 +256,8 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
     check(Player != nullptr);            // required for line trace
     const float maxDist = 100.f * 100.f; // 100m
 
-    const FRotator WorldRot = GetData()->GetHMDRotation();
-    const FVector WorldPos = GetData()->GetHMDLocation();
+    const FRotator &WorldRot = GetData()->GetCameraRotation();
+    const FVector &WorldPos = GetData()->GetCameraLocation();
     const FVector GazeOrigin = WorldRot.RotateVector(GetData()->GetGazeOrigin()) + WorldPos;
     const FVector GazeDir = WorldRot.RotateVector(maxDist * GetData()->GetGazeDir());
 

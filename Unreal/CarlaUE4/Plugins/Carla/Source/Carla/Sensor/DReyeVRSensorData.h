@@ -290,11 +290,11 @@ class SensorData // everything being held by this sensor
     }
 
     // from SensorData
-    const FVector &GetHMDLocation() const
+    const FVector &GetCameraLocation() const
     {
         return CameraLocation;
     }
-    const FRotator &GetHMDRotation() const
+    const FRotator &GetCameraRotation() const
     {
         return CameraRotation;
     }
@@ -356,8 +356,8 @@ class SensorData // everything being held by this sensor
     {
         /// CAUTION: make sure the order of writes/reads is the same
         WriteValue<int64_t>(OutFile, GetTimestampCarla());
-        WriteFVector(OutFile, GetHMDLocation());
-        WriteFRotator(OutFile, GetHMDRotation());
+        WriteFVector(OutFile, GetCameraLocation());
+        WriteFRotator(OutFile, GetCameraRotation());
         WriteValue<float>(OutFile, GetEgoVelocity());
         EyeTrackerData.Write(OutFile);
         FocusData.Write(OutFile);
@@ -392,8 +392,8 @@ class SensorData // everything being held by this sensor
             << "T_Carla:" << GetTimestampCarla() << sep                               // Carla time
             << "FrameSeq:" << GetFrameSequence() << sep                               // SRanipal Framesequence
             << "|EGOVEHICLE|"                                                         // Ego Vehicle fields
-            << "HMDLoc:" << ToStdStr(GetHMDLocation()) << sep                         // HMD location
-            << "HMDRot:" << ToStdStr(GetHMDRotation()) << sep                         // HMD rotation
+            << "CameraLoc:" << ToStdStr(GetCameraLocation()) << sep                   // Camera location
+            << "CameraRot:" << ToStdStr(GetCameraRotation()) << sep                   // Camera rotation
             << "EgoVel:" << GetEgoVelocity() << sep                                   // Ego Velocity
             << "|COMBINED|"                                                           // Combined Gaze fields
             << "GazeDir:" << ToStdStr(GetGazeDir()) << sep                            // Gaze dir vector
@@ -439,7 +439,7 @@ class SensorData // everything being held by this sensor
     int64_t TimestampCarlaUE4; // Carla Timestamp (EgoSensor Tick() event) in milliseconds
 
     struct SRanipalData EyeTrackerData;
-    // Relative HMD position and orientation
+    // Relative Camera position and orientation
     FVector CameraLocation = FVector::ZeroVector;
     FRotator CameraRotation = FRotator::ZeroRotator;
     // Ego variables

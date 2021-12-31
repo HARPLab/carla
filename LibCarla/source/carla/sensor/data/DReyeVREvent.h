@@ -38,8 +38,8 @@ class DReyeVREvent : public SensorData
         EyeOrigin = Deserialized.EyeOrigin;
         GazeValid = Deserialized.GazeValid;
         Vergence = Deserialized.Vergence;
-        HMDLocation = Deserialized.HMDLocation;
-        HMDRotation = Deserialized.HMDRotation;
+        CameraLocation = Deserialized.CameraLocation;
+        CameraRotation = Deserialized.CameraRotation;
         LGazeRay = Deserialized.LGazeRay;
         LEyeOrigin = Deserialized.LEyeOrigin;
         LGazeRay = Deserialized.LGazeRay;
@@ -95,13 +95,13 @@ class DReyeVREvent : public SensorData
     {
         return Vergence;
     }
-    const geom::Vector3D &GetHMDLocation() const
+    const geom::Vector3D &GetCameraLocation() const
     {
-        return HMDLocation;
+        return CameraLocation;
     }
-    const geom::Vector3D &GetHMDRotation() const
+    const geom::Vector3D &GetCameraRotation() const
     {
-        return HMDRotation;
+        return CameraRotation;
     }
     const geom::Vector3D &GetLGazeRay() const
     {
@@ -208,8 +208,8 @@ class DReyeVREvent : public SensorData
     geom::Vector3D EyeOrigin;
     rpc::Bool GazeValid;
     rpc::Float Vergence;
-    geom::Vector3D HMDLocation;
-    geom::Vector3D HMDRotation;
+    geom::Vector3D CameraLocation;
+    geom::Vector3D CameraRotation;
     geom::Vector3D LGazeRay;
     geom::Vector3D LEyeOrigin;
     rpc::Bool LGazeValid;

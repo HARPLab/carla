@@ -480,8 +480,8 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
         // this gets reached when the simulator is replaying data from a carla log
         const DReyeVR::SensorData *Replay = EgoSensor->GetData();
         // assign first person camera orientation and location
-        FirstPersonCam->SetRelativeRotation(Replay->GetHMDRotation(), false, nullptr, ETeleportType::None);
-        FirstPersonCam->SetRelativeLocation(Replay->GetHMDLocation(), false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeRotation(Replay->GetCameraRotation(), false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeLocation(Replay->GetCameraLocation(), false, nullptr, ETeleportType::None);
     }
     VehicleInputs = {}; // clear inputs to be updated on the next tick
 

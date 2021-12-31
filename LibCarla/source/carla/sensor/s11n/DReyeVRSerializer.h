@@ -32,6 +32,7 @@ class DReyeVRSerializer
   public:
     struct Data
     {
+    /// EW: this is gross but I am unable to think of a better way to do this short of defining our own rpc type
         rpc::Int64 TimestampSR;
         rpc::Int64 TimestampCarla;
         rpc::Int64 FrameSequence;
@@ -39,8 +40,8 @@ class DReyeVRSerializer
         geom::Vector3D EyeOrigin;
         rpc::Bool GazeValid;
         rpc::Float Vergence;
-        geom::Vector3D HMDLocation;
-        geom::Vector3D HMDRotation;
+        geom::Vector3D CameraLocation;
+        geom::Vector3D CameraRotation;
         geom::Vector3D LGazeRay;
         geom::Vector3D LEyeOrigin;
         rpc::Bool LGazeValid;
@@ -68,7 +69,7 @@ class DReyeVRSerializer
         rpc::Bool HoldHandbrake;
 
         MSGPACK_DEFINE_ARRAY(TimestampSR, TimestampCarla, FrameSequence, GazeRay, EyeOrigin, GazeValid, Vergence,
-                             HMDLocation, HMDRotation, LGazeRay, LEyeOrigin, LGazeValid, RGazeRay, REyeOrigin,
+                             CameraLocation, CameraRotation, LGazeRay, LEyeOrigin, LGazeValid, RGazeRay, REyeOrigin,
                              RGazeValid, LEyeOpenness, LEyeOpenValid, REyeOpenness, REyeOpenValid, LPupilPos,
                              LPupilPosValid, RPupilPos, RPupilPosValid, LPupilDiameter, RPupilDiameter, FocusActorName,
                              FocusActorPoint, FocusActorDist, Throttle, Steering, Brake, ToggledReverse, HoldHandbrake)
@@ -79,29 +80,9 @@ class DReyeVRSerializer
         return MsgPack::UnPack<Data>(message.begin(), message.size());
     }
 
-    template <typename SensorT>
-    static Buffer Serialize(const SensorT &, const rpc::Int64 TimestampSR, const rpc::Int64 TimestampCarla,
-                            const rpc::Int64 FrameSequence, const geom::Vector3D &GazeRay,
-                            const geom::Vector3D &EyeOrigin, const rpc::Bool GazeValid, const rpc::Float Vergence,
-                            const geom::Vector3D &HMDLocation, const geom::Vector3D &HMDRotation,
-                            const geom::Vector3D &LGazeRay, const geom::Vector3D &LEyeOrigin,
-                            const rpc::Bool LGazeValid, const geom::Vector3D &RGazeRay,
-                            const geom::Vector3D &REyeOrigin, const rpc::Bool RGazeValid, const rpc::Float LEyeOpenness,
-                            const rpc::Bool LEyeOpenValid, const rpc::Float REyeOpenness, const rpc::Bool REyeOpenValid,
-                            const geom::Vector2D &LPupilPos, const rpc::Bool LPupilPosValid,
-                            const geom::Vector2D &RPupilPos, const rpc::Bool RPupilPosValid,
-                            const rpc::Float LPupilDiameter, const rpc::Float RPupilDiameter,
-                            const rpc::String &FocusActorName, const geom::Vector3D &FocusActorPoint,
-                            const rpc::Float FocusActorDist, const rpc::Float Throttle, const rpc::Float Steering,
-                            const rpc::Float Brake, const rpc::Bool ToggledReverse, const rpc::Bool HoldHandbrake)
+    template <typename SensorT> static Buffer Serialize(const SensorT &, struct Data &&DataIn)
     {
-        return MsgPack::Pack(Data{TimestampSR,    TimestampCarla,  FrameSequence,  GazeRay,        EyeOrigin,
-                                  GazeValid,      Vergence,        HMDLocation,    HMDRotation,    LGazeRay,
-                                  LEyeOrigin,     LGazeValid,      RGazeRay,       REyeOrigin,     RGazeValid,
-                                  LEyeOpenness,   LEyeOpenValid,   REyeOpenness,   REyeOpenValid,  LPupilPos,
-                                  LPupilPosValid, RPupilPos,       RPupilPosValid, LPupilDiameter, RPupilDiameter,
-                                  FocusActorName, FocusActorPoint, FocusActorDist, Throttle,       Steering,
-                                  Brake,          ToggledReverse,  HoldHandbrake});
+        return MsgPack::Pack(DataIn);
     }
     static SharedPtr<SensorData> Deserialize(RawData &&data);
 };

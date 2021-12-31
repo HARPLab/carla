@@ -160,16 +160,16 @@ namespace data {
     // what is used when printing the data streamed to the PythonAPI (converting to string)
     auto GazeRay = meas.GetGazeRay();
     auto EyeOrigin = meas.GetEyeOrigin();
-    auto HMDLocn = meas.GetHMDLocation();
-    auto HMDRotn = meas.GetHMDRotation();
+    auto CameraLocn = meas.GetCameraLocation();
+    auto CameraRotn = meas.GetCameraRotation();
     auto GazeValid = meas.GetGazeValid();
     out << "DReyeVR(frame=" << std::to_string(meas.GetFrame())
         << ", t=" << std::to_string(meas.GetTimestamp())
         << ", Gaze(" << GazeValid << ")={" << GazeRay.x << ", " << GazeRay.y << ", " << GazeRay.z<< "}"
         << ", EyeOrigin={" << EyeOrigin.x << ", " << EyeOrigin.y << ", " << EyeOrigin.z << "}"
         << ", Vergence=" << meas.GetVergence()
-        << ", HMDLoc={" << HMDLocn.x << ", " << HMDLocn.y << ", " << HMDLocn.z<< "}"
-        << ", HMDRot={" << HMDRotn.x << ", " << HMDRotn.y << ", " << HMDRotn.z<< "}"
+        << ", CameraLoc={" << CameraLocn.x << ", " << CameraLocn.y << ", " << CameraLocn.z<< "}"
+        << ", CameraRot={" << CameraRotn.x << ", " << CameraRotn.y << ", " << CameraRotn.z<< "}"
         << ')';
     return out;
   }
@@ -434,8 +434,8 @@ void export_sensor_data() {
       .add_property("eye_origin", CALL_RETURNING_COPY(csd::DReyeVREvent, GetEyeOrigin))
       .add_property("gaze_valid", CALL_RETURNING_COPY(csd::DReyeVREvent, GetGazeValid))
       .add_property("vergence", CALL_RETURNING_COPY(csd::DReyeVREvent, GetVergence))
-      .add_property("hmd_location", CALL_RETURNING_COPY(csd::DReyeVREvent, GetHMDLocation))
-      .add_property("hmd_rotation", CALL_RETURNING_COPY(csd::DReyeVREvent, GetHMDRotation))
+      .add_property("camera_location", CALL_RETURNING_COPY(csd::DReyeVREvent, GetCameraLocation))
+      .add_property("camera_rotation", CALL_RETURNING_COPY(csd::DReyeVREvent, GetCameraRotation))
       .add_property("gaze_ray_left", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLGazeRay))
       .add_property("eye_origin_left", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLEyeOrigin))
       .add_property("gaze_valid_left", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLGazeValid))

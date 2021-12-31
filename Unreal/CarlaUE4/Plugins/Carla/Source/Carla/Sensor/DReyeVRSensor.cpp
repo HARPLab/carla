@@ -10,6 +10,7 @@
 // vector types for serialization
 #include "carla/geom/Vector2D.h"
 #include "carla/geom/Vector3D.h"
+#include "carla/sensor/s11n/DReyeVRSerializer.h" // DReyeVRSerializer::Data
 
 class DReyeVR::SensorData *ADReyeVRSensor::Data = nullptr;
 
@@ -93,41 +94,43 @@ void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSec
     } ToGeom;
 
     /// TODO: refactor this somehow
+    /// to see where this is sent, see LibCarla/source/carla/sensor/s11n/DReyeVRSerializer.h
     Stream.Send(*this,
-                Data->GetTimestampDevice(),                          // Timestamp of SRanipal (ms)
-                Data->GetTimestampCarla(),                           // Timestamp of Carla (ms)
-                Data->GetFrameSequence(),                            // Frame sequence
-                ToGeom(Data->GetGazeDir()),                          // Combined gaze ray direction
-                ToGeom(Data->GetGazeOrigin()),                       // Stream EyeOrigin Vec3
-                Data->GetGazeValidity(),                             // Validity of combined gaze
-                Data->GetGazeVergence(),                             // Vergence (float) of combined ray
-                ToGeom(Data->GetHMDLocation()),                      // HMD absolute location
-                ToGeom(Data->GetHMDRotation()),                      // HMD absolute rotation
-                ToGeom(Data->GetGazeDir(DReyeVR::Gaze::LEFT)),       // Left eye gaze ray direction
-                ToGeom(Data->GetGazeOrigin(DReyeVR::Gaze::LEFT)),    // Left eye gaze origin
-                Data->GetGazeValidity(DReyeVR::Gaze::LEFT),          // Validity of left gaze
-                ToGeom(Data->GetGazeDir(DReyeVR::Gaze::RIGHT)),      // Right eye gaze ray direction
-                ToGeom(Data->GetGazeOrigin(DReyeVR::Gaze::RIGHT)),   // Dight eye gaze origin
-                Data->GetGazeValidity(DReyeVR::Gaze::RIGHT),         // Validity of right gaze
-                Data->GetEyeOpenness(DReyeVR::Eye::LEFT),            // Left eye openness
-                Data->GetEyeOpennessValidity(DReyeVR::Eye::LEFT),    // Validity of left eye openness
-                Data->GetEyeOpenness(DReyeVR::Eye::RIGHT),           // Right eye openness
-                Data->GetEyeOpennessValidity(DReyeVR::Eye::RIGHT),   // Validity of right eye openness
-                ToGeom(Data->GetPupilPosition(DReyeVR::Eye::LEFT)),  // Left pupil position
-                Data->GetPupilPositionValidity(DReyeVR::Eye::LEFT),  // Validity of left eye posn
-                ToGeom(Data->GetPupilPosition(DReyeVR::Eye::RIGHT)), // Right pupil position
-                Data->GetPupilPositionValidity(DReyeVR::Eye::RIGHT), // Validity of left eye posn
-                Data->GetPupilDiameter(DReyeVR::Eye::LEFT),          // Left eye diameter (mm)
-                Data->GetPupilDiameter(DReyeVR::Eye::RIGHT),         // Right eye diameter (mm)
-                ToGeom(Data->GetFocusActorName()),                   // Focus Actor's name
-                ToGeom(Data->GetFocusActorPoint()),                  // Focus Actor's location in world space
-                Data->GetFocusActorDistance(),                       // Focus Actor's distance to the sensor
-                Data->GetUserInputs().Throttle,                      // Vehicle input throttle
-                Data->GetUserInputs().Steering,                      // Vehicle input steering
-                Data->GetUserInputs().Brake,                         // Vehicle input brake
-                Data->GetUserInputs().ToggledReverse,                // Vehicle input gear (reverse, fwd)
-                Data->GetUserInputs().HoldHandbrake                  // Vehicle input handbrake
-    );
+                carla::sensor::s11n::DReyeVRSerializer::Data{
+                    Data->GetTimestampDevice(),                          // Timestamp of SRanipal (ms)
+                    Data->GetTimestampCarla(),                           // Timestamp of Carla (ms)
+                    Data->GetFrameSequence(),                            // Frame sequence
+                    ToGeom(Data->GetGazeDir()),                          // Combined gaze ray direction
+                    ToGeom(Data->GetGazeOrigin()),                       // Stream EyeOrigin Vec3
+                    Data->GetGazeValidity(),                             // Validity of combined gaze
+                    Data->GetGazeVergence(),                             // Vergence (float) of combined ray
+                    ToGeom(Data->GetCameraLocation()),                   // HMD absolute location
+                    ToGeom(Data->GetCameraRotation()),                   // HMD absolute rotation
+                    ToGeom(Data->GetGazeDir(DReyeVR::Gaze::LEFT)),       // Left eye gaze ray direction
+                    ToGeom(Data->GetGazeOrigin(DReyeVR::Gaze::LEFT)),    // Left eye gaze origin
+                    Data->GetGazeValidity(DReyeVR::Gaze::LEFT),          // Validity of left gaze
+                    ToGeom(Data->GetGazeDir(DReyeVR::Gaze::RIGHT)),      // Right eye gaze ray direction
+                    ToGeom(Data->GetGazeOrigin(DReyeVR::Gaze::RIGHT)),   // Dight eye gaze origin
+                    Data->GetGazeValidity(DReyeVR::Gaze::RIGHT),         // Validity of right gaze
+                    Data->GetEyeOpenness(DReyeVR::Eye::LEFT),            // Left eye openness
+                    Data->GetEyeOpennessValidity(DReyeVR::Eye::LEFT),    // Validity of left eye openness
+                    Data->GetEyeOpenness(DReyeVR::Eye::RIGHT),           // Right eye openness
+                    Data->GetEyeOpennessValidity(DReyeVR::Eye::RIGHT),   // Validity of right eye openness
+                    ToGeom(Data->GetPupilPosition(DReyeVR::Eye::LEFT)),  // Left pupil position
+                    Data->GetPupilPositionValidity(DReyeVR::Eye::LEFT),  // Validity of left eye posn
+                    ToGeom(Data->GetPupilPosition(DReyeVR::Eye::RIGHT)), // Right pupil position
+                    Data->GetPupilPositionValidity(DReyeVR::Eye::RIGHT), // Validity of left eye posn
+                    Data->GetPupilDiameter(DReyeVR::Eye::LEFT),          // Left eye diameter (mm)
+                    Data->GetPupilDiameter(DReyeVR::Eye::RIGHT),         // Right eye diameter (mm)
+                    ToGeom(Data->GetFocusActorName()),                   // Focus Actor's name
+                    ToGeom(Data->GetFocusActorPoint()),                  // Focus Actor's location in world space
+                    Data->GetFocusActorDistance(),                       // Focus Actor's distance to the sensor
+                    Data->GetUserInputs().Throttle,                      // Vehicle input throttle
+                    Data->GetUserInputs().Steering,                      // Vehicle input steering
+                    Data->GetUserInputs().Brake,                         // Vehicle input brake
+                    Data->GetUserInputs().ToggledReverse,                // Vehicle input gear (reverse, fwd)
+                    Data->GetUserInputs().HoldHandbrake                  // Vehicle input handbrake
+                });
 }
 
 /////////////////////////:DREYEVRSENSORDATA://////////////////////////////
@@ -147,10 +150,10 @@ void ADReyeVRSensor::UpdateReplayData(const DReyeVR::SensorData &RecorderData, c
         // update local values
         FVector NewCameraPose;
         FRotator NewCameraRot;
-        InterpPositionAndRotation(ADReyeVRSensor::Data->GetHMDLocation(), // old location
-                                  ADReyeVRSensor::Data->GetHMDRotation(), // old rotation
-                                  RecorderData.GetHMDLocation(),          // new location
-                                  RecorderData.GetHMDRotation(),          // new rotation
+        InterpPositionAndRotation(ADReyeVRSensor::Data->GetCameraLocation(), // old location
+                                  ADReyeVRSensor::Data->GetCameraRotation(), // old rotation
+                                  RecorderData.GetCameraLocation(),          // new location
+                                  RecorderData.GetCameraRotation(),          // new rotation
                                   Per, NewCameraPose, NewCameraRot);
         (*ADReyeVRSensor::Data) = RecorderData;
         // update camera positions to the interpolated ones
@@ -165,16 +168,12 @@ void ADReyeVRSensor::InterpPositionAndRotation(const FVector &Pos1, const FRotat
 {
     // inspired by CarlaReplayerHelper.cpp:CarlaReplayerHelper::ProcessReplayerPosition
     check(Per >= 0.f && Per <= 1.f);
-    if (Per == 0.0) // check to assign first position or interpolate between both
+    if (Per == 0.0f) // check to assign first position or interpolate between both
     {
-        // assign position 1 & ego posn shouldn't matter
         Location = Pos1;
         Rotation = Rot1;
+        return;
     }
-    else
-    {
-        // interpolate hmd location & rotation
-        Location = FMath::Lerp(Pos1, Pos2, Per);
-        Rotation = FMath::Lerp(Rot1, Rot2, Per);
-    }
+    Location = FMath::Lerp(Pos1, Pos2, Per);
+    Rotation = FMath::Lerp(Rot1, Rot2, Per);
 }
