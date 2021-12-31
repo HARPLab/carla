@@ -48,7 +48,7 @@ class DReyeVRSensor:
         self.data: Dict[str, Any] = {}
         print("initialized DReyeVRSensor PythonAPI client")
 
-    def postprocess(self, obj: Any) -> Any:
+    def preprocess(self, obj: Any) -> Any:
         if isinstance(obj, carla.libcarla.Vector3D):
             return np.array([obj.x, obj.y, obj.z])
         if isinstance(obj, carla.libcarla.Vector2D):
@@ -64,7 +64,7 @@ class DReyeVRSensor:
         # update local variables
         elements: List[str] = [key for key in dir(data) if "__" not in key]
         for key in elements:
-            self.data[key] = self.postprocess(getattr(data, key))
+            self.data[key] = self.preprocess(getattr(data, key))
 
     @classmethod
     def spawn(cls, world: carla.libcarla.World):

@@ -8,232 +8,156 @@
 
 namespace carla
 {
-namespace rpc
-{
-using Float = float;
-using Bool = bool;
-using Int = int;
-using Int64 = int64_t;
-using String = std::string;
-} // namespace rpc
-
 namespace sensor
 {
 namespace data
 {
 class DReyeVREvent : public SensorData
 {
-    using Super = SensorData;
-    using Serializer = s11n::DReyeVRSerializer;
-    friend Serializer;
+    friend s11n::DReyeVRSerializer;
 
   protected:
-    explicit DReyeVREvent(const RawData &data) : Super(data)
+    explicit DReyeVREvent(const RawData &data) : SensorData(data)
     {
-        auto Deserialized = Serializer::DeserializeRawData(data);
-        TimestampSR = Deserialized.TimestampSR;
-        TimestampCarla = Deserialized.TimestampCarla;
-        FrameSequence = Deserialized.FrameSequence;
-        GazeRay = Deserialized.GazeRay;
-        EyeOrigin = Deserialized.EyeOrigin;
-        GazeValid = Deserialized.GazeValid;
-        Vergence = Deserialized.Vergence;
-        CameraLocation = Deserialized.CameraLocation;
-        CameraRotation = Deserialized.CameraRotation;
-        LGazeRay = Deserialized.LGazeRay;
-        LEyeOrigin = Deserialized.LEyeOrigin;
-        LGazeRay = Deserialized.LGazeRay;
-        RGazeRay = Deserialized.RGazeRay;
-        REyeOrigin = Deserialized.REyeOrigin;
-        RGazeRay = Deserialized.RGazeRay;
-        LEyeOpenness = Deserialized.LEyeOpenness;
-        LEyeOpenValid = Deserialized.LEyeOpenValid;
-        REyeOpenness = Deserialized.REyeOpenness;
-        REyeOpenValid = Deserialized.REyeOpenValid;
-        LPupilPos = Deserialized.LPupilPos;
-        LPupilPosValid = Deserialized.LPupilPosValid;
-        RPupilPos = Deserialized.RPupilPos;
-        LPupilDiameter = Deserialized.LPupilDiameter;
-        RPupilDiameter = Deserialized.RPupilDiameter;
-        RPupilPosValid = Deserialized.RPupilPosValid;
-        FocusActorName = Deserialized.FocusActorName;
-        FocusActorPoint = Deserialized.FocusActorPoint;
-        FocusActorDist = Deserialized.FocusActorDist;
-        Throttle = Deserialized.Throttle;
-        Steering = Deserialized.Steering;
-        Brake = Deserialized.Brake;
-        ToggledReverse = Deserialized.ToggledReverse;
-        HoldHandbrake = Deserialized.HoldHandbrake;
+        InternalData = s11n::DReyeVRSerializer::DeserializeRawData(data);
     }
 
   public:
-    const rpc::Int64 &GetSRTimestamp() const
+    int64_t GetTimestampCarla() const
     {
-        return TimestampSR;
+        return InternalData.TimestampCarla;
     }
-    const rpc::Int64 &GetCarlaTimestamp() const
+    int64_t GetTimestampDevice() const
     {
-        return TimestampCarla;
+        return InternalData.TimestampDevice;
     }
-    const rpc::Int64 &GetFrameSequence() const
+    int64_t GetFrameSequence() const
     {
-        return FrameSequence;
+        return InternalData.FrameSequence;
     }
-    const geom::Vector3D &GetGazeRay() const
+    const geom::Vector3D &GetGazeDir() const
     {
-        return GazeRay;
+        return InternalData.GazeDir;
     }
-    const geom::Vector3D &GetEyeOrigin() const
+    const geom::Vector3D &GetGazeOrigin() const
     {
-        return EyeOrigin;
+        return InternalData.GazeOrigin;
     }
-    const rpc::Bool &GetGazeValid() const
+    bool GetGazeValid() const
     {
-        return GazeValid;
+        return InternalData.GazeValid;
     }
-    const rpc::Float &GetVergence() const
+    float GetGazeVergence() const
     {
-        return Vergence;
+        return InternalData.GazeVergence;
     }
     const geom::Vector3D &GetCameraLocation() const
     {
-        return CameraLocation;
+        return InternalData.CameraLocation;
     }
     const geom::Vector3D &GetCameraRotation() const
     {
-        return CameraRotation;
+        return InternalData.CameraRotation;
     }
-    const geom::Vector3D &GetLGazeRay() const
+    const geom::Vector3D &GetLGazeDir() const
     {
-        return LGazeRay;
+        return InternalData.LGazeDir;
     }
-    const geom::Vector3D &GetLEyeOrigin() const
+    const geom::Vector3D &GetLGazeOrigin() const
     {
-        return LEyeOrigin;
+        return InternalData.LGazeOrigin;
     }
-    const rpc::Bool &GetLGazeValid() const
+    bool GetLGazeValid() const
     {
-        return LGazeValid;
+        return InternalData.LGazeValid;
     }
-    const geom::Vector3D &GetRGazeRay() const
+    const geom::Vector3D &GetRGazeDir() const
     {
-        return RGazeRay;
+        return InternalData.RGazeDir;
     }
-    const geom::Vector3D &GetREyeOrigin() const
+    const geom::Vector3D &GetRGazeOrigin() const
     {
-        return REyeOrigin;
+        return InternalData.RGazeOrigin;
     }
-    const rpc::Bool &GetRGazeValid() const
+    bool GetRGazeValid() const
     {
-        return RGazeValid;
+        return InternalData.RGazeValid;
     }
-    const rpc::Float &GetLEyeOpenness() const
+    float GetLEyeOpenness() const
     {
-        return LEyeOpenness;
+        return InternalData.LEyeOpenness;
     }
-    const rpc::Bool &GetLEyeOpenValid() const
+    bool GetLEyeOpenValid() const
     {
-        return LEyeOpenValid;
+        return InternalData.LEyeOpenValid;
     }
-    const rpc::Float &GetREyeOpenness() const
+    float GetREyeOpenness() const
     {
-        return REyeOpenness;
+        return InternalData.REyeOpenness;
     }
-    const rpc::Bool &GetREyeOpenValid() const
+    bool GetREyeOpenValid() const
     {
-        return REyeOpenValid;
+        return InternalData.REyeOpenValid;
     }
     const geom::Vector2D &GetLPupilPos() const
     {
-        return LPupilPos;
+        return InternalData.LPupilPos;
     }
-    const rpc::Bool &GetLPupilPosValid() const
+    bool GetLPupilPosValid() const
     {
-        return LPupilPosValid;
+        return InternalData.LPupilPosValid;
     }
     const geom::Vector2D &GetRPupilPos() const
     {
-        return RPupilPos;
+        return InternalData.RPupilPos;
     }
-    const rpc::Bool &GetRPupilPosValid() const
+    bool GetRPupilPosValid() const
     {
-        return RPupilPosValid;
+        return InternalData.RPupilPosValid;
     }
-    const rpc::Float &GetLPupilDiam() const
+    float GetLPupilDiam() const
     {
-        return LPupilDiameter;
+        return InternalData.LPupilDiameter;
     }
-    const rpc::Float &GetRPupilDiam() const
+    float GetRPupilDiam() const
     {
-        return RPupilDiameter;
+        return InternalData.RPupilDiameter;
     }
-    const rpc::String &GetFocusActorName() const
+    const std::string &GetFocusActorName() const
     {
-        return FocusActorName;
+        return InternalData.FocusActorName;
     }
     const geom::Vector3D &GetFocusActorPoint() const
     {
-        return FocusActorPoint;
+        return InternalData.FocusActorPoint;
     }
-    const rpc::Float &GetFocusActorDist() const
+    float GetFocusActorDist() const
     {
-        return FocusActorDist;
+        return InternalData.FocusActorDist;
     }
-    const rpc::Float &GetThrottle() const
+    float GetThrottle() const
     {
-        return Throttle;
+        return InternalData.Throttle;
     }
-    const rpc::Float &GetSteering() const
+    float GetSteering() const
     {
-        return Steering;
+        return InternalData.Steering;
     }
-    const rpc::Float &GetBrake() const
+    float GetBrake() const
     {
-        return Brake;
+        return InternalData.Brake;
     }
-    const rpc::Bool &GetToggledReverse() const
+    bool GetToggledReverse() const
     {
-        return ToggledReverse;
+        return InternalData.ToggledReverse;
     }
-    const rpc::Bool &GetHandbrake() const
+    bool GetHandbrake() const
     {
-        return HoldHandbrake;
+        return InternalData.HoldHandbrake;
     }
 
   private:
-    rpc::Int64 TimestampSR;
-    rpc::Int64 TimestampCarla;
-    rpc::Int64 FrameSequence;
-    geom::Vector3D GazeRay;
-    geom::Vector3D EyeOrigin;
-    rpc::Bool GazeValid;
-    rpc::Float Vergence;
-    geom::Vector3D CameraLocation;
-    geom::Vector3D CameraRotation;
-    geom::Vector3D LGazeRay;
-    geom::Vector3D LEyeOrigin;
-    rpc::Bool LGazeValid;
-    geom::Vector3D RGazeRay;
-    geom::Vector3D REyeOrigin;
-    rpc::Bool RGazeValid;
-    rpc::Float LEyeOpenness;
-    rpc::Bool LEyeOpenValid;
-    rpc::Float REyeOpenness;
-    rpc::Bool REyeOpenValid;
-    geom::Vector2D LPupilPos;
-    rpc::Bool LPupilPosValid;
-    geom::Vector2D RPupilPos;
-    rpc::Bool RPupilPosValid;
-    rpc::Float LPupilDiameter;
-    rpc::Float RPupilDiameter;
-    rpc::String FocusActorName;
-    geom::Vector3D FocusActorPoint;
-    rpc::Float FocusActorDist;
-    rpc::Float Throttle;
-    rpc::Float Steering;
-    rpc::Float Brake;
-    rpc::Bool ToggledReverse;
-    rpc::Bool HoldHandbrake;
+    carla::sensor::s11n::DReyeVRSerializer::Data InternalData;
 };
 } // namespace data
 } // namespace sensor

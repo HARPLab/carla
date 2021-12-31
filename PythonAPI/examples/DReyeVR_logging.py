@@ -120,7 +120,8 @@ def main():
         if rospy is not None:
             msg: String = create_ros_msg(sensor)
             pub.publish(msg)  # publish to ros master
-        print(sensor.data)
+        print(sensor.data)  # more useful print here (contains all attributes)
+        # print(data) # this print is defined in LibCarla/source/carla/data/DReyeVREvent.h
 
     # subscribe to DReyeVR sensor
     sensor.eye_tracker.listen(publish_and_print)

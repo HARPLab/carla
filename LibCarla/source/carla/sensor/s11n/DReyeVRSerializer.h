@@ -12,15 +12,6 @@
 
 namespace carla
 {
-namespace rpc
-{
-using Float = float;
-using Bool = bool;
-using Int = int;
-using Int64 = int64_t;
-using String = std::string;
-} // namespace rpc
-
 namespace sensor
 {
 class SensorData;
@@ -32,47 +23,61 @@ class DReyeVRSerializer
   public:
     struct Data
     {
-    /// EW: this is gross but I am unable to think of a better way to do this short of defining our own rpc type
-        rpc::Int64 TimestampSR;
-        rpc::Int64 TimestampCarla;
-        rpc::Int64 FrameSequence;
-        geom::Vector3D GazeRay;
-        geom::Vector3D EyeOrigin;
-        rpc::Bool GazeValid;
-        rpc::Float Vergence;
+        /// EW: this is gross but necessary for the MSGPACK array
+        /// TODO: refactor this struct to contain smaller structs similar to DReyeVR::SensorData
+        /// NOTE: this is missing some fields that can totally be added, but you get the idea.
+        // Step 1: add new field field here in Data struct
+        // Step 2: add new field in MSGPACK_DEFINE_ARRAY) in the SAME ORDER
+        // Step 3: go to LibCarla/source/carla/sensor/data/DReyeVREvent.h and add a const getter
+        // Step 4: go to .cpp and add the getter to the list of available attributes just like the others
+        int64_t TimestampCarla;
+        int64_t TimestampDevice;
+        int64_t FrameSequence;
+        // camera
         geom::Vector3D CameraLocation;
         geom::Vector3D CameraRotation;
-        geom::Vector3D LGazeRay;
-        geom::Vector3D LEyeOrigin;
-        rpc::Bool LGazeValid;
-        geom::Vector3D RGazeRay;
-        geom::Vector3D REyeOrigin;
-        rpc::Bool RGazeValid;
-        rpc::Float LEyeOpenness;
-        rpc::Bool LEyeOpenValid;
-        rpc::Float REyeOpenness;
-        rpc::Bool REyeOpenValid;
+        // combined gaze
+        geom::Vector3D GazeDir;
+        geom::Vector3D GazeOrigin;
+        bool GazeValid;
+        float GazeVergence;
+        // left gaze/eye
+        geom::Vector3D LGazeDir;
+        geom::Vector3D LGazeOrigin;
+        bool LGazeValid;
+        float LEyeOpenness;
+        bool LEyeOpenValid;
         geom::Vector2D LPupilPos;
-        rpc::Bool LPupilPosValid;
+        bool LPupilPosValid;
+        float LPupilDiameter;
+        // right gaze/eye
+        geom::Vector3D RGazeDir;
+        geom::Vector3D RGazeOrigin;
+        bool RGazeValid;
+        float REyeOpenness;
+        bool REyeOpenValid;
         geom::Vector2D RPupilPos;
-        rpc::Bool RPupilPosValid;
-        rpc::Float LPupilDiameter;
-        rpc::Float RPupilDiameter;
-        rpc::String FocusActorName;
+        bool RPupilPosValid;
+        float RPupilDiameter;
+        // focus 
+        std::string FocusActorName;
         geom::Vector3D FocusActorPoint;
-        rpc::Float FocusActorDist;
+        float FocusActorDist;
         // inputs
-        rpc::Float Throttle;
-        rpc::Float Steering;
-        rpc::Float Brake;
-        rpc::Bool ToggledReverse;
-        rpc::Bool HoldHandbrake;
+        float Throttle;
+        float Steering;
+        float Brake;
+        bool ToggledReverse;
+        bool HoldHandbrake;
 
-        MSGPACK_DEFINE_ARRAY(TimestampSR, TimestampCarla, FrameSequence, GazeRay, EyeOrigin, GazeValid, Vergence,
-                             CameraLocation, CameraRotation, LGazeRay, LEyeOrigin, LGazeValid, RGazeRay, REyeOrigin,
-                             RGazeValid, LEyeOpenness, LEyeOpenValid, REyeOpenness, REyeOpenValid, LPupilPos,
-                             LPupilPosValid, RPupilPos, RPupilPosValid, LPupilDiameter, RPupilDiameter, FocusActorName,
-                             FocusActorPoint, FocusActorDist, Throttle, Steering, Brake, ToggledReverse, HoldHandbrake)
+        MSGPACK_DEFINE_ARRAY(TimestampCarla, TimestampDevice, FrameSequence, // timings
+                             CameraLocation, CameraRotation,                 // camera
+                             GazeDir, GazeOrigin, GazeValid, GazeVergence,   // combined gaze
+                             LGazeDir, LGazeOrigin, LGazeValid, LEyeOpenness, LEyeOpenValid, LPupilPos, LPupilPosValid, LPupilDiameter, // left gaze/eye
+                             RGazeDir, RGazeOrigin, RGazeValid, REyeOpenness, REyeOpenValid, RPupilPos, RPupilPosValid, RPupilDiameter, // right gaze/eye
+                             FocusActorName, FocusActorPoint, FocusActorDist,         // focus info
+                             Throttle, Steering, Brake, ToggledReverse, HoldHandbrake // user inputs
+        )
     };
 
     static Data DeserializeRawData(const RawData &message)
