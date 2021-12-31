@@ -138,34 +138,48 @@ void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSec
                 });
 }
 
-/// NOTE: this to define the static variables that are set by the replayer when
-//  replaying files to animate gaze ray data
-bool ADReyeVRSensor::bIsReplaying = false; // not replaying initially
-FTransform ADReyeVRSensor::EgoReplayTransform = FTransform(FRotator(0, 0, 0), FVector(0, 0, 0), FVector(1, 1, 1));
-
-void ADReyeVRSensor::UpdateReplayData(const DReyeVR::AggregateData &RecorderData, const FTransform &EgoTrans,
-                                      const double Per)
+/// NOTE: this to define the static variables that are set by the replayer
+void ADReyeVRSensor::UpdateWithReplayData(const DReyeVR::AggregateData &RecorderData, const double Per)
 {
     // update global values
-    ADReyeVRSensor::bIsReplaying = true;
-    ADReyeVRSensor::EgoReplayTransform = EgoTrans;
+    bIsReplaying = true; // Replay has started
     if (ADReyeVRSensor::Data != nullptr)
     {
-        // update local values
-        FVector NewCameraPose;
+        // update local values but first interpolate camera and vehicle pose (Location & Rotation)
+        // interp Camera
+        FVector NewCameraLoc;
         FRotator NewCameraRot;
         InterpPositionAndRotation(ADReyeVRSensor::Data->GetCameraLocation(), // old location
                                   ADReyeVRSensor::Data->GetCameraRotation(), // old rotation
                                   RecorderData.GetCameraLocation(),          // new location
                                   RecorderData.GetCameraRotation(),          // new rotation
-                                  Per, NewCameraPose, NewCameraRot);
+                                  Per, NewCameraLoc, NewCameraRot);
+        // interp vehicle
+        FVector NewVehicleLoc;
+        FRotator NewVehicleRot;
+        InterpPositionAndRotation(ADReyeVRSensor::Data->GetVehicleLocation(), // old location
+                                  ADReyeVRSensor::Data->GetVehicleRotation(), // old rotation
+                                  RecorderData.GetVehicleLocation(),          // new location
+                                  RecorderData.GetVehicleRotation(),          // new rotation
+                                  Per, NewVehicleLoc, NewVehicleRot);
         (*ADReyeVRSensor::Data) = RecorderData;
         // update camera positions to the interpolated ones
-        ADReyeVRSensor::Data->UpdateCamera(NewCameraPose, NewCameraRot);
+        ADReyeVRSensor::Data->UpdateCamera(NewCameraLoc, NewCameraRot);
+        ADReyeVRSensor::Data->UpdateVehicle(NewVehicleLoc, NewVehicleRot);
     }
 }
 
-// reposition actors
+void ADReyeVRSensor::StopReplaying()
+{
+    bIsReplaying = false;
+}
+
+bool ADReyeVRSensor::IsReplaying() const
+{
+    return bIsReplaying;
+}
+
+// smoothly interpolate with Per
 void ADReyeVRSensor::InterpPositionAndRotation(const FVector &Pos1, const FRotator &Rot1, const FVector &Pos2,
                                                const FRotator &Rot2, const double Per, FVector &Location,
                                                FRotator &Rotation)

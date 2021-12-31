@@ -77,6 +77,34 @@ struct SingleEyeData : EyeData
     }
 };
 
+struct EgoVariables
+{
+    // World coordinate Ego vehicle location & rotation
+    FVector VehicleLocation = FVector::ZeroVector;
+    FRotator VehicleRotation = FRotator::ZeroRotator;
+    // Relative Camera position and orientation
+    FVector CameraLocation = FVector::ZeroVector;
+    FRotator CameraRotation = FRotator::ZeroRotator;
+    // Ego variables
+    float Velocity = 0.f; // note this is in cm/s (default UE4 units)
+    void Read(std::ifstream &InFile)
+    {
+        ReadFVector(InFile, CameraLocation);
+        ReadFRotator(InFile, CameraRotation);
+        ReadFVector(InFile, VehicleLocation);
+        ReadFRotator(InFile, VehicleRotation);
+        ReadValue<float>(InFile, Velocity);
+    }
+    void Write(std::ofstream &OutFile) const
+    {
+        WriteFVector(OutFile, CameraLocation);
+        WriteFRotator(OutFile, CameraRotation);
+        WriteFVector(OutFile, VehicleLocation);
+        WriteFRotator(OutFile, VehicleRotation);
+        WriteValue<float>(OutFile, Velocity);
+    }
+};
+
 struct UserInputs
 {
     // User inputs
@@ -289,19 +317,28 @@ class AggregateData // all DReyeVR sensor data is held here
         }
     }
 
-    // from AggregateData
+    // from EgoVars
     const FVector &GetCameraLocation() const
     {
-        return CameraLocation;
+        return EgoVars.CameraLocation;
     }
     const FRotator &GetCameraRotation() const
     {
-        return CameraRotation;
+        return EgoVars.CameraRotation;
     }
-    float GetEgoVelocity() const
+    float GetVehicleVelocity() const
     {
-        return EgoVehicleVelocity; // returns ego velocity in cm/s
+        return EgoVars.Velocity; // returns ego velocity in cm/s
     }
+    const FVector &GetVehicleLocation() const
+    {
+        return EgoVars.VehicleLocation;
+    }
+    const FRotator &GetVehicleRotation() const
+    {
+        return EgoVars.VehicleRotation;
+    }
+    // focus
     const FString &GetFocusActorName() const
     {
         return FocusData.ActorNameTag;
@@ -320,21 +357,24 @@ class AggregateData // all DReyeVR sensor data is held here
     }
     ////////////////////:SETTERS://////////////////////
 
-    void UpdateCamera(const FVector &NewCameraPose, const FRotator &NewCameraRot)
+    void UpdateCamera(const FVector &NewCameraLoc, const FRotator &NewCameraRot)
     {
-        CameraLocation = NewCameraPose;
-        CameraRotation = NewCameraRot;
+        EgoVars.CameraLocation = NewCameraLoc;
+        EgoVars.CameraRotation = NewCameraRot;
     }
 
-    void Update(int64_t NewTimestamp, struct SRanipalData &NewEyeData, const FVector &NewCameraLoc,
-                const FRotator &NewCameraRot, float NewVelocity, struct FocusInfo &NewFocus,
-                struct UserInputs &NewInputs)
+    void UpdateVehicle(const FVector &NewVehicleLoc, const FRotator &NewVehicleRot)
+    {
+        EgoVars.VehicleLocation = NewVehicleLoc;
+        EgoVars.VehicleRotation = NewVehicleRot;
+    }
+
+    void Update(int64_t NewTimestamp, struct SRanipalData &NewEyeData, const struct EgoVariables &NewEgoVars,
+                struct FocusInfo &NewFocus, struct UserInputs &NewInputs)
     {
         TimestampCarlaUE4 = std::max(NewTimestamp, 0l);
         EyeTrackerData = NewEyeData;
-        CameraLocation = NewCameraLoc;
-        CameraRotation = NewCameraRot;
-        EgoVehicleVelocity = NewVelocity;
+        EgoVars = NewEgoVars;
         FocusData = NewFocus;
         Inputs = NewInputs;
     }
@@ -344,9 +384,7 @@ class AggregateData // all DReyeVR sensor data is held here
     {
         /// CAUTION: make sure the order of writes/reads is the same
         ReadValue<int64_t>(InFile, TimestampCarlaUE4);
-        ReadFVector(InFile, CameraLocation);
-        ReadFRotator(InFile, CameraRotation);
-        ReadValue<float>(InFile, EgoVehicleVelocity);
+        EgoVars.Read(InFile);
         EyeTrackerData.Read(InFile);
         FocusData.Read(InFile);
         Inputs.Read(InFile);
@@ -356,9 +394,7 @@ class AggregateData // all DReyeVR sensor data is held here
     {
         /// CAUTION: make sure the order of writes/reads is the same
         WriteValue<int64_t>(OutFile, GetTimestampCarla());
-        WriteFVector(OutFile, GetCameraLocation());
-        WriteFRotator(OutFile, GetCameraRotation());
-        WriteValue<float>(OutFile, GetEgoVelocity());
+        EgoVars.Write(OutFile);
         EyeTrackerData.Write(OutFile);
         FocusData.Write(OutFile);
         Inputs.Write(OutFile);
@@ -394,7 +430,7 @@ class AggregateData // all DReyeVR sensor data is held here
             << "|EGOVEHICLE|"                                                         // Ego Vehicle fields
             << "CameraLoc:" << ToStdStr(GetCameraLocation()) << sep                   // Camera location
             << "CameraRot:" << ToStdStr(GetCameraRotation()) << sep                   // Camera rotation
-            << "EgoVel:" << GetEgoVelocity() << sep                                   // Ego Velocity
+            << "EgoVel:" << GetVehicleVelocity() << sep                               // Ego Velocity
             << "|COMBINED|"                                                           // Combined Gaze fields
             << "GazeDir:" << ToStdStr(GetGazeDir()) << sep                            // Gaze dir vector
             << "GazeOrigin:" << ToStdStr(GetGazeOrigin()) << sep                      // Combined Eye origin vector
@@ -437,16 +473,9 @@ class AggregateData // all DReyeVR sensor data is held here
 
   private:
     int64_t TimestampCarlaUE4; // Carla Timestamp (EgoSensor Tick() event) in milliseconds
-
     struct SRanipalData EyeTrackerData;
-    // Relative Camera position and orientation
-    FVector CameraLocation = FVector::ZeroVector;
-    FRotator CameraRotation = FRotator::ZeroRotator;
-    // Ego variables
-    float EgoVehicleVelocity; // note this is in cm/s (default UE4 units)
-    // Focus data
+    struct EgoVariables EgoVars;
     struct FocusInfo FocusData;
-    // User inputs
     struct UserInputs Inputs;
 };
 }; // namespace DReyeVR

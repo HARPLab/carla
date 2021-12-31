@@ -43,15 +43,14 @@ class CARLA_API ADReyeVRSensor : public ASensor
         return ADReyeVRSensor::Data;
     }
 
-    static void UpdateReplayData(const class DReyeVR::AggregateData &RecorderData, const FTransform &EgoTransform,
-                                 const double Per);
-
-    static bool bIsReplaying;
-    static FTransform EgoReplayTransform;
+    bool IsReplaying() const;
+    void UpdateWithReplayData(const class DReyeVR::AggregateData &RecorderData, const double Per); // starts replaying
+    void StopReplaying();
 
   protected:
     void BeginPlay() override;
     void BeginDestroy() override;
+    bool bIsReplaying = false; // initially not replaying
 
     UWorld *World; // to get info about the world: time, frames, etc.
 

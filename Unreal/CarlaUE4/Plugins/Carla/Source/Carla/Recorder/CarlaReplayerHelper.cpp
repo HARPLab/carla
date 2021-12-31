@@ -273,15 +273,11 @@ bool CarlaReplayerHelper::ProcessReplayerPosition(CarlaRecorderPosition Pos1, Ca
     /// TODO: ensure there is only one DReyeVR ego vehicle in the world
     if (Actor->GetName().ToLower().Contains("dreyevr"))
     {
-      /// NOTE: for our DReyeVR ego-vehicle which is unique, apply its
-      // positional updates (transform & rotation) in EgoVehicle.cpp's tick
-      EgoTransform = Trans;
-      // not applying transform here
+      /// NOTE: for our DReyeVR ego-vehicle which is unique, do not apply the ActorTransform here
+      // but rather, use the most current sensor data in its own Tick (See AEgoVehicle::ReplayUpdate)
+      return true;
     }
-    else
-    {
-      Actor->SetActorTransform(Trans, false, nullptr, ETeleportType::None);
-    }
+    Actor->SetActorTransform(Trans, false, nullptr, ETeleportType::None);
     return true;
   }
   return false;
@@ -443,10 +439,10 @@ bool CarlaReplayerHelper::ProcessReplayerFinish(bool bApplyAutopilot, bool bIgno
         break;
     }
   }
-  // update the DReyeVR sensor to NOT continue replaying
+  // tell the DReyeVR sensor to NOT continue replaying
   if (DReyeVRActorPtr != nullptr) {
     ADReyeVRSensor *DReyeVRSensor = Cast<ADReyeVRSensor>(DReyeVRActorPtr);
-    DReyeVRSensor->bIsReplaying = false;
+    DReyeVRSensor->StopReplaying();
   }
   return true;
 }
@@ -456,17 +452,19 @@ void CarlaReplayerHelper::ProcessReplayerDReyeVRData(const DReyeVRDataRecorder &
   check(Episode != nullptr);  
   UWorld* World = Episode->GetWorld();
   if(World) {
+    // find the DReyeVRSensor in the world if needed
     if (DReyeVRActorPtr == nullptr) {
       TArray<AActor*> FoundActors;
       UGameplayStatics::GetAllActorsOfClass(World, ADReyeVRSensor::StaticClass(), FoundActors);
       if (FoundActors.Num() > 0) {
-        DReyeVRActorPtr = FoundActors[0];
+        /// TODO: check if multiple DReyeVRSensors exist in the world
+        DReyeVRActorPtr = FoundActors[0]; 
       }
     }
-    else {
+    // Update the DReyeVRSensor's replay data
+    if (DReyeVRActorPtr != nullptr) {
       ADReyeVRSensor *DReyeVRSensor = Cast<ADReyeVRSensor>(DReyeVRActorPtr);
-      // hacky solution to not using a custom Carla Vehicle, instead just using a static global variable
-      DReyeVRSensor->UpdateReplayData(DReyeVRDataInstance.Data, EgoTransform, Per);
+      DReyeVRSensor->UpdateWithReplayData(DReyeVRDataInstance.Data, Per);
     }
   }
 }

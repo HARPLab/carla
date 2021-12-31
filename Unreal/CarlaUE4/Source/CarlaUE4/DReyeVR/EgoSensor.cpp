@@ -151,12 +151,18 @@ void AEgoSensor::SetCamera(UCameraComponent *FPSCamInEgoVehicle)
 
 void AEgoSensor::SetInputs(const DReyeVR::UserInputs &InputsIn)
 {
-    this->InputData = InputsIn;
+    InputData = InputsIn;
 }
 
 void AEgoSensor::SetEgoVelocity(const float Velocity)
 {
-    this->EgoVelocity = Velocity;
+    EgoVars.Velocity = Velocity;
+}
+
+void AEgoSensor::SetEgoTransform(const FTransform &Trans)
+{
+    EgoVars.VehicleLocation = Trans.GetTranslation();
+    EgoVars.VehicleRotation = Trans.Rotator();
 }
 
 void AEgoSensor::PrePhysTick(float DeltaSeconds)
@@ -165,11 +171,11 @@ void AEgoSensor::PrePhysTick(float DeltaSeconds)
     {
         TickEyeTracker();
         ComputeTraceFocusInfo(ECC_GameTraceChannel4); // FocusData (ignores collision with vehicle)
+        EgoVars.CameraLocation = FirstPersonCam->GetRelativeLocation();
+        EgoVars.CameraRotation = FirstPersonCam->GetRelativeRotation();
         GetData()->Update(int64_t(1000.f * UGameplayStatics::GetRealTimeSeconds(World)), // TimestampCarla (ms)
                           EyeSensorData,                                                 // EyeTrackerData
-                          FirstPersonCam->GetRelativeLocation(),                         // CameraLocation
-                          FirstPersonCam->GetRelativeRotation(),                         // CameraRotation
-                          EgoVelocity,                                                   // EgoVehicleVelocity
+                          EgoVars,                                                       // EgoVehicleVariables
                           FocusInfoData,                                                 // FocusData
                           InputData                                                      // User inputs
         );

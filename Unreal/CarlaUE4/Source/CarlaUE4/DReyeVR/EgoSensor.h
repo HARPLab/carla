@@ -44,6 +44,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void SetCamera(UCameraComponent *FPSCamInEgoVehicle);
     void SetInputs(const DReyeVR::UserInputs &inputs);
     void SetEgoVelocity(const float Velocity);
+    void SetEgoTransform(const FTransform &Trans);
 
     // Methods to update internal data structs
     void TickEyeTracker(); // tick hardware sensor
@@ -63,9 +64,9 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     int64_t TimestampRef = 0; // reference timestamp (ms) since the hmd started ticking
     // Local instances of DReyeVR::AggregateData fields for internal use and eventual copying
     DReyeVR::SRanipalData EyeSensorData;
+    DReyeVR::EgoVariables EgoVars;
     DReyeVR::UserInputs InputData;
     DReyeVR::FocusInfo FocusInfoData;
-    float EgoVelocity; // Ego velocity is tracked bc it is hard to replay accurately with a variable timestamp
 
     // Eye Tracker Variables
 #if USE_SRANIPAL

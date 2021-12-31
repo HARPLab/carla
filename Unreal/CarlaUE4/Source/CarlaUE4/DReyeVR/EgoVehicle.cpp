@@ -416,11 +416,14 @@ void AEgoVehicle::BeginDestroy()
 void AEgoVehicle::ReplayUpdate()
 {
     // perform all updates that occur when replaying
-    if (ADReyeVRSensor::bIsReplaying)
+    if (EgoSensor->IsReplaying())
     {
         // if we don't have this positional update here, there is lag/jitter between the FPS camera and the vehicle
         // since they are likely updating on different ticks (Carla Replayers's vs here)
-        SetActorTransform(ADReyeVRSensor::EgoReplayTransform, false, nullptr, ETeleportType::None);
+        const FTransform ReplayTransform(EgoSensor->GetData()->GetVehicleRotation(), // FRotator (Rotation)
+                                         EgoSensor->GetData()->GetVehicleLocation(), // FVector (Location)
+                                         FVector::OneVector);                        // FVector (Scale3D)
+        SetActorTransform(ReplayTransform, false, nullptr, ETeleportType::None);
     }
 }
 
@@ -428,7 +431,6 @@ void AEgoVehicle::ReplayUpdate()
 void AEgoVehicle::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
-    FirstPersonCam->SetRelativeLocation(FVector::ZeroVector, false, nullptr, ETeleportType::None);
 
     // Update the positions based off replay data
     ReplayUpdate();
@@ -470,10 +472,11 @@ void AEgoVehicle::Tick(float DeltaSeconds)
 void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
     // Compute World positions and orientations
-    if (!ADReyeVRSensor::bIsReplaying)
+    if (!EgoSensor->IsReplaying())
     {
         EgoSensor->SetInputs(VehicleInputs);
         EgoSensor->SetEgoVelocity(GetVehicleForwardSpeed());
+        EgoSensor->SetEgoTransform(GetActorTransform());
     }
     else
     {
@@ -715,10 +718,10 @@ void AEgoVehicle::UpdateDash()
         return;
     // Draw text components
     float MPH;
-    if (ADReyeVRSensor::bIsReplaying)
+    if (EgoSensor->IsReplaying())
     {
         const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
-        MPH = Replay->GetEgoVelocity() * 0.0223694f; // cm/s to mph
+        MPH = Replay->GetVehicleVelocity() * 0.0223694f; // cm/s to mph
         if (Replay->GetUserInputs().ToggledReverse)
         {
             bReverse = !bReverse;
