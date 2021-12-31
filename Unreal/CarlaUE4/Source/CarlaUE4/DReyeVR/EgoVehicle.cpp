@@ -21,9 +21,6 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 {
     ReadConfigVariables();
 
-    // Initialize vehicle movement component
-    InitVehicleMovement();
-
     // Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickGroup = TG_PostPhysics;
@@ -37,77 +34,135 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
     // Initialize the camera components
     InitCamera();
 
-    // Initialize text render components
-    InitDReyeVRText();
+    // Initialize audio components
+    InitEgoSounds();
 
     // Initialize collision event functions
-    InitDReyeVRCollisions();
+    InitCollisionHandler();
 
-    // Initialize audio components
-    InitDReyeVRSounds();
+    // Initialize text render components
+    InitDashText();
 }
 
 void AEgoVehicle::ReadConfigVariables()
 {
     ReadConfigValue("EgoVehicle", "CameraInit", CameraLocnInVehicle);
     ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
-    // vr
+    ReadConfigValue("EgoVehicle", "TurnSignalDuration", TurnSignalDuration);
+    // camera
     ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
-    // inputs
-    ReadConfigValue("Vehicle", "ScaleSteeringDamping", ScaleSteeringInput);
-    ReadConfigValue("Vehicle", "ScaleThrottleInput", ScaleThrottleInput);
-    ReadConfigValue("Vehicle", "ScaleBrakeInput", ScaleBrakeInput);
-    ReadConfigValue("Vehicle", "InvertMouseY", InvertMouseY);
-    ReadConfigValue("Vehicle", "ScaleMouseY", ScaleMouseY);
-    ReadConfigValue("Vehicle", "ScaleMouseX", ScaleMouseX);
-    // HUD (Head's Up Display)
-    ReadConfigValue("VehicleHUD", "DrawFPSCounter", bDrawFPSCounter);
-    ReadConfigValue("VehicleHUD", "DrawFlatReticle", bDrawFlatReticle);
-    ReadConfigValue("VehicleHUD", "ReticleSize", ReticleSize);
-    ReadConfigValue("VehicleHUD", "DrawGaze", bDrawGaze);
-    ReadConfigValue("VehicleHUD", "DrawSpectatorReticle", bDrawSpectatorReticle);
-    ReadConfigValue("VehicleHUD", "EnableSpectatorScreen", bEnableSpectatorScreen);
-
-    // cosmetic
+    // other/cosmetic
+    ReadConfigValue("EgoVehicle", "ActorRegistryID", EgoVehicleID);
     ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
+    // HUD (Head's Up Display)
+    ReadConfigValue("EgoVehicleHUD", "DrawFPSCounter", bDrawFPSCounter);
+    ReadConfigValue("EgoVehicleHUD", "DrawFlatReticle", bDrawFlatReticle);
+    ReadConfigValue("EgoVehicleHUD", "ReticleSize", ReticleSize);
+    ReadConfigValue("EgoVehicleHUD", "DrawGaze", bDrawGaze);
+    ReadConfigValue("EgoVehicleHUD", "DrawSpectatorReticle", bDrawSpectatorReticle);
+    ReadConfigValue("EgoVehicleHUD", "EnableSpectatorScreen", bEnableSpectatorScreen);
+    // inputs
+    ReadConfigValue("VehicleInputs", "ScaleSteeringDamping", ScaleSteeringInput);
+    ReadConfigValue("VehicleInputs", "ScaleThrottleInput", ScaleThrottleInput);
+    ReadConfigValue("VehicleInputs", "ScaleBrakeInput", ScaleBrakeInput);
+    ReadConfigValue("VehicleInputs", "InvertMouseY", InvertMouseY);
+    ReadConfigValue("VehicleInputs", "ScaleMouseY", ScaleMouseY);
+    ReadConfigValue("VehicleInputs", "ScaleMouseX", ScaleMouseX);
 }
 
-void AEgoVehicle::InitVehicleMovement()
+void AEgoVehicle::BeginPlay()
 {
-    // TODO: adjust vehicle params here
-    // possibly overriding changes in CARLA wheeled vehicle
-    UWheeledVehicleMovementComponent4W *Vehicle4W =
-        CastChecked<UWheeledVehicleMovementComponent4W>(GetVehicleMovement());
+    // Called when the game starts or when spawned
+    Super::BeginPlay();
 
-    // Adjust the tire loading
-    Vehicle4W->MinNormalizedTireLoad = 0.0f;
-    Vehicle4W->MinNormalizedTireLoadFiltered = 0.2f;
-    Vehicle4W->MaxNormalizedTireLoad = 2.0f;
-    Vehicle4W->MaxNormalizedTireLoadFiltered = 2.0f;
+    // Get information about the world
+    World = GetWorld();
+    Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
+    Episode = UCarlaStatics::GetCurrentEpisode(World);
 
-    // Torque setup
-    Vehicle4W->MaxEngineRPM = 5700.0f;
-    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->Reset();
-    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(0.0f, 0.0f);
-    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(7000.0f, 0.0f);
-    //    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(0.0f, 10.0f);
-    //    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(1890.0f, 100.0f);
-    //    Vehicle4W->EngineSetup.TorqueCurve.GetRichCurve()->AddKey(5730.0f, 50.0f);
+    // Setup the HUD
+    InitFlatHUD();
 
-    // Adjust the steering
-    Vehicle4W->SteeringCurve.GetRichCurve()->Reset();
-    Vehicle4W->SteeringCurve.GetRichCurve()->AddKey(0.0f, 1.0f);
-    Vehicle4W->SteeringCurve.GetRichCurve()->AddKey(120.0f, 0.6f);
+    // Get information about the VR headset & initialize SteamVR
+    InitSteamVR();
 
-    Vehicle4W->DifferentialSetup.DifferentialType = EVehicleDifferential4W::LimitedSlip_4W;
-    Vehicle4W->DifferentialSetup.FrontRearSplit = 0.65f;
+    // Spawn and attach the EgoSensor
+    InitSensor();
 
-    // Automatic gearbox
-    Vehicle4W->TransmissionSetup.bUseGearAutoBox = true;
-    Vehicle4W->TransmissionSetup.GearSwitchTime = 0.15f;
-    Vehicle4W->TransmissionSetup.GearAutoBoxLatency = 1.0f;
+    // Enable VR spectator screen & eye reticle
+    InitSpectator();
 
-    /// TODO: adjust the deceleration curve
+    // Initialize logitech steering wheel
+    InitLogiWheel();
+
+    // Bug-workaround for initial delay on throttle; see https://github.com/carla-simulator/carla/issues/1640
+    this->GetVehicleMovementComponent()->SetTargetGear(1, true);
+
+    // Register Ego Vehicle with ActorRegistry
+    Register();
+
+    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
+}
+
+void AEgoVehicle::BeginDestroy()
+{
+    // destroy all spawned entities
+    if (EgoSensor)
+        EgoSensor->Destroy();
+
+    Super::BeginDestroy();
+}
+
+// Called every frame
+void AEgoVehicle::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    // Update the positions based off replay data
+    ReplayTick();
+
+    // Get the current data from the AEgoSensor and use it
+    UpdateSensor(DeltaSeconds);
+
+    // Draw debug lines on editor
+    DebugLines();
+
+    // Render EgoVehicle dashboard
+    UpdateDash();
+
+    // Draw the flat-screen HUD items like eye-reticle and FPS counter
+    DrawFlatHUD(DeltaSeconds);
+
+    // Draw the spectator vr screen and overlay elements
+    DrawSpectatorScreen();
+
+    // Update the world level
+    TickLevel(DeltaSeconds);
+
+    // Tick the logitech wheel
+    TickLogiWheel();
+
+    // Finish the EgoVehicle tick
+    FinishTick();
+}
+
+/// ========================================== ///
+/// ----------------:CAMERA:------------------ ///
+/// ========================================== ///
+
+void AEgoVehicle::InitSteamVR()
+{
+    bIsHMDConnected = UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled();
+    if (bIsHMDConnected)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Head mounted device detected!"));
+        // Now we'll begin with setting up the VR Origin logic
+        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Level
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No head mounted device detected!"));
+    }
 }
 
 void AEgoVehicle::InitCamera()
@@ -121,87 +176,104 @@ void AEgoVehicle::InitCamera()
     FirstPersonCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCam"));
     FirstPersonCam->SetupAttachment(VRCameraRoot);
     FirstPersonCam->bUsePawnControlRotation = false; // free for VR movement
+    FirstPersonCam->bLockToHmd = true;               // lock orientation and position to HMD
     FirstPersonCam->FieldOfView = FieldOfView;       // editable
 }
 
-void AEgoVehicle::InitDReyeVRText()
+const UCameraComponent *AEgoVehicle::GetCamera() const
 {
-    // Create speedometer
-    Speedometer = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Speedometer"));
-    Speedometer->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-    Speedometer->SetRelativeLocation(DashboardLocnInVehicle);
-    Speedometer->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
-    Speedometer->SetTextRenderColor(FColor::Red);
-    Speedometer->SetText(FText::FromString("0"));
-    Speedometer->SetXScale(1.f);
-    Speedometer->SetYScale(1.f);
-    Speedometer->SetWorldSize(10); // scale the font with this
-    Speedometer->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
-    Speedometer->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-
-    // Create turn signals
-    TurnSignals = CreateDefaultSubobject<UTextRenderComponent>(TEXT("TurnSignals"));
-    TurnSignals->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-    TurnSignals->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, -40.f, 0));
-    TurnSignals->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
-    TurnSignals->SetTextRenderColor(FColor::Red);
-    TurnSignals->SetText(FText::FromString(""));
-    TurnSignals->SetXScale(1.f);
-    TurnSignals->SetYScale(1.f);
-    TurnSignals->SetWorldSize(10); // scale the font with this
-    TurnSignals->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
-    TurnSignals->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-
-    // Create speedometer
-    GearShifter = CreateDefaultSubobject<UTextRenderComponent>(TEXT("GearShifter"));
-    GearShifter->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-    GearShifter->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, 15.f, 0));
-    GearShifter->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
-    GearShifter->SetTextRenderColor(FColor::Red);
-    GearShifter->SetText(FText::FromString("D"));
-    GearShifter->SetXScale(1.f);
-    GearShifter->SetYScale(1.f);
-    GearShifter->SetWorldSize(10); // scale the font with this
-    GearShifter->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
-    GearShifter->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+    return FirstPersonCam;
+}
+UCameraComponent *AEgoVehicle::GetCamera()
+{
+    return FirstPersonCam;
+}
+FVector AEgoVehicle::GetCameraOffset() const
+{
+    return CameraLocnInVehicle;
+}
+FVector AEgoVehicle::GetCameraPosn() const
+{
+    return GetCamera()->GetComponentLocation();
+}
+FVector AEgoVehicle::GetNextCameraPosn(const float DeltaSeconds) const
+{
+    // usually only need this is tick before physics
+    return GetCameraPosn() + DeltaSeconds * GetVelocity();
+}
+FRotator AEgoVehicle::GetCameraRot() const
+{
+    return GetCamera()->GetComponentRotation();
 }
 
-void AEgoVehicle::InitDReyeVRCollisions()
+/// ========================================== ///
+/// ----------------:SENSOR:------------------ ///
+/// ========================================== ///
+
+void AEgoVehicle::InitSensor()
 {
-    // using Carla's GetVehicleBoundingBox function
-    UBoxComponent *Bounds = this->GetVehicleBoundingBox();
-    Bounds->SetGenerateOverlapEvents(true);
-    Bounds->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-    Bounds->SetCollisionProfileName(TEXT("Trigger"));
-    Bounds->OnComponentBeginOverlap.AddDynamic(this, &AEgoVehicle::OnOverlapBegin);
+    // Spawn the EyeTracker Carla sensor and attach to Ego-Vehicle:
+    FActorSpawnParameters EyeTrackerSpawnInfo;
+    EyeTrackerSpawnInfo.Owner = this;
+    EyeTrackerSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    EgoSensor = World->SpawnActor<AEgoSensor>(GetCameraPosn(), FRotator::ZeroRotator, EyeTrackerSpawnInfo);
+    check(EgoSensor != nullptr);
+    // Attach the EgoSensor as a child to the EgoVehicle
+    EgoSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+    EgoSensor->SetEgoVehicle(this);
 }
 
-void AEgoVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
-                                 UPrimitiveComponent *OtherComp, int32 OtherBodyIndex, bool bFromSweep,
-                                 const FHitResult &SweepResult)
+void AEgoVehicle::ReplayTick()
 {
-    if (OtherActor != nullptr && OtherActor != this)
+    // perform all sensor updates that occur when replaying
+    if (EgoSensor->IsReplaying())
     {
-        FString actor_name = OtherActor->GetName();
-        UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
-        // can be more flexible, such as having collisions with static props or people too
-        if (OtherActor->IsA(ACarlaWheeledVehicle::StaticClass()))
-        {
-            // emit the car collision sound at the midpoint between the vehicles' collision
-            const FVector Location = (OtherActor->GetActorLocation() - GetActorLocation()) / 2.f;
-            // const FVector Location = OtherActor->GetActorLocation(); // more pronounced spacial audio
-            const FRotator Rotation(0.f, 0.f, 0.f);
-            const float VolMult = 1.f; //((OtherActor->GetVelocity() - GetVelocity()) / 40.f).Size();
-            const float PitchMult = 1.f;
-            const float SoundStartTime = 0.f; // how far in to the sound to begin playback
-            // "fire and forget" sound function
-            UGameplayStatics::PlaySoundAtLocation(GetWorld(), CrashSound->Sound, Location, Rotation, VolMult, PitchMult,
-                                                  SoundStartTime, CrashSound->AttenuationSettings, nullptr, this);
-        }
+        // this gets reached when the simulator is replaying data from a carla log
+        const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
+
+        // include positional update here, else there is lag/jitter between the camera and the vehicle
+        // since the Carla Replayer tick differs from the EgoVehicle tick
+        const FTransform ReplayTransform(Replay->GetVehicleRotation(), // FRotator (Rotation)
+                                         Replay->GetVehicleLocation(), // FVector (Location)
+                                         FVector::OneVector);          // FVector (Scale3D)
+        SetActorTransform(ReplayTransform, false, nullptr, ETeleportType::None);
+
+        // assign first person camera orientation and location
+        FirstPersonCam->SetRelativeRotation(Replay->GetCameraRotation(), false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeLocation(Replay->GetCameraLocation(), false, nullptr, ETeleportType::None);
     }
 }
 
-void AEgoVehicle::InitDReyeVRSounds()
+void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
+{
+    // Calculate gaze data (in world space) using eye tracker data
+    const DReyeVR::AggregateData *Data = EgoSensor->GetData();
+    // Compute World positions and orientations
+    const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
+    const FVector WorldPos = FirstPersonCam->GetComponentLocation();
+
+    // First get the gaze origin and direction and vergence from the EyeTracker Sensor
+    const float RayLength = FMath::Max(1.f, Data->GetGazeVergence() / 100.f); // vergence to m (from cm)
+    const float VRMeterScale = UHeadMountedDisplayFunctionLibrary::GetWorldToMetersScale(World);
+
+    // Both eyes
+    CombinedGaze = RayLength * VRMeterScale * Data->GetGazeDir();
+    CombinedOrigin = WorldPos + WorldRot.RotateVector(Data->GetGazeOrigin());
+
+    // Left eye
+    LeftGaze = RayLength * VRMeterScale * Data->GetGazeDir(DReyeVR::Gaze::LEFT);
+    LeftOrigin = WorldPos + WorldRot.RotateVector(Data->GetGazeOrigin(DReyeVR::Gaze::LEFT));
+
+    // Right eye
+    RightGaze = RayLength * VRMeterScale * Data->GetGazeDir(DReyeVR::Gaze::RIGHT);
+    RightOrigin = WorldPos + WorldRot.RotateVector(Data->GetGazeOrigin(DReyeVR::Gaze::RIGHT));
+}
+
+/// ========================================== ///
+/// ----------------:SOUNDS:------------------ ///
+/// ========================================== ///
+
+void AEgoVehicle::InitEgoSounds()
 {
     // retarget the engine cue
     static ConstructorHelpers::FObjectFinder<USoundCue> EgoEngineCue(
@@ -209,7 +281,7 @@ void AEgoVehicle::InitDReyeVRSounds()
     EngineRevSound->bAutoActivate = true;          // start playing on begin
     EngineRevSound->SetSound(EgoEngineCue.Object); // using this sound
 
-    // Initialize audio components
+    // Initialize ego-centric audio components
     static ConstructorHelpers::FObjectFinder<USoundWave> GearSound(
         TEXT("SoundWave'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/GearShift.GearShift'"));
     GearShiftSound = CreateDefaultSubobject<UAudioComponent>(TEXT("GearShift"));
@@ -261,307 +333,64 @@ void AEgoVehicle::SetVolume(const float VolumeIn)
     Super::SetVolume(VolumeIn);
 }
 
-FVector AEgoVehicle::GetCameraPosn() const
+/// ========================================== ///
+/// ---------------:COLLISIONS:--------------- ///
+/// ========================================== ///
+
+void AEgoVehicle::InitCollisionHandler()
 {
-    return FirstPersonCam->GetComponentLocation();
+    // using Carla's GetVehicleBoundingBox function
+    UBoxComponent *Bounds = this->GetVehicleBoundingBox();
+    Bounds->SetGenerateOverlapEvents(true);
+    Bounds->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    Bounds->SetCollisionProfileName(TEXT("Trigger"));
+    Bounds->OnComponentBeginOverlap.AddDynamic(this, &AEgoVehicle::OnOverlapBegin);
 }
 
-FVector AEgoVehicle::GetNextCameraPosn(const float DeltaSeconds) const
+void AEgoVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor,
+                                 UPrimitiveComponent *OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+                                 const FHitResult &SweepResult)
 {
-    // usually only need this is tick before physics
-    return this->GetCameraPosn() + DeltaSeconds * this->GetVelocity();
-}
-
-FRotator AEgoVehicle::GetCameraRot() const
-{
-    return FirstPersonCam->GetComponentRotation();
-}
-
-FVector AEgoVehicle::GetCameraOffset() const
-{
-    return CameraLocnInVehicle;
-}
-
-const UCameraComponent *AEgoVehicle::GetCamera() const
-{
-    return FirstPersonCam;
-}
-
-UCameraComponent *AEgoVehicle::GetCamera()
-{
-    return FirstPersonCam;
-}
-
-const USceneComponent *AEgoVehicle::GetVRCameraRoot() const
-{
-    return VRCameraRoot;
-}
-
-USceneComponent *AEgoVehicle::GetVRCameraRoot()
-{
-    return VRCameraRoot;
-}
-
-void AEgoVehicle::BeginPlay()
-{
-    // Called when the game starts or when spawned
-    Super::BeginPlay();
-
-    // Get information about the world
-    World = GetWorld();
-    Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
-    Episode = UCarlaStatics::GetCurrentEpisode(World);
-
-    // Setup the HUD
-    AHUD *Raw_HUD = Player->GetHUD();
-    HUD = Cast<ADReyeVRHUD>(Raw_HUD);
-    if (HUD)
+    if (OtherActor != nullptr && OtherActor != this)
     {
-        HUD->SetPlayer(Player);
+        FString actor_name = OtherActor->GetName();
+        UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
+        // can be more flexible, such as having collisions with static props or people too
+        if (OtherActor->IsA(ACarlaWheeledVehicle::StaticClass()))
+        {
+            // emit the car collision sound at the midpoint between the vehicles' collision
+            const FVector Location = (OtherActor->GetActorLocation() - GetActorLocation()) / 2.f;
+            // const FVector Location = OtherActor->GetActorLocation(); // more pronounced spacial audio
+            const FRotator Rotation(0.f, 0.f, 0.f);
+            const float VolMult = 1.f; //((OtherActor->GetVelocity() - GetVelocity()) / 40.f).Size();
+            const float PitchMult = 1.f;
+            const float SoundStartTime = 0.f; // how far in to the sound to begin playback
+            // "fire and forget" sound function
+            UGameplayStatics::PlaySoundAtLocation(GetWorld(), CrashSound->Sound, Location, Rotation, VolMult, PitchMult,
+                                                  SoundStartTime, CrashSound->AttenuationSettings, nullptr, this);
+        }
     }
-
-    // Get information about the VR headset
-    IsHMDConnected = UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled();
-    if (IsHMDConnected)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("HMD detected"));
-        // Now we'll begin with setting up the VR Origin logic
-        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Level
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("NO HMD detected"));
-    }
-
-    // Spawn the EyeTracker Carla sensor and attach to Ego-Vehicle:
-    FActorSpawnParameters EyeTrackerSpawnInfo;
-    EyeTrackerSpawnInfo.Owner = this;
-    EyeTrackerSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    EgoSensor = World->SpawnActor<AEgoSensor>(FirstPersonCam->GetComponentLocation(), FRotator(0.0f, 0.0f, 0.0f),
-                                              EyeTrackerSpawnInfo);
-    // Attach the EgoSensor as a child to the EgoVehicle BP
-    EgoSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
-    EgoSensor->SetPlayer(Player);
-    EgoSensor->SetCamera(FirstPersonCam);
-
-    // Enable VR spectator screen & eye reticle
-    if (!bEnableSpectatorScreen)
-    {
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
-    }
-    else if (bDrawSpectatorReticle && IsHMDConnected)
-    {
-        InitReticleTexture(); // generate array of pixel values
-        check(ReticleTexture);
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
-    }
-
-    // Initialize logitech steering wheel
-#if USE_LOGITECH_WHEEL
-    LogiSteeringInitialize(false);
-    IsLogiConnected = LogiIsConnected(0); // get status of connected device
-    if (!IsLogiConnected)
-    {
-        UE_LOG(LogTemp, Log, TEXT("WARNING: Could not find Logitech device connected on input 0"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("Found a Logitech device connected on input 0"));
-    }
-#endif
-
-    // Bug-workaround for initial delay on throttle; see https://github.com/carla-simulator/carla/issues/1640
-    this->GetVehicleMovementComponent()->SetTargetGear(1, true);
-
-    // Register Ego Vehicle with ActorRegistry
-    Register();
-
-    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
-}
-
-void AEgoVehicle::Register()
-{
-    /// TODO: parametrize
-    FActorView::IdType ID = EgoVehicleID;
-    FActorDescription Description;
-    Description.Class = ACarlaWheeledVehicle::StaticClass();
-    Description.Id = "vehicle.dreyevr.egovehicle";
-    Description.UId = ID;
-    // ensure this vehicle is denoted by the 'hero' attribute
-    FActorAttribute HeroRole;
-    HeroRole.Id = "role_name";
-    HeroRole.Type = EActorAttributeType::String;
-    HeroRole.Value = "hero";
-    Description.Variations.Add(HeroRole.Id, std::move(HeroRole));
-    // ensure the vehicle has attributes denoting number of wheels
-    FActorAttribute NumWheels;
-    NumWheels.Id = "number_of_wheels";
-    NumWheels.Type = EActorAttributeType::Int;
-    NumWheels.Value = "4";
-    Description.Variations.Add(NumWheels.Id, std::move(NumWheels));
-    FString Tags = "EgoVehicle,DReyeVR";
-    Episode->RegisterActor(*this, Description, Tags, ID);
-}
-
-void AEgoVehicle::BeginDestroy()
-{
-    // destroy all spawned entities
-    if (EgoSensor)
-        EgoSensor->Destroy();
-
-    Super::BeginDestroy();
-}
-
-void AEgoVehicle::ReplayUpdate()
-{
-    // perform all updates that occur when replaying
-    if (EgoSensor->IsReplaying())
-    {
-        // if we don't have this positional update here, there is lag/jitter between the FPS camera and the vehicle
-        // since they are likely updating on different ticks (Carla Replayers's vs here)
-        const FTransform ReplayTransform(EgoSensor->GetData()->GetVehicleRotation(), // FRotator (Rotation)
-                                         EgoSensor->GetData()->GetVehicleLocation(), // FVector (Location)
-                                         FVector::OneVector);                        // FVector (Scale3D)
-        SetActorTransform(ReplayTransform, false, nullptr, ETeleportType::None);
-    }
-}
-
-// Called every frame
-void AEgoVehicle::Tick(float DeltaSeconds)
-{
-    Super::Tick(DeltaSeconds);
-
-    // Update the positions based off replay data
-    ReplayUpdate();
-
-    // Update sensor
-    UpdateSensor(DeltaSeconds);
-
-    // Draw debug lines on editor
-    DebugLines();
-
-    // Render EgoVehicle dashboard
-    UpdateDash();
-
-    // Draw the flat-screen HUD items like eye-reticle and FPS counter
-    DrawFlatHUD(DeltaSeconds); // NOTE: only present in flat-screen mode!
-
-    // Draw the spectator vr screen and overlay elements
-    DrawSpectatorScreen();
-
-    // Update the world level
-    TickLevel(DeltaSeconds);
-
-#if USE_LOGITECH_WHEEL
-    if (IsLogiConnected)
-    {
-        // Taking logitech inputs for steering
-        LogitechWheelUpdate();
-
-        // Add Force Feedback to the hardware steering wheel when a LogitechWheel is used
-        ApplyForceFeedback();
-    }
-#endif
 }
 
 /// ========================================== ///
-/// ----------------:SENSOR:------------------ ///
+/// ---------------:SPECTATOR:---------------- ///
 /// ========================================== ///
 
-void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
+void AEgoVehicle::InitSpectator()
 {
-    // Compute World positions and orientations
-    if (!EgoSensor->IsReplaying())
+    if (bIsHMDConnected)
     {
-        EgoSensor->SetInputs(VehicleInputs);
-        EgoSensor->SetEgoVelocity(GetVehicleForwardSpeed());
-        EgoSensor->SetEgoTransform(GetActorTransform());
-    }
-    else
-    {
-        // this gets reached when the simulator is replaying data from a carla log
-        const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
-        // assign first person camera orientation and location
-        FirstPersonCam->SetRelativeRotation(Replay->GetCameraRotation(), false, nullptr, ETeleportType::None);
-        FirstPersonCam->SetRelativeLocation(Replay->GetCameraLocation(), false, nullptr, ETeleportType::None);
-    }
-    VehicleInputs = {}; // clear inputs to be updated on the next tick
-
-    // Calculate gaze data using eye tracker data
-    const DReyeVR::AggregateData *Data = EgoSensor->GetData();
-    // Compute World positions and orientations
-    const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
-    const FVector WorldPos = FirstPersonCam->GetComponentLocation();
-
-    // First get the gaze origin and direction and vergence from the EyeTracker Sensor
-    const float Vergence = FMath::Max(1.f, Data->GetGazeVergence() / 100.f); // vergence to m (from cm)
-    const float UE4MeterScale = UHeadMountedDisplayFunctionLibrary::GetWorldToMetersScale(World);
-
-    // Both eyes
-    CombinedGaze = Vergence * UE4MeterScale * Data->GetGazeDir();
-    CombinedOrigin = WorldRot.RotateVector(Data->GetGazeOrigin()) + WorldPos;
-
-    // Left eye
-    LeftGaze = UE4MeterScale * Data->GetGazeDir(DReyeVR::Gaze::LEFT);
-    LeftOrigin = WorldRot.RotateVector(Data->GetGazeOrigin(DReyeVR::Gaze::LEFT)) + WorldPos;
-
-    // Right eye
-    RightGaze = UE4MeterScale * Data->GetGazeDir(DReyeVR::Gaze::RIGHT);
-    RightOrigin = WorldRot.RotateVector(Data->GetGazeOrigin(DReyeVR::Gaze::RIGHT)) + WorldPos;
-}
-
-/// ========================================== ///
-/// -----------------:LEVEL:------------------ ///
-/// ========================================== ///
-
-void AEgoVehicle::SetLevel(ADReyeVRLevel *Level)
-{
-    this->DReyeVRLevel = Level;
-}
-
-void AEgoVehicle::TickLevel(float DeltaSeconds)
-{
-    if (this->DReyeVRLevel == nullptr)
-        return;
-    DReyeVRLevel->Tick(DeltaSeconds);
-}
-
-/// ========================================== ///
-/// ---------------:COSMETIC:----------------- ///
-/// ========================================== ///
-
-void AEgoVehicle::DebugLines() const
-{
-    // Compute World positions and orientations
-    const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
-
-#if WITH_EDITOR
-    // Rotate and add the gaze ray to the origin
-    FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
-
-    // Use Absolute Ray Position to draw debug information
-    if (bDrawDebugEditor)
-    {
-        DrawDebugSphere(World, CombinedGazePosn, 4.0f, 12, FColor::Blue);
-
-        // Draw individual rays for left and right eye
-        DrawDebugLine(World,
-                      LeftOrigin,                                        // start line
-                      LeftOrigin + 10 * WorldRot.RotateVector(LeftGaze), // end line
-                      FColor::Green, false, -1, 0, 1);
-
-        DrawDebugLine(World,
-                      RightOrigin,                                         // start line
-                      RightOrigin + 10 * WorldRot.RotateVector(RightGaze), // end line
-                      FColor::Yellow, false, -1, 0, 1);
-    }
-#endif
-    if (bDrawGaze && HUD != nullptr)
-    {
-        // Draw line components in HUD
-        HUD->DrawDynamicLine(CombinedOrigin, CombinedOrigin + 10.f * WorldRot.RotateVector(CombinedGaze), FColor::Red,
-                             3.0f);
+        if (bEnableSpectatorScreen)
+        {
+            InitReticleTexture(); // generate array of pixel values
+            check(ReticleTexture);
+            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
+            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
+        }
+        else
+        {
+            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
+        }
     }
 }
 
@@ -628,54 +457,9 @@ void AEgoVehicle::InitReticleTexture()
     check(ReticleTexture->Resource);
 }
 
-void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
-{
-    if (HUD == nullptr || Player == nullptr)
-        return;
-    // calculate View size (of open window). Note this is not the same as resolution
-    FIntPoint ViewSize;
-    Player->GetViewportSize(ViewSize.X, ViewSize.Y);
-    // Get eye tracker variables
-    const FRotator WorldRot = GetCamera()->GetComponentRotation();
-    const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
-    // Draw elements of the HUD
-    if (bDrawFlatReticle) // Draw reticle on flat-screen HUD
-    {
-        const float Diameter = ReticleSize;
-        const float Thickness = (ReticleSize / 2.f) / 10.f; // 10 % of radius
-        if (bRectangularReticle)
-        {
-            HUD->DrawDynamicSquare(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), Thickness);
-        }
-        else
-        {
-            HUD->DrawDynamicCrosshair(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), true, Thickness);
-#if 0
-            // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
-            // crashes the thread its on by invalidating the ReticleTexture->Resource which is
-            // non-const (but should be!!) This has to be a bug in UE4 code that we unfortunately have
-            // to work around
-            if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
-            {
-                InitReticleTexture();
-            }
-            if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
-            {
-                HUD->DrawReticle(ReticleTexture, ReticlePos + FVector2D(-ReticleSize * 0.5f, -ReticleSize * 0.5f));
-            }
-#endif
-        }
-    }
-    if (bDrawFPSCounter)
-    {
-        HUD->DrawDynamicText(FString::FromInt(int(1.f / DeltaSeconds)), FVector2D(ViewSize.X - 100, 50),
-                             FColor(0, 255, 0, 213), 2);
-    }
-}
-
 void AEgoVehicle::DrawSpectatorScreen()
 {
-    if (!bEnableSpectatorScreen || Player == nullptr || !IsHMDConnected)
+    if (!bEnableSpectatorScreen || Player == nullptr || !bIsHMDConnected)
         return;
     // calculate View size (of open window). Note this is not the same as resolution
     FIntPoint ViewSize;
@@ -710,6 +494,116 @@ void AEgoVehicle::DrawSpectatorScreen()
             true                 // use alpha
         );
     }
+}
+
+/// ========================================== ///
+/// ----------------:FLATHUD:----------------- ///
+/// ========================================== ///
+
+void AEgoVehicle::InitFlatHUD()
+{
+    check(Player);
+    AHUD *Raw_HUD = Player->GetHUD();
+    FlatHUD = Cast<ADReyeVRHUD>(Raw_HUD);
+    if (FlatHUD)
+    {
+        FlatHUD->SetPlayer(Player);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Unable to initialize DReyeVR HUD!"));
+    }
+}
+
+void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
+{
+    if (FlatHUD == nullptr || Player == nullptr)
+        return;
+    // calculate View size (of open window). Note this is not the same as resolution
+    FIntPoint ViewSize;
+    Player->GetViewportSize(ViewSize.X, ViewSize.Y);
+    // Get eye tracker variables
+    const FRotator WorldRot = GetCamera()->GetComponentRotation();
+    const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
+    // Draw elements of the HUD
+    if (bDrawFlatReticle) // Draw reticle on flat-screen HUD
+    {
+        const float Diameter = ReticleSize;
+        const float Thickness = (ReticleSize / 2.f) / 10.f; // 10 % of radius
+        if (bRectangularReticle)
+        {
+            FlatHUD->DrawDynamicSquare(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), Thickness);
+        }
+        else
+        {
+            FlatHUD->DrawDynamicCrosshair(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), true, Thickness);
+#if 0
+            // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
+            // crashes the thread its on by invalidating the ReticleTexture->Resource which is
+            // non-const (but should be!!) This has to be a bug in UE4 code that we unfortunately have
+            // to work around
+            if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
+            {
+                InitReticleTexture();
+            }
+            if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
+            {
+                FlatHUD->DrawReticle(ReticleTexture, ReticlePos + FVector2D(-ReticleSize * 0.5f, -ReticleSize * 0.5f));
+            }
+#endif
+        }
+    }
+    if (bDrawFPSCounter)
+    {
+        FlatHUD->DrawDynamicText(FString::FromInt(int(1.f / DeltaSeconds)), FVector2D(ViewSize.X - 100, 50),
+                                 FColor(0, 255, 0, 213), 2);
+    }
+}
+
+/// ========================================== ///
+/// -----------------:DASH:------------------- ///
+/// ========================================== ///
+
+void AEgoVehicle::InitDashText() // dashboard text (speedometer, turn signals, gear shifter)
+{
+    // Create speedometer
+    Speedometer = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Speedometer"));
+    Speedometer->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+    Speedometer->SetRelativeLocation(DashboardLocnInVehicle);
+    Speedometer->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
+    Speedometer->SetTextRenderColor(FColor::Red);
+    Speedometer->SetText(FText::FromString("0"));
+    Speedometer->SetXScale(1.f);
+    Speedometer->SetYScale(1.f);
+    Speedometer->SetWorldSize(10); // scale the font with this
+    Speedometer->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
+    Speedometer->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+
+    // Create turn signals
+    TurnSignals = CreateDefaultSubobject<UTextRenderComponent>(TEXT("TurnSignals"));
+    TurnSignals->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+    TurnSignals->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, -40.f, 0));
+    TurnSignals->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
+    TurnSignals->SetTextRenderColor(FColor::Red);
+    TurnSignals->SetText(FText::FromString(""));
+    TurnSignals->SetXScale(1.f);
+    TurnSignals->SetYScale(1.f);
+    TurnSignals->SetWorldSize(10); // scale the font with this
+    TurnSignals->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
+    TurnSignals->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+
+    // Create gear shifter
+    GearShifter = CreateDefaultSubobject<UTextRenderComponent>(TEXT("GearShifter"));
+    GearShifter->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+    GearShifter->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, 15.f, 0));
+    GearShifter->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
+    GearShifter->SetTextRenderColor(FColor::Red);
+    GearShifter->SetText(FText::FromString("D"));
+    GearShifter->SetXScale(1.f);
+    GearShifter->SetYScale(1.f);
+    GearShifter->SetWorldSize(10); // scale the font with this
+    GearShifter->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
+    GearShifter->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
 }
 
 void AEgoVehicle::UpdateDash()
@@ -760,4 +654,90 @@ void AEgoVehicle::UpdateDash()
         GearShifter->SetText(FText::FromString("R"));
     else
         GearShifter->SetText(FText::FromString("D"));
+}
+
+/// ========================================== ///
+/// -----------------:LEVEL:------------------ ///
+/// ========================================== ///
+
+void AEgoVehicle::SetLevel(ADReyeVRLevel *Level)
+{
+    this->DReyeVRLevel = Level;
+}
+
+void AEgoVehicle::TickLevel(float DeltaSeconds)
+{
+    if (this->DReyeVRLevel != nullptr)
+        DReyeVRLevel->Tick(DeltaSeconds);
+}
+
+/// ========================================== ///
+/// -----------------:OTHER:------------------ ///
+/// ========================================== ///
+
+void AEgoVehicle::Register()
+{
+    /// TODO: parametrize
+    FActorView::IdType ID = EgoVehicleID;
+    FActorDescription Description;
+    Description.Class = ACarlaWheeledVehicle::StaticClass();
+    Description.Id = "vehicle.dreyevr.egovehicle";
+    Description.UId = ID;
+    // ensure this vehicle is denoted by the 'hero' attribute
+    FActorAttribute HeroRole;
+    HeroRole.Id = "role_name";
+    HeroRole.Type = EActorAttributeType::String;
+    HeroRole.Value = "hero";
+    Description.Variations.Add(HeroRole.Id, std::move(HeroRole));
+    // ensure the vehicle has attributes denoting number of wheels
+    FActorAttribute NumWheels;
+    NumWheels.Id = "number_of_wheels";
+    NumWheels.Type = EActorAttributeType::Int;
+    NumWheels.Value = "4";
+    Description.Variations.Add(NumWheels.Id, std::move(NumWheels));
+    FString Tags = "EgoVehicle,DReyeVR";
+    Episode->RegisterActor(*this, Description, Tags, ID);
+}
+
+void AEgoVehicle::FinishTick()
+{
+    VehicleInputs = {}; // clear inputs to be updated on the next tick
+}
+
+/// ========================================== ///
+/// ---------------:COSMETIC:----------------- ///
+/// ========================================== ///
+
+void AEgoVehicle::DebugLines() const
+{
+    // Compute World positions and orientations
+    const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
+
+#if WITH_EDITOR
+    // Rotate and add the gaze ray to the origin
+    FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
+
+    // Use Absolute Ray Position to draw debug information
+    if (bDrawDebugEditor)
+    {
+        DrawDebugSphere(World, CombinedGazePosn, 4.0f, 12, FColor::Blue);
+
+        // Draw individual rays for left and right eye
+        DrawDebugLine(World,
+                      LeftOrigin,                                        // start line
+                      LeftOrigin + 10 * WorldRot.RotateVector(LeftGaze), // end line
+                      FColor::Green, false, -1, 0, 1);
+
+        DrawDebugLine(World,
+                      RightOrigin,                                         // start line
+                      RightOrigin + 10 * WorldRot.RotateVector(RightGaze), // end line
+                      FColor::Yellow, false, -1, 0, 1);
+    }
+#endif
+    if (bDrawGaze && FlatHUD != nullptr)
+    {
+        // Draw line components in FlatHUD
+        FlatHUD->DrawDynamicLine(CombinedOrigin, CombinedOrigin + 10.f * WorldRot.RotateVector(CombinedGaze),
+                                 FColor::Red, 3.0f);
+    }
 }

@@ -52,7 +52,7 @@ AEgoSensor::AEgoSensor(const FObjectInitializer &ObjectInitializer) : Super(Obje
         check(CaptureRenderTarget->GetSurfaceWidth() > 0 && CaptureRenderTarget->GetSurfaceHeight() > 0);
 
         FrameCap = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("FrameCap"));
-        FrameCap->SetupAttachment(FirstPersonCam);
+        FrameCap->SetupAttachment(Camera);
         FrameCap->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
         FrameCap->bCaptureOnMovement = false;
         FrameCap->bCaptureEveryFrame = false;
@@ -138,54 +138,36 @@ void AEgoSensor::BeginDestroy()
 #endif
 }
 
-void AEgoSensor::SetPlayer(APlayerController *P)
+void AEgoSensor::SetEgoVehicle(class AEgoVehicle *NewEgoVehicle)
 {
-    Player = P;
-}
-
-void AEgoSensor::SetCamera(UCameraComponent *FPSCamInEgoVehicle)
-{
-    // Assign the FPS camera pointer
-    FirstPersonCam = FPSCamInEgoVehicle;
-}
-
-void AEgoSensor::SetInputs(const DReyeVR::UserInputs &InputsIn)
-{
-    InputData = InputsIn;
-}
-
-void AEgoSensor::SetEgoVelocity(const float Velocity)
-{
-    EgoVars.Velocity = Velocity;
-}
-
-void AEgoSensor::SetEgoTransform(const FTransform &Trans)
-{
-    EgoVars.VehicleLocation = Trans.GetTranslation();
-    EgoVars.VehicleRotation = Trans.Rotator();
+    Vehicle = NewEgoVehicle;
+    Camera = Vehicle->GetCamera();
+    check(Vehicle);
 }
 
 void AEgoSensor::PrePhysTick(float DeltaSeconds)
 {
     if (!bIsReplaying) // only update the sensor with local values if not replaying
     {
-        TickEyeTracker();
-        ComputeTraceFocusInfo(ECC_GameTraceChannel4); // FocusData (ignores collision with vehicle)
-        EgoVars.CameraLocation = FirstPersonCam->GetRelativeLocation();
-        EgoVars.CameraRotation = FirstPersonCam->GetRelativeRotation();
-        GetData()->Update(int64_t(1000.f * UGameplayStatics::GetRealTimeSeconds(World)), // TimestampCarla (ms)
-                          EyeSensorData,                                                 // EyeTrackerData
-                          EgoVars,                                                       // EgoVehicleVariables
-                          FocusInfoData,                                                 // FocusData
-                          InputData                                                      // User inputs
+        const float Timestamp = int64_t(1000.f * UGameplayStatics::GetRealTimeSeconds(World));
+        TickEyeTracker();                             // query the eye-tracker hardware for current data
+        ComputeTraceFocusInfo(ECC_GameTraceChannel4); // compute gaze focus data
+        ComputeEgoVars();                             // get all necessary ego-vehicle data
+
+        // Update the internal sensor data that gets handed off to Carla (for recording/replaying/PythonAPI)
+        GetData()->Update(Timestamp,                  // TimestampCarla (ms)
+                          EyeSensorData,              // EyeTrackerData
+                          EgoVars,                    // EgoVehicleVariables
+                          FocusInfoData,              // FocusData
+                          Vehicle->GetVehicleInputs() // User inputs
         );
     }
     // frame capture
-    if (bCaptureFrameData && FrameCap && FirstPersonCam)
+    if (bCaptureFrameData && FrameCap && Camera)
     {
         FMinimalViewInfo DesiredView;
-        FirstPersonCam->GetCameraView(0, DesiredView);
-        FrameCap->SetCameraView(DesiredView); // move camera to the FirstPersonCam view
+        Camera->GetCameraView(0, DesiredView);
+        FrameCap->SetCameraView(DesiredView); // move camera to the Camera view
         FrameCap->CaptureScene();             // also available: CaptureSceneDeferred()
         const FString Suffix = FString::Printf(TEXT("%04d.png"), TickCount);
         SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix));
@@ -259,36 +241,34 @@ void AEgoSensor::TickEyeTracker()
 
 void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius)
 {
-    check(Player != nullptr);            // required for line trace
-    const float maxDist = 100.f * 100.f; // 100m
-
+    const float TraceLen = 100.f * 100.f; // 100m in world space
     const FRotator &WorldRot = GetData()->GetCameraRotation();
     const FVector &WorldPos = GetData()->GetCameraLocation();
     const FVector GazeOrigin = WorldRot.RotateVector(GetData()->GetGazeOrigin()) + WorldPos;
-    const FVector GazeDir = WorldRot.RotateVector(maxDist * GetData()->GetGazeDir());
+    const FVector GazeDir = WorldRot.RotateVector(TraceLen * GetData()->GetGazeDir());
 
     // Create collision information container.
-    FCollisionQueryParams traceParam;
-    traceParam = FCollisionQueryParams(FName("traceParam"), true, Player->PlayerCameraManager);
-    traceParam.bTraceComplex = true;
-    traceParam.bReturnPhysicalMaterial = false;
+    FCollisionQueryParams TraceParam;
+    TraceParam = FCollisionQueryParams(FName("TraceParam"), true);
+    TraceParam.AddIgnoredActor(Vehicle); // don't collide with the vehicle since that would be useless
+    TraceParam.bTraceComplex = true;
+    TraceParam.bReturnPhysicalMaterial = false;
     FHitResult Hit(EForceInit::ForceInit);
     bool bDidHit = false;
 
     // 0 for a point, >0 for a sphear trace
     TraceRadius = FMath::Max(TraceRadius, 0.f); // clamp to be positive
-    // Single line trace
-    if (TraceRadius == 0.f)
+
+    if (TraceRadius == 0.f) // Single ray/line trace
     {
-        bDidHit = World->LineTraceSingleByChannel(Hit, GazeOrigin, GazeDir, TraceChannel, traceParam);
+        bDidHit = World->LineTraceSingleByChannel(Hit, GazeOrigin, GazeDir, TraceChannel, TraceParam);
     }
-    // Sphear line trace
-    else
+    else // Sphear line trace
     {
         FCollisionShape Sphear = FCollisionShape();
         Sphear.SetSphere(TraceRadius);
         bDidHit = World->SweepSingleByChannel(Hit, GazeOrigin, GazeDir, FQuat(0.f, 0.f, 0.f, 0.f), TraceChannel, Sphear,
-                                              traceParam);
+                                              TraceParam);
     }
     // Update fields
     FString ActorName = "None";
@@ -302,6 +282,15 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
                      Hit.Location - GazeOrigin, // relative location of hit point
                      Hit.Normal,
                      ActorName};
+}
+
+void AEgoSensor::ComputeEgoVars()
+{
+    EgoVars.VehicleLocation = Vehicle->GetActorLocation();
+    EgoVars.VehicleRotation = Vehicle->GetActorRotation();
+    EgoVars.CameraLocation = Camera->GetRelativeLocation();
+    EgoVars.CameraRotation = Camera->GetRelativeRotation();
+    EgoVars.Velocity = Vehicle->GetVehicleForwardSpeed();
 }
 
 float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const

@@ -1,17 +1,17 @@
 #pragma once
 
 #include "Carla/Sensor/DReyeVRData.h"           // DReyeVR namespace
-#include "Carla/Sensor/DReyeVRSensor.h"         // DReyeVRSensor
+#include "Carla/Sensor/DReyeVRSensor.h"         // ADReyeVRSensor
 #include "Components/SceneCaptureComponent2D.h" // USceneCaptureComponent2D
-#include "CoreMinimal.h"
-#include <chrono> // timing threads
+#include "EgoVehicle.h"                         // AEgoVehicle;
+#include <chrono>                               // timing threads
 #include <cstdint>
 
-#define SRANIPAL_EYE_SWAP_FIXED false
-#define USE_SRANIPAL false
+#define USE_SRANIPAL true             // use SRanipal eye tracking if available
+#define SRANIPAL_EYE_SWAP_FIXED false // as of v1.3.1.1 this bug is unfortunately still present
 
 #ifndef _WIN32
-// can only use SRanipal plugin on Windows!
+// unset the #define if on anything other than Windows bc the SRanipal libraries only work on Windows :(
 #undef USE_SRANIPAL
 #define USE_SRANIPAL false
 #endif
@@ -29,6 +29,8 @@
 
 #include "EgoSensor.generated.h"
 
+class AEgoVehicle;
+
 UCLASS()
 class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 {
@@ -39,34 +41,28 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 
     void PrePhysTick(float DeltaSeconds);
 
-    // getters from EgoVehicle
-    void SetPlayer(APlayerController *P);
-    void SetCamera(UCameraComponent *FPSCamInEgoVehicle);
-    void SetInputs(const DReyeVR::UserInputs &inputs);
-    void SetEgoVelocity(const float Velocity);
-    void SetEgoTransform(const FTransform &Trans);
-
-    // Methods to update internal data structs
-    void TickEyeTracker(); // tick hardware sensor
+    // Update internal data structures
+    void SetEgoVehicle(class AEgoVehicle *EgoVehicle); // provide access to EgoVehicle (and by extension its camera)
+    void TickEyeTracker();                             // tick hardware sensor
     void ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius = 0.f);
+    void ComputeEgoVars();
     float ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const;
 
   protected:
     void BeginPlay();
     void BeginDestroy();
 
-    UWorld *World;                          // to get info about the world: time, frames, etc.
-    APlayerController *Player;              // for APlayerCameraManager
-    class UCameraComponent *FirstPersonCam; // for moving the camera upon recording
+    class UWorld *World;            // to get info about the world: time, frames, etc.
+    class UCameraComponent *Camera; // for moving the camera upon recording
+    class AEgoVehicle *Vehicle;     // the DReyeVR EgoVehicle
 
   private:
     int64_t TickCount = 0;    // how many ticks have been executed
     int64_t TimestampRef = 0; // reference timestamp (ms) since the hmd started ticking
     // Local instances of DReyeVR::AggregateData fields for internal use and eventual copying
-    DReyeVR::SRanipalData EyeSensorData;
-    DReyeVR::EgoVariables EgoVars;
-    DReyeVR::UserInputs InputData;
-    DReyeVR::FocusInfo FocusInfoData;
+    struct DReyeVR::SRanipalData EyeSensorData; // data from eye tracker
+    struct DReyeVR::EgoVariables EgoVars;       // data from vehicle that is getting tracked
+    struct DReyeVR::FocusInfo FocusInfoData;    // data from the focus computed from eye gaze
 
     // Eye Tracker Variables
 #if USE_SRANIPAL

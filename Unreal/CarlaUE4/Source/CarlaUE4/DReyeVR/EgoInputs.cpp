@@ -1,5 +1,14 @@
 #include "EgoVehicle.h"
 
+////////////////:INPUTS:////////////////
+/// NOTE: Here we define all the Input functions for the EgoVehicle just to keep them
+// from cluttering the EgoVehcile.cpp file
+
+const DReyeVR::UserInputs &AEgoVehicle::GetVehicleInputs() const
+{
+    return VehicleInputs;
+}
+
 // Called to bind functionality to input
 void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponent)
 {
@@ -61,8 +70,8 @@ void AEgoVehicle::CameraDown()
 
 void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
 {
-    const FVector &CurrentRelLocation = GetVRCameraRoot()->GetRelativeLocation();
-    GetVRCameraRoot()->SetRelativeLocation(CurrentRelLocation + displacement);
+    const FVector &CurrentRelLocation = VRCameraRoot->GetRelativeLocation();
+    VRCameraRoot->SetRelativeLocation(CurrentRelLocation + displacement);
 }
 
 /// NOTE: the CarlaVehicle does not actually move the vehicle, only its state/animations
@@ -208,9 +217,42 @@ void AEgoVehicle::MouseTurn(const float mX_Input)
     }
 }
 
+void AEgoVehicle::InitLogiWheel()
+{
+#if USE_LOGITECH_WHEEL
+    LogiSteeringInitialize(false);
+    bIsLogiConnected = LogiIsConnected(0); // get status of connected device
+    if (!bIsLogiConnected)
+    {
+        UE_LOG(LogTemp, Log, TEXT("WARNING: Could not find Logitech device connected on input 0"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("Found a Logitech device connected on input 0"));
+    }
+#endif
+}
+
+void AEgoVehicle::TickLogiWheel()
+{
+#if USE_LOGITECH_WHEEL
+    if (bIsLogiConnected)
+    {
+        // Taking logitech inputs for steering
+        LogitechWheelUpdate();
+
+        // Add Force Feedback to the hardware steering wheel when a LogitechWheel is used
+        ApplyForceFeedback();
+    }
+#endif
+}
+
 #if USE_LOGITECH_WHEEL
 
 const std::vector<FString> VarNames = {"rgdwPOV[0]", "rgdwPOV[1]", "rgdwPOV[2]", "rgdwPOV[3]"};
+/// NOTE: this is a debug function used to dump all the information we can regarding
+// the Logitech wheel hardware we used since the exact buttons were not documented in
+// the repo: https://github.com/drb1992/LogitechWheelPlugin
 void AEgoVehicle::LogLogitechPluginStruct(const DIJOYSTATE2 *Now)
 {
     if (Old == nullptr)

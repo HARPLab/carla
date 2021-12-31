@@ -369,8 +369,8 @@ class AggregateData // all DReyeVR sensor data is held here
         EgoVars.VehicleRotation = NewVehicleRot;
     }
 
-    void Update(int64_t NewTimestamp, struct SRanipalData &NewEyeData, const struct EgoVariables &NewEgoVars,
-                struct FocusInfo &NewFocus, struct UserInputs &NewInputs)
+    void Update(int64_t NewTimestamp, const struct SRanipalData &NewEyeData, const struct EgoVariables &NewEgoVars,
+                const struct FocusInfo &NewFocus, const struct UserInputs &NewInputs)
     {
         TimestampCarlaUE4 = std::max(NewTimestamp, 0l);
         EyeTrackerData = NewEyeData;
