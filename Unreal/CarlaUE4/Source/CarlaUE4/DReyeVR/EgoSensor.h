@@ -38,13 +38,17 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     AEgoSensor(const FObjectInitializer &ObjectInitializer);
 
     void PrePhysTick(float DeltaSeconds);
-    int64_t TickCount = 0;
 
     // getters from EgoVehicle
     void SetPlayer(APlayerController *P);
     void SetCamera(UCameraComponent *FPSCamInEgoVehicle);
     void SetInputs(const DReyeVR::UserInputs &inputs);
-    void UpdateEgoVelocity(const float Velocity);
+    void SetEgoVelocity(const float Velocity);
+
+    // Methods to update internal data structs
+    void TickEyeTracker(); // tick hardware sensor
+    void ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius = 0.f);
+    float ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const;
 
   protected:
     void BeginPlay();
@@ -55,17 +59,20 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     class UCameraComponent *FirstPersonCam; // for moving the camera upon recording
 
   private:
+    int64_t TickCount = 0;    // how many ticks have been executed
+    int64_t TimestampRef = 0; // reference timestamp (ms) since the hmd started ticking
+    // Local instances of DReyeVR::SensorData fields for internal use and eventual copying
+    DReyeVR::SRanipalData EyeSensorData;
+    DReyeVR::UserInputs InputData;
+    DReyeVR::FocusInfo FocusInfoData;
+    float EgoVelocity; // Ego velocity is tracked bc it is hard to replay accurately with a variable timestamp
+
     // Eye Tracker Variables
 #if USE_SRANIPAL
     SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
     SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
     ViveSR::anipal::Eye::EyeData *EyeData;    // SRanipal_Eyes_Enums.h
 #endif
-    int64_t TimestampRef;                   // reference timestamp (ms) since the hmd started ticking
-    DReyeVR::SRanipalData TickEyeTracker(); // tick hardware sensor (should be a const function?)
-
-    // Ego velocity is tracked bc it is hard to reprouce with a variable timestamp
-    float EgoVelocity = 0.f;
 
     // Frame capture
     class UTextureRenderTarget2D *CaptureRenderTarget = nullptr;
@@ -78,9 +85,4 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 
     // Other variables
     std::chrono::time_point<std::chrono::system_clock> StartTime;
-
-    // Helper functions
-    bool ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, // reimplementing the SRanipal Focus
-                               DReyeVR::FocusInfo &F, const float radius);
-    float CalculateVergenceFromDirections() const; // Calculating Vergence
 };

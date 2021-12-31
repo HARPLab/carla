@@ -143,7 +143,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // HUD variables (NOTE: ONLY FOR NON VR)
     class ADReyeVRHUD *HUD;
-    void DrawHUD(float DeltaSeconds);
+    void DrawFlatHUD(float DeltaSeconds);
     int ReticleSize = 100;               // diameter of reticle (line thickness is 10% of this)
     bool bDrawFPSCounter = true;         // draw FPS counter in top left corner
     bool bDrawGaze = false;              // whether or not to draw a line for gaze-ray on HUD
@@ -155,7 +155,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     // Text Render components (Like the HUD but works in VR)
     void InitDReyeVRText();
     void DrawSpectatorScreen();
-    FVector DashboardLocnInVehicle{110, 0, 105};
+    FVector DashboardLocnInVehicle{110, 0, 105}; // subject to change via params
     UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UTextRenderComponent *Speedometer;
     UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -163,7 +163,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float TurnSignalDuration = 3.0f; // time in seconds
     UPROPERTY(Category = Text, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UTextRenderComponent *GearShifter;
-    void UpdateText();
+    void UpdateDash();
 
     // Collision w/ other vehicles
     void InitDReyeVRCollisions();

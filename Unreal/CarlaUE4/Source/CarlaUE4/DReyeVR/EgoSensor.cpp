@@ -149,62 +149,30 @@ void AEgoSensor::SetCamera(UCameraComponent *FPSCamInEgoVehicle)
     FirstPersonCam = FPSCamInEgoVehicle;
 }
 
-void AEgoSensor::SetInputs(const DReyeVR::UserInputs &inputs)
+void AEgoSensor::SetInputs(const DReyeVR::UserInputs &InputsIn)
 {
-    GetData()->UserInputs() = inputs;
+    this->InputData = InputsIn;
 }
 
-void AEgoSensor::UpdateEgoVelocity(const float Velocity)
+void AEgoSensor::SetEgoVelocity(const float Velocity)
 {
-    EgoVelocity = Velocity;
+    this->EgoVelocity = Velocity;
 }
 
 void AEgoSensor::PrePhysTick(float DeltaSeconds)
 {
     if (!bIsReplaying) // only update the sensor with local values if not replaying
     {
-        // ftime_s is used to get the UE4 (carla) timestamp of the world at this tick
-        double ftime_s = UGameplayStatics::GetRealTimeSeconds(World);
-        // Get data from the hardware sensor
-        GetData()->SetEyeTrackerData(this->TickEyeTracker());
-
-        // Assign FFocus information
-        /// NOTE: the ECC_GameTraceChannel4 line trace allows the trace to ignore the vehicle
-        // you can see ECC_GameTraceChannel4 in DefaultEngine.ini as one of the 18 custom channels
-        const float TraceRadius = 0.f; // 0 for a point, >0 for a sphear trace
-        DReyeVR::FocusInfo Focus;
-        ComputeTraceFocusInfo(ECC_GameTraceChannel4, Focus, TraceRadius);
-        if (Focus.Actor != nullptr)
-        {
-            Focus.Actor->GetName(GetData()->FocusActorName());
-        }
-        else
-        {
-            GetData()->FocusActorName() = FString("None"); // empty string, not looking at any actor
-        }
-        GetData()->FocusActorPoint() = Focus.Point;
-        GetData()->FocusActorDistance() = Focus.Distance;
-        // UE_LOG(LogTemp, Log, TEXT("Focus Actor: %s"), *Data->FocusActorName);
-
-        // Update the ego velocity
-        GetData()->EgoVelocity() = EgoVelocity;
-        // Update the Carla tick timestamp
-        GetData()->TimestampCarla() = int64_t(ftime_s * 1000); // convert seconds to milliseconds
-        if (FirstPersonCam != nullptr)
-        {
-            // Update the hmd location
-            GetData()->HMDLocation() = FirstPersonCam->GetRelativeLocation();
-            GetData()->HMDRotation() = FirstPersonCam->GetRelativeRotation();
-        }
-        // The Vergence will be calculated with SRanipal if available, else just 1.0f
-        GetData()->GazeVergence() = CalculateVergenceFromDirections();
-    }
-    else
-    {
-        // this gets reached when the simulator is replaying data from a carla log
-        // assign first person camera orientation and location
-        FirstPersonCam->SetRelativeRotation(GetData()->HMDRotation(), false, nullptr, ETeleportType::None);
-        FirstPersonCam->SetRelativeLocation(GetData()->HMDLocation(), false, nullptr, ETeleportType::None);
+        TickEyeTracker();
+        ComputeTraceFocusInfo(ECC_GameTraceChannel4); // FocusData (ignores collision with vehicle)
+        GetData()->Update(int64_t(1000.f * UGameplayStatics::GetRealTimeSeconds(World)), // TimestampCarla (ms)
+                          EyeSensorData,                                                 // EyeTrackerData
+                          FirstPersonCam->GetRelativeLocation(),                         // CameraLocation
+                          FirstPersonCam->GetRelativeRotation(),                         // CameraRotation
+                          EgoVelocity,                                                   // EgoVehicleVelocity
+                          FocusInfoData,                                                 // FocusData
+                          InputData                                                      // User inputs
+        );
     }
     // frame capture
     if (bCaptureFrameData && FrameCap && FirstPersonCam)
@@ -219,9 +187,8 @@ void AEgoSensor::PrePhysTick(float DeltaSeconds)
     TickCount++;
 }
 
-DReyeVR::SRanipalData AEgoSensor::TickEyeTracker()
+void AEgoSensor::TickEyeTracker()
 {
-    DReyeVR::SRanipalData EyeSensorData;
     auto Combined = &(EyeSensorData.Combined);
     auto Left = &(EyeSensorData.Left);
     auto Right = &(EyeSensorData.Right);
@@ -233,7 +200,6 @@ DReyeVR::SRanipalData AEgoSensor::TickEyeTracker()
     SRanipal->GetEyeData_(EyeData);
     EyeSensorData.TimestampDevice = EyeData->timestamp - TimestampRef;
     EyeSensorData.FrameSequence = EyeData->frame_sequence;
-    // shortcuts to eye datum
     // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
     Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->GazeOrigin, Combined->GazeDir);
     // Assign Left/Right Gaze direction
@@ -273,94 +239,91 @@ DReyeVR::SRanipalData AEgoSensor::TickEyeTracker()
 
     // Assign the origin position to the (3D space) origin
     Combined->GazeValid = true; // for our Linux case, this is valid
-                                // not going to assign anything for the L/R eye tracker fields
+    Combined->GazeOrigin = FVector::ZeroVector;
 
     // Assign the endpoint of the combined position (faked in Linux) to the left & right gazes too
     Left->GazeDir = Combined->GazeDir;
+    Left->GazeOrigin = Combined->GazeOrigin + FVector(0, -5, 0);
     Right->GazeDir = Combined->GazeDir;
+    Right->GazeOrigin = Combined->GazeOrigin + FVector(0, +5, 0);
 #endif
+    Combined->Vergence = ComputeVergence(Left->GazeOrigin, Left->GazeDir, Right->GazeOrigin, Right->GazeDir);
     // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
-    return EyeSensorData;
 }
 
-/// ========================================== ///
-/// ---------------:HELPERS:------------------ ///
-/// ========================================== ///
-
-bool AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, DReyeVR::FocusInfo &F,
-                                       const float radius = 0.f)
+void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius)
 {
-    if (Player == nullptr) // required for line trace
-        return false;
-    bool hit = false;
+    check(Player != nullptr);            // required for line trace
     const float maxDist = 100.f * 100.f; // 100m
 
-    const FRotator WorldRot = GetData()->HMDRotation();
-    const FVector WorldPos = GetData()->HMDLocation();
-    const FVector GazeOrigin = WorldRot.RotateVector(GetData()->GazeOrigin()) + WorldPos;
-    const FVector GazeTarget = WorldRot.RotateVector(maxDist * GetData()->GazeDir());
+    const FRotator WorldRot = GetData()->GetHMDRotation();
+    const FVector WorldPos = GetData()->GetHMDLocation();
+    const FVector GazeOrigin = WorldRot.RotateVector(GetData()->GetGazeOrigin()) + WorldPos;
+    const FVector GazeDir = WorldRot.RotateVector(maxDist * GetData()->GetGazeDir());
 
     // Create collision information container.
     FCollisionQueryParams traceParam;
     traceParam = FCollisionQueryParams(FName("traceParam"), true, Player->PlayerCameraManager);
     traceParam.bTraceComplex = true;
     traceParam.bReturnPhysicalMaterial = false;
-    FHitResult hitResult;
-    hitResult = FHitResult(ForceInit);
+    FHitResult Hit(EForceInit::ForceInit);
+    bool bDidHit = false;
 
+    // 0 for a point, >0 for a sphear trace
+    TraceRadius = FMath::Max(TraceRadius, 0.f); // clamp to be positive
     // Single line trace
-    if (radius == 0.f)
+    if (TraceRadius == 0.f)
     {
-        hit = World->LineTraceSingleByChannel(hitResult, GazeOrigin, GazeTarget, TraceChannel, traceParam);
+        bDidHit = World->LineTraceSingleByChannel(Hit, GazeOrigin, GazeDir, TraceChannel, traceParam);
     }
     // Sphear line trace
     else
     {
-        FCollisionShape sphear = FCollisionShape();
-        sphear.SetSphere(radius);
-        hit = World->SweepSingleByChannel(hitResult, GazeOrigin, GazeTarget, FQuat(0.f, 0.f, 0.f, 0.f), TraceChannel,
-                                          sphear, traceParam);
+        FCollisionShape Sphear = FCollisionShape();
+        Sphear.SetSphere(TraceRadius);
+        bDidHit = World->SweepSingleByChannel(Hit, GazeOrigin, GazeDir, FQuat(0.f, 0.f, 0.f, 0.f), TraceChannel, Sphear,
+                                              traceParam);
     }
     // Update fields
-    F.Actor = hitResult.Actor;
-    F.Distance = hitResult.Distance;
-    F.Point = hitResult.Location;
-    F.Normal = hitResult.Normal;
-    return hit;
+    FString ActorName = "None";
+    if (Hit.Actor != nullptr)
+        Hit.Actor->GetName(ActorName);
+    // update internal data structure
+    FocusInfoData = {Hit.Actor,
+                     bDidHit,
+                     Hit.Distance,
+                     Hit.Location,              // world location of hit point
+                     Hit.Location - GazeOrigin, // relative location of hit point
+                     Hit.Normal,
+                     ActorName};
 }
 
-// Calculate the distance from the origin (between both eyes) to the focus point
-/// NOTE: requires SRanipal (and therefore Windows)
-float AEgoSensor::CalculateVergenceFromDirections() const
+float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const
 {
-#if USE_SRANIPAL
-    // Compute intersection of the rays in 3D space to compute distance to that point
-
-    // Recall that a 'line' can be defined here as (L = origin(0) + t * direction(Dir)) for some t
-    const FVector &L0 = GetData()->GazeOrigin(DReyeVR::Gaze::LEFT);
-    const FVector &LDir = GetData()->GazeDir(DReyeVR::Gaze::LEFT);
-    const FVector &R0 = GetData()->GazeOrigin(DReyeVR::Gaze::RIGHT);
-    const FVector &RDir = GetData()->GazeDir(DReyeVR::Gaze::RIGHT);
+    // Compute length of ray-to- intersection of the left and right eye gazes in 3D space (length in centimeters)
+    // Recall that a 'line' can be defined as (L = origin(0) + t * direction(Dir)) for some t
 
     // Calculating shortest line segment intersecting both lines
     // Implementation sourced from http://paulbourke.net/geometry/pointlineplane/
-    FVector L0R0 = L0 - R0;         // segment between L origin and R origin
-    const double epsilon = 0.00001; // small positive real number
+    FVector L0R0 = L0 - R0; // segment between L origin and R origin
+    if (L0R0.Size() == 0.f) // same origin
+        return 0.f;
+    const float epsilon = 0.00001f; // small positive real number
 
     // Calculating dot-product equation to find perpendicular shortest-line-segment
-    double d1343 = L0R0.X * RDir.X + L0R0.Y * RDir.Y + L0R0.Z * RDir.Z;
-    double d4321 = RDir.X * LDir.X + RDir.Y * LDir.Y + RDir.Z * LDir.Z;
-    double d1321 = L0R0.X * LDir.X + L0R0.Y * LDir.Y + L0R0.Z * LDir.Z;
-    double d4343 = RDir.X * RDir.X + RDir.Y * RDir.Y + RDir.Z * RDir.Z;
-    double d2121 = LDir.X * LDir.X + LDir.Y * LDir.Y + LDir.Z * LDir.Z;
-    double denom = d2121 * d4343 - d4321 * d4321;
+    float d1343 = L0R0.X * RDir.X + L0R0.Y * RDir.Y + L0R0.Z * RDir.Z;
+    float d4321 = RDir.X * LDir.X + RDir.Y * LDir.Y + RDir.Z * LDir.Z;
+    float d1321 = L0R0.X * LDir.X + L0R0.Y * LDir.Y + L0R0.Z * LDir.Z;
+    float d4343 = RDir.X * RDir.X + RDir.Y * RDir.Y + RDir.Z * RDir.Z;
+    float d2121 = LDir.X * LDir.X + LDir.Y * LDir.Y + LDir.Z * LDir.Z;
+    float denom = d2121 * d4343 - d4321 * d4321;
     if (abs(denom) < epsilon)
-        return 1.0f; // no intersection, would cause div by 0 err (potentially)
-    double numer = d1343 * d4321 - d1321 * d4343;
+        return 100.f; // no intersection, would cause div by 0 err (potentially)
+    float numer = d1343 * d4321 - d1321 * d4343;
 
     // calculate scalars (mu) that scale the unit direction XDir to reach the desired points
-    double muL = numer / denom;                   // variable scale of direction vector for LEFT ray
-    double muR = (d1343 + d4321 * (muL)) / d4343; // variable scale of direction vector for RIGHT ray
+    float muL = numer / denom;                   // variable scale of direction vector for LEFT ray
+    float muR = (d1343 + d4321 * (muL)) / d4343; // variable scale of direction vector for RIGHT ray
 
     // calculate the points on the respective rays that create the intersecting line
     FVector ptL = L0 + muL * LDir; // the point on the Left ray
@@ -368,13 +331,8 @@ float AEgoSensor::CalculateVergenceFromDirections() const
 
     FVector ShortestLineSeg = ptL - ptR; // the shortest line segment between the two rays
     // calculate the vector between the middle of the two endpoints and return its magnitude
-    FVector ptM = (ptL + ptR) / 2.0; // middle point between two endpoints of shortest-line-segment
-    FVector oM = (L0 + R0) / 2.0;    // midpoint between two (L & R) origins
-    FVector FinalRay = ptM - oM;     // Combined ray between midpoints of endpoints
-    // Note that at this point everything has been computed in terms of cm
-    return FinalRay.Size() / 100.0f; // returns the magnitude of the vector (length in m)
-#else
-    // Not calculating vergence without real values
-    return 1.0f;
-#endif
+    FVector ptM = (ptL + ptR) / 2.0f; // middle point between two endpoints of shortest-line-segment
+    FVector oM = (L0 + R0) / 2.0f;    // midpoint between two (L & R) origins
+    FVector FinalRay = ptM - oM;      // Combined ray between midpoints of endpoints
+    return FinalRay.Size();           // returns the magnitude of the vector (in cm)
 }

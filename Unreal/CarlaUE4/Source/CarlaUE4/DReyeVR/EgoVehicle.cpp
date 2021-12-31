@@ -439,11 +439,11 @@ void AEgoVehicle::Tick(float DeltaSeconds)
     // Draw debug lines on editor
     DebugLines();
 
-    // Draw text on screen (like a HUD but works in VR)
-    UpdateText();
+    // Render EgoVehicle dashboard
+    UpdateDash();
 
     // Draw the flat-screen HUD items like eye-reticle and FPS counter
-    DrawHUD(DeltaSeconds);
+    DrawFlatHUD(DeltaSeconds); // NOTE: only present in flat-screen mode!
 
     // Draw the spectator vr screen and overlay elements
     DrawSpectatorScreen();
@@ -473,7 +473,15 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     if (!ADReyeVRSensor::bIsReplaying)
     {
         EgoSensor->SetInputs(VehicleInputs);
-        EgoSensor->UpdateEgoVelocity(GetVehicleForwardSpeed());
+        EgoSensor->SetEgoVelocity(GetVehicleForwardSpeed());
+    }
+    else
+    {
+        // this gets reached when the simulator is replaying data from a carla log
+        const DReyeVR::SensorData *Replay = EgoSensor->GetData();
+        // assign first person camera orientation and location
+        FirstPersonCam->SetRelativeRotation(Replay->GetHMDRotation(), false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetRelativeLocation(Replay->GetHMDLocation(), false, nullptr, ETeleportType::None);
     }
     VehicleInputs = {}; // clear inputs to be updated on the next tick
 
@@ -484,21 +492,20 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     const FVector WorldPos = FirstPersonCam->GetComponentLocation();
 
     // First get the gaze origin and direction and vergence from the EyeTracker Sensor
-    const float Vergence = Data->GazeVergence(); // vergence already in m
-    // scaling gaze ray to world units
+    const float Vergence = FMath::Max(1.f, Data->GetGazeVergence() / 100.f); // vergence to m (from cm)
     const float UE4MeterScale = UHeadMountedDisplayFunctionLibrary::GetWorldToMetersScale(World);
 
     // Both eyes
-    CombinedGaze = Vergence * UE4MeterScale * Data->GazeDir();
-    CombinedOrigin = WorldRot.RotateVector(Data->GazeOrigin()) + WorldPos;
+    CombinedGaze = Vergence * UE4MeterScale * Data->GetGazeDir();
+    CombinedOrigin = WorldRot.RotateVector(Data->GetGazeOrigin()) + WorldPos;
 
     // Left eye
-    LeftGaze = UE4MeterScale * Data->GazeDir(DReyeVR::Gaze::LEFT);
-    LeftOrigin = WorldRot.RotateVector(Data->GazeOrigin(DReyeVR::Gaze::LEFT)) + WorldPos;
+    LeftGaze = UE4MeterScale * Data->GetGazeDir(DReyeVR::Gaze::LEFT);
+    LeftOrigin = WorldRot.RotateVector(Data->GetGazeOrigin(DReyeVR::Gaze::LEFT)) + WorldPos;
 
     // Right eye
-    RightGaze = UE4MeterScale * Data->GazeDir(DReyeVR::Gaze::RIGHT);
-    RightOrigin = WorldRot.RotateVector(Data->GazeOrigin(DReyeVR::Gaze::RIGHT)) + WorldPos;
+    RightGaze = UE4MeterScale * Data->GetGazeDir(DReyeVR::Gaze::RIGHT);
+    RightOrigin = WorldRot.RotateVector(Data->GetGazeOrigin(DReyeVR::Gaze::RIGHT)) + WorldPos;
 }
 
 /// ========================================== ///
@@ -618,7 +625,7 @@ void AEgoVehicle::InitReticleTexture()
     check(ReticleTexture->Resource);
 }
 
-void AEgoVehicle::DrawHUD(float DeltaSeconds)
+void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
 {
     if (HUD == nullptr || Player == nullptr)
         return;
@@ -702,7 +709,7 @@ void AEgoVehicle::DrawSpectatorScreen()
     }
 }
 
-void AEgoVehicle::UpdateText()
+void AEgoVehicle::UpdateDash()
 {
     if (Player == nullptr)
         return;
@@ -710,13 +717,23 @@ void AEgoVehicle::UpdateText()
     float MPH;
     if (ADReyeVRSensor::bIsReplaying)
     {
-        MPH = EgoSensor->GetData()->EgoVelocity() * 0.0223694f; // cm/s to mph
-        if (EgoSensor->GetData()->UserInputs().ToggledReverse)
+        const DReyeVR::SensorData *Replay = EgoSensor->GetData();
+        MPH = Replay->GetEgoVelocity() * 0.0223694f; // cm/s to mph
+        if (Replay->GetUserInputs().ToggledReverse)
+        {
             bReverse = !bReverse;
-        if (EgoSensor->GetData()->UserInputs().TurnSignalLeft)
+            PlayGearShiftSound();
+        }
+        if (Replay->GetUserInputs().TurnSignalLeft)
+        {
             LeftSignalTimeToDie = FPlatformTime::Seconds() + TurnSignalDuration;
-        if (EgoSensor->GetData()->UserInputs().TurnSignalRight)
+            PlayTurnSignalSound();
+        }
+        if (Replay->GetUserInputs().TurnSignalRight)
+        {
             RightSignalTimeToDie = FPlatformTime::Seconds() + TurnSignalDuration;
+            PlayTurnSignalSound();
+        }
     }
     else
     {
