@@ -402,55 +402,18 @@ void AEgoVehicle::InitSpectator()
 
 void AEgoVehicle::InitReticleTexture()
 {
-    // Used to initialize any bitmap-based image that will be used as a reticle
-    ReticleSrc.Reserve(ReticleSize * ReticleSize); // allocate width*height space
-    for (int i = 0; i < ReticleSize; i++)
-    {
-        for (int j = 0; j < ReticleSize; j++)
-        {
-            // RGBA colours
-            FColor Colour;
-            if (bRectangularReticle)
-            {
-                const int ReticleThickness = ReticleSize / 10;
-                bool LeftOrRight = (i < ReticleThickness || i > ReticleSize - ReticleThickness);
-                bool TopOrBottom = (j < ReticleThickness || j > ReticleSize - ReticleThickness);
-                if (LeftOrRight || TopOrBottom)
-                    Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
-                else
-                    Colour = FColor(0, 0, 0, 0); // (fully transparent inside)
-            }
-            else
-            {
-                const int x = i - ReticleSize / 2;
-                const int y = j - ReticleSize / 2;
-                const float Radius = ReticleSize / 3.f;
-                const int RadThickness = 3;
-                const int LineLen = 4 * RadThickness;
-                const float RadLo = Radius - LineLen;
-                const float RadHi = Radius + LineLen;
-                bool BelowRadius = (FMath::Square(x) + FMath::Square(y) <= FMath::Square(Radius + RadThickness));
-                bool AboveRadius = (FMath::Square(x) + FMath::Square(y) >= FMath::Square(Radius - RadThickness));
-                if (BelowRadius && AboveRadius)
-                    Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
-                else
-                {
-                    // Draw little rectangular markers
-                    const bool RightMarker = (RadLo < x && x < RadHi) && std::fabs(y) < RadThickness;
-                    const bool LeftMarker = (RadLo < -x && -x < RadHi) && std::fabs(y) < RadThickness;
-                    const bool TopMarker = (RadLo < y && y < RadHi) && std::fabs(x) < RadThickness;
-                    const bool BottomMarker = (RadLo < -y && -y < RadHi) && std::fabs(x) < RadThickness;
-                    if (RightMarker || LeftMarker || TopMarker || BottomMarker)
-                        Colour = FColor(255, 0, 0, 128); // (semi-opaque red)
-                    else
-                        Colour = FColor(0, 0, 0, 0); // (fully transparent inside)
-                }
-            }
-            ReticleSrc.Add(Colour);
-        }
-    }
+
     /// NOTE: need to create transient like this bc of a UE4 bug in release mode
     // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
+    TArray<FColor> ReticleSrc; // pixel values array for eye reticle texture
+    if (bRectangularReticle)
+    {
+        GenerateSquareImage(ReticleSrc, ReticleSize, FColor(255, 0, 0, 128));
+    }
+    else
+    {
+        GenerateCrosshairImage(ReticleSrc, ReticleSize, FColor(255, 0, 0, 128));
+    }
     ReticleTexture = UTexture2D::CreateTransient(ReticleSize, ReticleSize, PF_B8G8R8A8);
     void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
     FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleSize * ReticleSize);

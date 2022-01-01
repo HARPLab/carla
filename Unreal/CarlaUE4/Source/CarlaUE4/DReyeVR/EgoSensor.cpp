@@ -1,7 +1,7 @@
 #include "EgoSensor.h"
 
 #include "Carla/Game/CarlaStatics.h"    // GetEpisode
-#include "DReyeVRUtils.h"               // ReadConfigValue
+#include "DReyeVRUtils.h"               // ReadConfigValue, ComputeClosestToRayIntersection
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "UObject/UObjectBaseUtility.h" // GetName
 
@@ -243,40 +243,7 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
 float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const
 {
     // Compute length of ray-to- intersection of the left and right eye gazes in 3D space (length in centimeters)
-    // Recall that a 'line' can be defined as (L = origin(0) + t * direction(Dir)) for some t
-
-    // Calculating shortest line segment intersecting both lines
-    // Implementation sourced from http://paulbourke.net/geometry/pointlineplane/
-    FVector L0R0 = L0 - R0; // segment between L origin and R origin
-    if (L0R0.Size() == 0.f) // same origin
-        return 0.f;
-    const float epsilon = 0.00001f; // small positive real number
-
-    // Calculating dot-product equation to find perpendicular shortest-line-segment
-    float d1343 = L0R0.X * RDir.X + L0R0.Y * RDir.Y + L0R0.Z * RDir.Z;
-    float d4321 = RDir.X * LDir.X + RDir.Y * LDir.Y + RDir.Z * LDir.Z;
-    float d1321 = L0R0.X * LDir.X + L0R0.Y * LDir.Y + L0R0.Z * LDir.Z;
-    float d4343 = RDir.X * RDir.X + RDir.Y * RDir.Y + RDir.Z * RDir.Z;
-    float d2121 = LDir.X * LDir.X + LDir.Y * LDir.Y + LDir.Z * LDir.Z;
-    float denom = d2121 * d4343 - d4321 * d4321;
-    if (abs(denom) < epsilon)
-        return 100.f; // no intersection, would cause div by 0 err (potentially)
-    float numer = d1343 * d4321 - d1321 * d4343;
-
-    // calculate scalars (mu) that scale the unit direction XDir to reach the desired points
-    float muL = numer / denom;                   // variable scale of direction vector for LEFT ray
-    float muR = (d1343 + d4321 * (muL)) / d4343; // variable scale of direction vector for RIGHT ray
-
-    // calculate the points on the respective rays that create the intersecting line
-    FVector ptL = L0 + muL * LDir; // the point on the Left ray
-    FVector ptR = R0 + muR * RDir; // the point on the Right ray
-
-    FVector ShortestLineSeg = ptL - ptR; // the shortest line segment between the two rays
-    // calculate the vector between the middle of the two endpoints and return its magnitude
-    FVector ptM = (ptL + ptR) / 2.0f; // middle point between two endpoints of shortest-line-segment
-    FVector oM = (L0 + R0) / 2.0f;    // midpoint between two (L & R) origins
-    FVector FinalRay = ptM - oM;      // Combined ray between midpoints of endpoints
-    return FinalRay.Size();           // returns the magnitude of the vector (in cm)
+    return ComputeClosestToRayIntersection(L0, LDir, R0, RDir).Size(); // units are cm (default for UE4)
 }
 
 /// ========================================== ///

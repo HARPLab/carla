@@ -165,7 +165,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void InitSpectator();
     void InitReticleTexture();  // initializes the spectator-reticle texture
     void DrawSpectatorScreen(); // called on every tick
-    TArray<FColor> ReticleSrc;  // pixel values array for eye reticle texture
     UTexture2D *ReticleTexture; // UE4 texture for eye reticle
 
     ////////////////:FLATHUD:////////////////
