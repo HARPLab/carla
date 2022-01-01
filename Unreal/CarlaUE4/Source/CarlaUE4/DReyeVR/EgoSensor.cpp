@@ -60,7 +60,7 @@ void AEgoSensor::BeginPlay()
     // Register EgoSensor with the CarlaActorRegistry
     Register();
 
-    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR Eye Tracker"));
+    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoSensor"));
 }
 
 void AEgoSensor::BeginDestroy()

@@ -146,7 +146,7 @@ void ADReyeVRLevel::PossessEgoVehicle()
 void ADReyeVRLevel::PossessSpectator()
 {
     // check if already possessing spectator
-    if (Player->GetPawn() == SpectatorPtr)
+    if (Player->GetPawn() == SpectatorPtr && ControlMode != DRIVER::AI)
         return;
     if (!SpectatorPtr)
     {
