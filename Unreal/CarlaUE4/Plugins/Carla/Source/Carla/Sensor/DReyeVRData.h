@@ -32,6 +32,14 @@ struct EyeData
         WriteFVector(OutFile, GazeOrigin);
         WriteValue<bool>(OutFile, GazeValid);
     }
+    FString ToString() const
+    {
+        FString Print;
+        Print += FString::Printf(TEXT("GazeDir:%s,"), *GazeDir.ToString());
+        Print += FString::Printf(TEXT("GazeOrigin:%s,"), *GazeOrigin.ToString());
+        Print += FString::Printf(TEXT("GazeValid:%d,"), GazeValid);
+        return Print;
+    }
 };
 
 struct CombinedEyeData : EyeData
@@ -46,6 +54,12 @@ struct CombinedEyeData : EyeData
     {
         EyeData::Write(OutFile);
         WriteValue<float>(OutFile, Vergence);
+    }
+    FString ToString() const
+    {
+        FString Print = EyeData::ToString();
+        Print += FString::Printf(TEXT("GazeVergence:%.4f,"), Vergence);
+        return Print;
     }
 };
 
@@ -75,6 +89,16 @@ struct SingleEyeData : EyeData
         WriteFVector2D(OutFile, PupilPosition);
         WriteValue<bool>(OutFile, PupilPositionValid);
     }
+    FString ToString() const
+    {
+        FString Print = EyeData::ToString();
+        Print += FString::Printf(TEXT("EyeOpenness:%.4f,"), EyeOpenness);
+        Print += FString::Printf(TEXT("EyeOpennessValid:%d,"), EyeOpennessValid);
+        Print += FString::Printf(TEXT("PupilDiameter:%.4f,"), PupilDiameter);
+        Print += FString::Printf(TEXT("PupilPosition:%s,"), *PupilPosition.ToString());
+        Print += FString::Printf(TEXT("PupilPositionValid:%d,"), PupilPositionValid);
+        return Print;
+    }
 };
 
 struct EgoVariables
@@ -102,6 +126,16 @@ struct EgoVariables
         WriteFVector(OutFile, VehicleLocation);
         WriteFRotator(OutFile, VehicleRotation);
         WriteValue<float>(OutFile, Velocity);
+    }
+    FString ToString() const
+    {
+        FString Print;
+        Print += FString::Printf(TEXT("VehicleLoc:%s,"), *VehicleLocation.ToString());
+        Print += FString::Printf(TEXT("VehicleRot:%s,"), *VehicleRotation.ToString());
+        Print += FString::Printf(TEXT("VehicleVel:%.4f,"), Velocity);
+        Print += FString::Printf(TEXT("CameraLoc:%s,"), *CameraLocation.ToString());
+        Print += FString::Printf(TEXT("CameraRot:%s,"), *CameraRotation.ToString());
+        return Print;
     }
 };
 
@@ -137,18 +171,30 @@ struct UserInputs
         WriteValue<bool>(OutFile, TurnSignalRight);
         WriteValue<bool>(OutFile, HoldHandbrake);
     }
+    FString ToString() const
+    {
+        FString Print;
+        Print += FString::Printf(TEXT("Throttle:%.4f,"), Throttle);
+        Print += FString::Printf(TEXT("Steering:%.4f,"), Steering);
+        Print += FString::Printf(TEXT("Brake:%.4f,"), Brake);
+        Print += FString::Printf(TEXT("ToggledReverse:%d,"), ToggledReverse);
+        Print += FString::Printf(TEXT("TurnSignalLeft:%d,"), TurnSignalLeft);
+        Print += FString::Printf(TEXT("TurnSignalRight:%d,"), TurnSignalRight);
+        Print += FString::Printf(TEXT("HoldHandbrake:%d,"), HoldHandbrake);
+        return Print;
+    }
 };
 
 struct FocusInfo
 {
     // substitute for SRanipal FFocusInfo in SRanipal_Eyes_Enums.h
     TWeakObjectPtr<class AActor> Actor;
-    bool bDidHit;
-    float Distance;
     FVector HitPointRelative;
     FVector HitPointAbsolute;
     FVector Normal;
     FString ActorNameTag = "None"; // Tag of the actor being focused on
+    float Distance;
+    bool bDidHit;
 
     void Read(std::ifstream &InFile)
     {
@@ -168,12 +214,23 @@ struct FocusInfo
         WriteFVector(OutFile, Normal);
         WriteValue<float>(OutFile, Distance);
     }
+    FString ToString() const
+    {
+        FString Print;
+        Print += FString::Printf(TEXT("Hit:%d,"), bDidHit);
+        Print += FString::Printf(TEXT("Distance:%.4f,"), Distance);
+        Print += FString::Printf(TEXT("HitPointRelative:%s,"), *HitPointRelative.ToString());
+        Print += FString::Printf(TEXT("HitPointAbsolute:%s,"), *HitPointAbsolute.ToString());
+        Print += FString::Printf(TEXT("HitNormal:%s,"), *Normal.ToString());
+        Print += FString::Printf(TEXT("ActorName:%s,"), *ActorNameTag);
+        return Print;
+    }
 };
 
-struct SRanipalData
+struct EyeTracker
 {
-    int64_t TimestampDevice = 0; // timestamp of when the frame was captured by SRanipal in milliseconds
-    int64_t FrameSequence = 0;   // Frame sequence of SRanipal
+    int64_t TimestampDevice = 0; // timestamp from the eye tracker device (with its own clock)
+    int64_t FrameSequence = 0;   // "Frame sequence" of SRanipal or just the tick frame in UE4
     CombinedEyeData Combined;
     SingleEyeData Left;
     SingleEyeData Right;
@@ -192,6 +249,16 @@ struct SRanipalData
         Combined.Write(OutFile);
         Left.Write(OutFile);
         Right.Write(OutFile);
+    }
+    FString ToString() const
+    {
+        FString Print;
+        Print += FString::Printf(TEXT("TimestampDevice:%ld,"), long(TimestampDevice));
+        Print += FString::Printf(TEXT("FrameSequence:%ld,"), long(FrameSequence));
+        Print += FString::Printf(TEXT("COMBINED:{%s},"), *Combined.ToString());
+        Print += FString::Printf(TEXT("LEFT:{%s},"), *Left.ToString());
+        Print += FString::Printf(TEXT("RIGHT:{%s},"), *Right.ToString());
+        return Print;
     }
 };
 
@@ -385,7 +452,7 @@ class AggregateData // all DReyeVR sensor data is held here
         EgoVars.VehicleRotation = NewVehicleRot;
     }
 
-    void Update(int64_t NewTimestamp, const struct SRanipalData &NewEyeData, const struct EgoVariables &NewEgoVars,
+    void Update(int64_t NewTimestamp, const struct EyeTracker &NewEyeData, const struct EgoVariables &NewEgoVars,
                 const struct FocusInfo &NewFocus, const struct UserInputs &NewInputs)
     {
         TimestampCarlaUE4 = NewTimestamp;
@@ -416,80 +483,20 @@ class AggregateData // all DReyeVR sensor data is held here
         Inputs.Write(OutFile);
     }
 
-    std::string ToString() const
+    FString ToString() const
     {
-        struct // overloaded lambdas to print UE4 types
-        {
-            std::string operator()(const FVector &F)
-            {
-                return (*this)(F.ToString());
-            }
-            std::string operator()(const FRotator &F)
-            {
-                return (*this)(F.ToString());
-            }
-            std::string operator()(const FVector2D &F)
-            {
-                return (*this)(F.ToString());
-            }
-            std::string operator()(const FString &F)
-            {
-                return TCHAR_TO_UTF8(*F);
-            }
-        } ToStdStr;
-
-        const std::string sep = ","; // comma separated
-        std::stringstream out;
-        out << "T_Device:" << GetTimestampDevice() << sep                             // Sranipal time
-            << "T_Carla:" << GetTimestampCarla() << sep                               // Carla time
-            << "FrameSeq:" << GetFrameSequence() << sep                               // SRanipal Framesequence
-            << "|EGOVEHICLE|"                                                         // Ego Vehicle fields
-            << "CameraLoc:" << ToStdStr(GetCameraLocation()) << sep                   // Camera location
-            << "CameraRot:" << ToStdStr(GetCameraRotation()) << sep                   // Camera rotation
-            << "EgoVel:" << GetVehicleVelocity() << sep                               // Ego Velocity
-            << "|COMBINED|"                                                           // Combined Gaze fields
-            << "GazeDir:" << ToStdStr(GetGazeDir()) << sep                            // Gaze dir vector
-            << "GazeOrigin:" << ToStdStr(GetGazeOrigin()) << sep                      // Combined Eye origin vector
-            << "Vergence:" << GetGazeVergence() << sep                                // Calculated vergence
-            << "|LEFT|"                                                               // LEFT gaze/eye fields
-            << "LGazeDir:" << ToStdStr(GetGazeDir(DReyeVR::Gaze::LEFT)) << sep        // LEFT gaze dir
-            << "LEyeOrigin:" << ToStdStr(GetGazeOrigin(DReyeVR::Gaze::LEFT)) << sep   // LEFT gaze dir
-            << "LOpenness:" << GetEyeOpenness(DReyeVR::Eye::LEFT) << sep              // LEFT eye openness
-            << "LPupilPos:" << ToStdStr(GetPupilPosition(DReyeVR::Eye::LEFT)) << sep  // LEFT pupil position
-            << "LPupilDiam:" << GetPupilDiameter(DReyeVR::Eye::LEFT) << sep           // LEFT pupil diameter
-            << "|RIGHT|"                                                              // RIGHT gaze/eye fields
-            << "RGazeDir:" << ToStdStr(GetGazeDir(DReyeVR::Gaze::RIGHT)) << sep       // RIGHT gaze dir
-            << "REyeOrigin:" << ToStdStr(GetGazeOrigin(DReyeVR::Gaze::RIGHT)) << sep  // RIGHT gaze dir
-            << "ROpenness:" << GetEyeOpenness(DReyeVR::Eye::RIGHT) << sep             // RIGHT eye openness
-            << "RPupilPos:" << ToStdStr(GetPupilPosition(DReyeVR::Eye::RIGHT)) << sep // RIGHT pupil position
-            << "RPupilDiam:" << GetPupilDiameter(DReyeVR::Eye::RIGHT) << sep          // LEFT pupil diameter
-            << "|FOCUSINFO|"                                                          // Focus info
-            << "FActorName:" << ToStdStr(GetFocusActorName()) << sep                  // Name (tag) of focus actor
-            << "FActorPoint:" << ToStdStr(GetFocusActorPoint()) << sep                // Location of focused actor
-            << "FActorDist:" << GetFocusActorDistance() << sep                        // Distance to focused actor
-            << "|VALIDITY|"                                                           // validity booleans
-            << "GazeV:" << GetGazeValidity() << sep                                   // validity for COMBINE gaze
-            << "RGazeV:" << GetGazeValidity(DReyeVR::Gaze::RIGHT) << sep              // validity for RIGHT gaze
-            << "REyeOpenV:" << GetEyeOpennessValidity(DReyeVR::Eye::RIGHT) << sep     // validity for RIGHT openness
-            << "RPupilPosV:" << GetPupilPositionValidity(DReyeVR::Eye::RIGHT) << sep  // validity for RIGHT pupil pos
-            << "LGazeV:" << GetGazeValidity(DReyeVR::Gaze::LEFT) << sep               // validity for LEFT gaze
-            << "LEyeOpenV:" << GetEyeOpennessValidity(DReyeVR::Eye::LEFT) << sep      // validity for LEFT openness
-            << "LPupilPosV:" << GetPupilPositionValidity(DReyeVR::Eye::LEFT) << sep   // validity for LEFT pupil pos
-            << "|INPUTS|"                                                             // User inputs
-            << "Throttle:" << GetUserInputs().Throttle << sep                         // Value of Throttle
-            << "Steering:" << GetUserInputs().Steering << sep                         // Value of Steering
-            << "Brake:" << GetUserInputs().Brake << sep                               // Value of brake
-            << "ToggleRev:" << GetUserInputs().ToggledReverse << sep                  // toggled reverse
-            << "TurnSignalLeft:" << GetUserInputs().TurnSignalLeft << sep             // enabled left turn signal
-            << "TurnSignalRight:" << GetUserInputs().TurnSignalRight << sep           // enabled right turn signal
-            << "Handbrake:" << GetUserInputs().HoldHandbrake << sep                   // the handbrake is held
-            ;
-        return out.str();
+        FString print;
+        print += FString::Printf(TEXT("[DReyeVR]TimestampCarla:%ld,\n"), long(TimestampCarlaUE4));
+        print += FString::Printf(TEXT("[DReyeVR]EyeTracker:%s,\n"), *EyeTrackerData.ToString());
+        print += FString::Printf(TEXT("[DReyeVR]FocusInfo:%s,\n"), *FocusData.ToString());
+        print += FString::Printf(TEXT("[DReyeVR]EgoVariables:%s,\n"), *EgoVars.ToString());
+        print += FString::Printf(TEXT("[DReyeVR]UserInputs:%s,\n"), *Inputs.ToString());
+        return print;
     }
 
   private:
     int64_t TimestampCarlaUE4; // Carla Timestamp (EgoSensor Tick() event) in milliseconds
-    struct SRanipalData EyeTrackerData;
+    struct EyeTracker EyeTrackerData;
     struct EgoVariables EgoVars;
     struct FocusInfo FocusData;
     struct UserInputs Inputs;

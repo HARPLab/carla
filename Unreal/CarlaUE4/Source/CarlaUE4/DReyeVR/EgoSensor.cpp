@@ -255,13 +255,15 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
     if (Hit.Actor != nullptr)
         Hit.Actor->GetName(ActorName);
     // update internal data structure
-    FocusInfoData = {Hit.Actor,
-                     bDidHit,
-                     Hit.Distance,
-                     Hit.Location,              // world location of hit point
-                     Hit.Location - GazeOrigin, // relative location of hit point
-                     Hit.Normal,
-                     ActorName};
+    FocusInfoData = {
+        Hit.Actor,
+        Hit.Location,              // world location of hit point
+        Hit.Location - GazeOrigin, // relative location of hit point
+        Hit.Normal,
+        ActorName,
+        Hit.Distance,
+        bDidHit,
+    };
 }
 
 float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const

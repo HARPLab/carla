@@ -15,7 +15,7 @@ void DReyeVRDataRecorder::Write(std::ofstream &OutFile) const
 std::string DReyeVRDataRecorder::Print() const
 {
     std::ostringstream oss;
-    oss << Data.ToString();
+    oss << TCHAR_TO_UTF8(*Data.ToString());
     return oss.str();
 }
 //---------------------------------------------

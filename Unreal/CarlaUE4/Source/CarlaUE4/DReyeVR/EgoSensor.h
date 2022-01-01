@@ -66,9 +66,9 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     ViveSR::anipal::Eye::EyeData *EyeData;    // SRanipal_Eyes_Enums.h
     bool bSRanipalEnabled;                    // Whether or not the framework has been loaded
 #endif
-    struct DReyeVR::SRanipalData EyeSensorData; // data from eye tracker
-    struct DReyeVR::FocusInfo FocusInfoData;    // data from the focus computed from eye gaze
-    int64_t DeviceTickStartTime;                // reference timestamp (ms) since the eye tracker started ticking
+    struct DReyeVR::EyeTracker EyeSensorData; // data from eye tracker
+    struct DReyeVR::FocusInfo FocusInfoData;  // data from the focus computed from eye gaze
+    int64_t DeviceTickStartTime;              // reference timestamp (ms) since the eye tracker started ticking
     std::chrono::time_point<std::chrono::system_clock> ChronoStartTime; // std::chrono time at BeginPlay
 
     ////////////////:EGOVARS:////////////////
