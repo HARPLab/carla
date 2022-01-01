@@ -3,7 +3,6 @@
 #define DREYEVR_SENSOR_DATA
 
 #include "Carla/Recorder/CarlaRecorderHelpers.h" // WriteValue, WriteFVector, WriteFString, ...
-#include <algorithm>                             // max, min, etc.
 #include <chrono>                                // timing threads
 #include <cstdint>                               // int64_t
 #include <fstream>
@@ -389,7 +388,7 @@ class AggregateData // all DReyeVR sensor data is held here
     void Update(int64_t NewTimestamp, const struct SRanipalData &NewEyeData, const struct EgoVariables &NewEgoVars,
                 const struct FocusInfo &NewFocus, const struct UserInputs &NewInputs)
     {
-        TimestampCarlaUE4 = std::max(NewTimestamp, 0ll);
+        TimestampCarlaUE4 = NewTimestamp;
         EyeTrackerData = NewEyeData;
         EgoVars = NewEgoVars;
         FocusData = NewFocus;

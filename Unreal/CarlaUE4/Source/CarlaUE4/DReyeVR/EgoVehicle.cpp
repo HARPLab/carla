@@ -663,8 +663,8 @@ void AEgoVehicle::Register()
     NumWheels.Type = EActorAttributeType::Int;
     NumWheels.Value = "4";
     Description.Variations.Add(NumWheels.Id, std::move(NumWheels));
-    FString Tags = "EgoVehicle,DReyeVR";
-    Episode->RegisterActor(*this, Description, Tags, ID);
+    FString RegistryTags = "EgoVehicle,DReyeVR";
+    Episode->RegisterActor(*this, Description, RegistryTags, ID);
 }
 
 void AEgoVehicle::FinishTick()

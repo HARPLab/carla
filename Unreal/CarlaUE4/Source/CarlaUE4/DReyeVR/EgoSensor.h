@@ -51,7 +51,6 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 
   private:
     int64_t TickCount = 0; // how many ticks have been executed
-    void Register();
     void ReadConfigVariables();
 
     ////////////////:EYETRACKER:////////////////
@@ -89,4 +88,8 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     int FrameCapWidth;
     int FrameCapHeight;
     bool bCaptureFrameData;
+
+    ////////////////:OTHER:////////////////
+    int EgoSensorID;
+    void Register();
 };

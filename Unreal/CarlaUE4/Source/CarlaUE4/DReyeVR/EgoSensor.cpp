@@ -35,6 +35,7 @@ AEgoSensor::AEgoSensor(const FObjectInitializer &ObjectInitializer) : Super(Obje
 
 void AEgoSensor::ReadConfigVariables()
 {
+    ReadConfigValue("EgoSensor", "ActorRegistryID", EgoSensorID);
     ReadConfigValue("EgoSensor", "StreamSensorData", bStreamData);
     ReadConfigValue("EgoSensor", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("EgoSensor", "FrameWidth", FrameCapWidth);
@@ -106,7 +107,8 @@ void AEgoSensor::InitEyeTracker()
     // no easily discernible difference between v1 and v2
     /// TODO: use the status output from StartFramework to determine if SRanipal loaded successfully
     int Status = SRanipalFramework->StartFramework(SupportedEyeVersion::version1);
-    if (Status == SRanipalEye_Framework::FrameworkStatus::ERROR_SRANIPAL || Status == SRanipalEye_Framework::FrameworkStatus::NOT_SUPPORT)
+    if (Status == SRanipalEye_Framework::FrameworkStatus::ERROR_SRANIPAL ||
+        Status == SRanipalEye_Framework::FrameworkStatus::NOT_SUPPORT)
     {
         UE_LOG(LogTemp, Error, TEXT("Unable to start SRanipal framework!"));
         return;
@@ -373,9 +375,9 @@ void AEgoSensor::TickFrameCapture()
 void AEgoSensor::Register()
 {
     // Register EgoSensor with ActorRegistry
-    FActorView::IdType ID = 513;
+    FActorView::IdType ID = EgoSensorID;
     FActorDescription SensorDescr;
     SensorDescr.Id = "sensor.dreyevr.dreyevrsensor";
-    FString Tags = "EgoSensor,DReyeVR";
-    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, Tags, ID);
+    FString RegistryTags = "EgoSensor,DReyeVR";
+    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, RegistryTags, ID);
 }
