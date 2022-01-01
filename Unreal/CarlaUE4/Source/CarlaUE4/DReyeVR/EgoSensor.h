@@ -20,7 +20,7 @@
 /// NOTE: Can only use SRanipal on Windows machines
 #include "SRanipalEye.h"      // SRanipal Module Framework
 #include "SRanipalEye_Core.h" // SRanipal Eye Tracker
-// for some reason the SRanipal developers created an enum called "ERROR" in SRanipal/Public/SRanipal_Enums.h:28
+// for some reason the SRanipal code (v1.3.1.1) has an enum called "ERROR" in SRanipal/Public/SRanipal_Enums.h:28
 // which is used in SRanipal/Private/SRanipal_Enums.cpp:50 & 62. However, it appears that Carla has its own #define for
 // ERROR which then makes the compiler complain about multiple constants. The simplest *workaround* for this is to
 // rename the ERROR in the above files to something like SR_ERROR or anything but a commonly used #define
@@ -41,45 +41,50 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 
     void PrePhysTick(float DeltaSeconds);
 
-    // Update internal data structures
     void SetEgoVehicle(class AEgoVehicle *EgoVehicle); // provide access to EgoVehicle (and by extension its camera)
-    void TickEyeTracker();                             // tick hardware sensor
-    void ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius = 0.f);
-    void ComputeEgoVars();
-    float ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const;
 
   protected:
     void BeginPlay();
     void BeginDestroy();
 
-    class UWorld *World;            // to get info about the world: time, frames, etc.
-    class UCameraComponent *Camera; // for moving the camera upon recording
-    class AEgoVehicle *Vehicle;     // the DReyeVR EgoVehicle
+    class UWorld *World; // to get info about the world: time, frames, etc.
 
   private:
-    int64_t TickCount = 0;    // how many ticks have been executed
-    int64_t TimestampRef = 0; // reference timestamp (ms) since the hmd started ticking
-    // Local instances of DReyeVR::AggregateData fields for internal use and eventual copying
-    struct DReyeVR::SRanipalData EyeSensorData; // data from eye tracker
-    struct DReyeVR::EgoVariables EgoVars;       // data from vehicle that is getting tracked
-    struct DReyeVR::FocusInfo FocusInfoData;    // data from the focus computed from eye gaze
+    int64_t TickCount = 0; // how many ticks have been executed
+    void Register();
+    void ReadConfigVariables();
 
-    // Eye Tracker Variables
+    ////////////////:EYETRACKER:////////////////
+    void InitEyeTracker();
+    void DestroyEyeTracker();
+    void TickEyeTracker(); // tick hardware sensor
+    void ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius = 0.f);
+    float ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const;
 #if USE_SRANIPAL
     SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
     SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
     ViveSR::anipal::Eye::EyeData *EyeData;    // SRanipal_Eyes_Enums.h
 #endif
+    struct DReyeVR::SRanipalData EyeSensorData; // data from eye tracker
+    struct DReyeVR::FocusInfo FocusInfoData;    // data from the focus computed from eye gaze
+    int64_t DeviceTickStartTime;                // reference timestamp (ms) since the eye tracker started ticking
+    std::chrono::time_point<std::chrono::system_clock> ChronoStartTime; // std::chrono time at BeginPlay
 
-    // Frame capture
+    ////////////////:EGOVARS:////////////////
+    void ComputeEgoVars();
+    class AEgoVehicle *Vehicle;           // the DReyeVR EgoVehicle
+    struct DReyeVR::EgoVariables EgoVars; // data from vehicle that is getting tracked
+
+    ////////////////:FRAMECAPTURE:////////////////
+    void ConstructFrameCapture(); // needs to be called in the constructor
+    void InitFrameCapture();      // needs to be called in BeginPlay
+    void TickFrameCapture();
+    class UCameraComponent *Camera; // for frame capture views
     class UTextureRenderTarget2D *CaptureRenderTarget = nullptr;
     class USceneCaptureComponent2D *FrameCap = nullptr;
     FString FrameCapLocation; // relative to game dir
     FString FrameCapFilename; // gets ${tick}.png suffix
-    bool bCaptureFrameData;
     int FrameCapWidth;
     int FrameCapHeight;
-
-    // Other variables
-    std::chrono::time_point<std::chrono::system_clock> StartTime;
+    bool bCaptureFrameData;
 };

@@ -32,16 +32,16 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
     SetRootComponent(GetMesh());
 
     // Initialize the camera components
-    InitCamera();
+    ConstructCamera();
 
     // Initialize audio components
-    InitEgoSounds();
+    ConstructEgoSounds();
 
     // Initialize collision event functions
-    InitCollisionHandler();
+    ConstructCollisionHandler();
 
     // Initialize text render components
-    InitDashText();
+    ConstructDashText();
 }
 
 void AEgoVehicle::ReadConfigVariables()
@@ -165,7 +165,7 @@ void AEgoVehicle::InitSteamVR()
     }
 }
 
-void AEgoVehicle::InitCamera()
+void AEgoVehicle::ConstructCamera()
 {
     // Spawn the RootComponent and Camera for the VR camera
     VRCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VRCameraRoot"));
@@ -273,7 +273,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 /// ----------------:SOUNDS:------------------ ///
 /// ========================================== ///
 
-void AEgoVehicle::InitEgoSounds()
+void AEgoVehicle::ConstructEgoSounds()
 {
     // retarget the engine cue
     static ConstructorHelpers::FObjectFinder<USoundCue> EgoEngineCue(
@@ -302,6 +302,12 @@ void AEgoVehicle::InitEgoSounds()
     CrashSound->SetupAttachment(GetRootComponent());
     CrashSound->bAutoActivate = false;
     CrashSound->SetSound(CarCrashSound.Object);
+}
+
+void AEgoVehicle::TickSounds()
+{
+    // parent (ACarlaWheeledVehicle) contains the EngineRev logic
+    Super::TickSounds();
 }
 
 void AEgoVehicle::PlayGearShiftSound(const float DelayBeforePlay) const
@@ -337,7 +343,7 @@ void AEgoVehicle::SetVolume(const float VolumeIn)
 /// ---------------:COLLISIONS:--------------- ///
 /// ========================================== ///
 
-void AEgoVehicle::InitCollisionHandler()
+void AEgoVehicle::ConstructCollisionHandler()
 {
     // using Carla's GetVehicleBoundingBox function
     UBoxComponent *Bounds = this->GetVehicleBoundingBox();
@@ -564,7 +570,7 @@ void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
 /// -----------------:DASH:------------------- ///
 /// ========================================== ///
 
-void AEgoVehicle::InitDashText() // dashboard text (speedometer, turn signals, gear shifter)
+void AEgoVehicle::ConstructDashText() // dashboard text (speedometer, turn signals, gear shifter)
 {
     // Create speedometer
     Speedometer = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Speedometer"));
@@ -677,7 +683,6 @@ void AEgoVehicle::TickLevel(float DeltaSeconds)
 
 void AEgoVehicle::Register()
 {
-    /// TODO: parametrize
     FActorView::IdType ID = EgoVehicleID;
     FActorDescription Description;
     Description.Class = ACarlaWheeledVehicle::StaticClass();

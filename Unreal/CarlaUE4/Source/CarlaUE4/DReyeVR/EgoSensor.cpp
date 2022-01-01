@@ -27,47 +27,20 @@ void throw_exception(const std::exception &e)
 
 AEgoSensor::AEgoSensor(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
+    ReadConfigVariables();
+
+    // Initialize the frame capture (constructor call to create USceneCaptureComponent2D)
+    ConstructFrameCapture();
+}
+
+void AEgoSensor::ReadConfigVariables()
+{
     ReadConfigValue("EgoSensor", "StreamSensorData", bStreamData);
     ReadConfigValue("EgoSensor", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("EgoSensor", "FrameWidth", FrameCapWidth);
     ReadConfigValue("EgoSensor", "FrameHeight", FrameCapHeight);
     ReadConfigValue("EgoSensor", "FrameDir", FrameCapLocation);
     ReadConfigValue("EgoSensor", "FrameName", FrameCapFilename);
-
-    if (bCaptureFrameData)
-    {
-        // Frame capture
-        CaptureRenderTarget = CreateDefaultSubobject<UTextureRenderTarget2D>(TEXT("CaptureRenderTarget_DReyeVR"));
-        CaptureRenderTarget->CompressionSettings = TextureCompressionSettings::TC_Default;
-        CaptureRenderTarget->SRGB = false;
-        CaptureRenderTarget->bAutoGenerateMips = false;
-        CaptureRenderTarget->bGPUSharedFlag = true;
-        CaptureRenderTarget->ClearColor = FLinearColor::Black;
-        CaptureRenderTarget->UpdateResourceImmediate(true);
-        // CaptureRenderTarget->OverrideFormat = EPixelFormat::PF_FloatRGB;
-        CaptureRenderTarget->AddressX = TextureAddress::TA_Clamp;
-        CaptureRenderTarget->AddressY = TextureAddress::TA_Clamp;
-        const bool bInForceLinearGamma = false;
-        CaptureRenderTarget->InitCustomFormat(FrameCapWidth, FrameCapHeight, PF_B8G8R8A8, bInForceLinearGamma);
-        check(CaptureRenderTarget->GetSurfaceWidth() > 0 && CaptureRenderTarget->GetSurfaceHeight() > 0);
-
-        FrameCap = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("FrameCap"));
-        FrameCap->SetupAttachment(Camera);
-        FrameCap->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
-        FrameCap->bCaptureOnMovement = false;
-        FrameCap->bCaptureEveryFrame = false;
-        FrameCap->bAlwaysPersistRenderingState = true;
-        FrameCap->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-
-        FrameCap->Deactivate();
-        FrameCap->TextureTarget = CaptureRenderTarget;
-        FrameCap->UpdateContent();
-        FrameCap->Activate();
-    }
-    if (FrameCap && !bCaptureFrameData)
-    {
-        FrameCap->Deactivate();
-    }
 }
 
 void AEgoSensor::BeginPlay()
@@ -75,8 +48,54 @@ void AEgoSensor::BeginPlay()
     Super::BeginPlay();
 
     World = GetWorld();
-    StartTime = std::chrono::system_clock::now();
+    ChronoStartTime = std::chrono::system_clock::now();
 
+    // Initialize the eye tracker hardware
+    InitEyeTracker();
+
+    // Set up frame capture (after world has been initialized)
+    InitFrameCapture();
+
+    // Register EgoSensor with the CarlaActorRegistry
+    Register();
+
+    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR Eye Tracker"));
+}
+
+void AEgoSensor::BeginDestroy()
+{
+    DestroyEyeTracker();
+    Super::BeginDestroy();
+}
+
+void AEgoSensor::PrePhysTick(float DeltaSeconds)
+{
+    if (!bIsReplaying) // only update the sensor with local values if not replaying
+    {
+        const float Timestamp = int64_t(1000.f * UGameplayStatics::GetRealTimeSeconds(World));
+        /// TODO: query the eye tracker hardware asynchronously (not limited to UE4 tick)
+        TickEyeTracker();                             // query the eye-tracker hardware for current data
+        ComputeTraceFocusInfo(ECC_GameTraceChannel4); // compute gaze focus data
+        ComputeEgoVars();                             // get all necessary ego-vehicle data
+
+        // Update the internal sensor data that gets handed off to Carla (for recording/replaying/PythonAPI)
+        GetData()->Update(Timestamp,                  // TimestampCarla (ms)
+                          EyeSensorData,              // EyeTrackerData
+                          EgoVars,                    // EgoVehicleVariables
+                          FocusInfoData,              // FocusData
+                          Vehicle->GetVehicleInputs() // User inputs
+        );
+    }
+    TickFrameCapture();
+    TickCount++;
+}
+
+/// ========================================== ///
+/// ---------------:EYETRACKER:--------------- ///
+/// ========================================== ///
+
+void AEgoSensor::InitEyeTracker()
+{
 #if USE_SRANIPAL
     // initialize SRanipal framework for eye tracking
     UE_LOG(LogTemp, Warning, TEXT("Attempting to use SRanipal eye tracking"));
@@ -90,43 +109,15 @@ void AEgoSensor::BeginPlay()
     // see SRanipal_Eyes_Enums.h
     // Get the reference timing to synchronize the SRanipal timer with Carla
     SRanipal->GetEyeData_(EyeData);
-    TimestampRef = EyeData->timestamp;
+    DeviceTickStartTime = EyeData->timestamp;
+    UE_LOG(LogTemp, Log, TEXT("Successfully started SRanipal framework"));
 #else
-    UE_LOG(LogTemp, Warning, TEXT("NOT using SRanipal eye tracking"));
+    UE_LOG(LogTemp, Warning, TEXT("Not using SRanipal eye tracking"));
 #endif
-    // Set up frame capture
-    if (bCaptureFrameData)
-    {
-        // create out dir
-        /// TODO: add check for absolute paths
-        FrameCapLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() + FrameCapLocation);
-        UE_LOG(LogTemp, Log, TEXT("Outputting frame capture data to %s"), *FrameCapLocation);
-        IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-        if (!PlatformFile.DirectoryExists(*FrameCapLocation))
-        {
-#ifndef _WIN32
-            // this only seems to work on Unix systems, else CreateDirectoryW is not linked
-            PlatformFile.CreateDirectory(*FrameCapLocation);
-#else
-            // using Windows system calls
-            CreateDirectory(*FrameCapLocation, NULL);
-#endif
-        }
-    }
-
-    // Register EgoSensor with ActorRegistry
-    FActorView::IdType ID = 513;
-    FActorDescription SensorDescr;
-    SensorDescr.Id = "sensor.dreyevr.dreyevrsensor";
-    FString Tags = "EgoSensor,DReyeVR";
-    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, Tags, ID);
-
-    UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR Eye Tracker"));
 }
 
-void AEgoSensor::BeginDestroy()
+void AEgoSensor::DestroyEyeTracker()
 {
-    Super::BeginDestroy();
 #if USE_SRANIPAL
     if (SRanipalFramework)
     {
@@ -138,45 +129,9 @@ void AEgoSensor::BeginDestroy()
 #endif
 }
 
-void AEgoSensor::SetEgoVehicle(class AEgoVehicle *NewEgoVehicle)
-{
-    Vehicle = NewEgoVehicle;
-    Camera = Vehicle->GetCamera();
-    check(Vehicle);
-}
-
-void AEgoSensor::PrePhysTick(float DeltaSeconds)
-{
-    if (!bIsReplaying) // only update the sensor with local values if not replaying
-    {
-        const float Timestamp = int64_t(1000.f * UGameplayStatics::GetRealTimeSeconds(World));
-        TickEyeTracker();                             // query the eye-tracker hardware for current data
-        ComputeTraceFocusInfo(ECC_GameTraceChannel4); // compute gaze focus data
-        ComputeEgoVars();                             // get all necessary ego-vehicle data
-
-        // Update the internal sensor data that gets handed off to Carla (for recording/replaying/PythonAPI)
-        GetData()->Update(Timestamp,                  // TimestampCarla (ms)
-                          EyeSensorData,              // EyeTrackerData
-                          EgoVars,                    // EgoVehicleVariables
-                          FocusInfoData,              // FocusData
-                          Vehicle->GetVehicleInputs() // User inputs
-        );
-    }
-    // frame capture
-    if (bCaptureFrameData && FrameCap && Camera)
-    {
-        FMinimalViewInfo DesiredView;
-        Camera->GetCameraView(0, DesiredView);
-        FrameCap->SetCameraView(DesiredView); // move camera to the Camera view
-        FrameCap->CaptureScene();             // also available: CaptureSceneDeferred()
-        const FString Suffix = FString::Printf(TEXT("%04d.png"), TickCount);
-        SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix));
-    }
-    TickCount++;
-}
-
 void AEgoSensor::TickEyeTracker()
 {
+    /// TODO: move this function to an async thread to obtain 120hz data capture
     auto Combined = &(EyeSensorData.Combined);
     auto Left = &(EyeSensorData.Left);
     auto Right = &(EyeSensorData.Right);
@@ -186,15 +141,12 @@ void AEgoSensor::TickEyeTracker()
     check(SRanipal != nullptr);
     // Get the "EyeData" which holds useful information such as the timestamp
     SRanipal->GetEyeData_(EyeData);
-    EyeSensorData.TimestampDevice = EyeData->timestamp - TimestampRef;
+    EyeSensorData.TimestampDevice = EyeData->timestamp - DeviceTickStartTime;
     EyeSensorData.FrameSequence = EyeData->frame_sequence;
     // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
     Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->GazeOrigin, Combined->GazeDir);
     // Assign Left/Right Gaze direction
-    /// NOTE: the eye gazes are reversed at the lowest level bc SRanipal has a bug in their
-    // libraries that flips these when collected from the sensor. We can verify this by
-    // plotting debug lines for the left and right eye gazes and notice that if we close
-    // one eye, the OTHER eye's gaze is null, when it should be the closed eye instead...
+    /// NOTE: the eye gazes are reversed bc SRanipal has a bug in their closed libraries
     // see: https://forum.vive.com/topic/9306-possible-bug-in-unreal-sdk-for-leftright-eye-gazes
     if (SRANIPAL_EYE_SWAP_FIXED) // if the latest SRanipal does not have this bug
     {
@@ -216,11 +168,15 @@ void AEgoSensor::TickEyeTracker()
     Left->PupilDiameter = EyeData->verbose_data.left.pupil_diameter_mm;
     Right->PupilDiameter = EyeData->verbose_data.right.pupil_diameter_mm;
 #else
-    // Generate dummy values for Gaze Ray based off time, goes in circles in front of the user
+    // generate dummy values bc no hardware sensor is present
+    EyeSensorData.TimestampDevice = int64_t(
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - ChronoStartTime)
+            .count());
+    EyeSensorData.FrameSequence = TickCount; // get the current tick
+
+    // generate gaze that rotates in CCW fashion around the camera ray
+    const float TimeNow = EyeSensorData.TimestampDevice / 1000.f;
     Combined->GazeDir.X = 5.0;
-    // std::chrono::duration<double> Time = std::chrono::system_clock::now();
-    const auto DeltaT = std::chrono::system_clock::now() - StartTime; // time difference since begin play
-    const float TimeNow = std::chrono::duration_cast<std::chrono::milliseconds>(DeltaT).count() / 1000.f;
     Combined->GazeDir.Y = UKismetMathLibrary::Cos(TimeNow);
     Combined->GazeDir.Z = UKismetMathLibrary::Sin(TimeNow);
     UKismetMathLibrary::Vector_Normalize(Combined->GazeDir, 0.0001);
@@ -231,9 +187,9 @@ void AEgoSensor::TickEyeTracker()
 
     // Assign the endpoint of the combined position (faked in Linux) to the left & right gazes too
     Left->GazeDir = Combined->GazeDir;
-    Left->GazeOrigin = Combined->GazeOrigin + FVector(0, -5, 0);
+    Left->GazeOrigin = Combined->GazeOrigin + 5 * FVector::LeftVector;
     Right->GazeDir = Combined->GazeDir;
-    Right->GazeOrigin = Combined->GazeOrigin + FVector(0, +5, 0);
+    Right->GazeOrigin = Combined->GazeOrigin + 5 * FVector::RightVector;
 #endif
     Combined->Vergence = ComputeVergence(Left->GazeOrigin, Left->GazeDir, Right->GazeOrigin, Right->GazeDir);
     // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
@@ -284,15 +240,6 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
                      ActorName};
 }
 
-void AEgoSensor::ComputeEgoVars()
-{
-    EgoVars.VehicleLocation = Vehicle->GetActorLocation();
-    EgoVars.VehicleRotation = Vehicle->GetActorRotation();
-    EgoVars.CameraLocation = Camera->GetRelativeLocation();
-    EgoVars.CameraRotation = Camera->GetRelativeRotation();
-    EgoVars.Velocity = Vehicle->GetVehicleForwardSpeed();
-}
-
 float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const
 {
     // Compute length of ray-to- intersection of the left and right eye gazes in 3D space (length in centimeters)
@@ -330,4 +277,116 @@ float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const 
     FVector oM = (L0 + R0) / 2.0f;    // midpoint between two (L & R) origins
     FVector FinalRay = ptM - oM;      // Combined ray between midpoints of endpoints
     return FinalRay.Size();           // returns the magnitude of the vector (in cm)
+}
+
+/// ========================================== ///
+/// ---------------:EGOVARS:------------------ ///
+/// ========================================== ///
+
+void AEgoSensor::SetEgoVehicle(class AEgoVehicle *NewEgoVehicle)
+{
+    Vehicle = NewEgoVehicle;
+    Camera = Vehicle->GetCamera();
+    check(Vehicle);
+}
+
+void AEgoSensor::ComputeEgoVars()
+{
+    EgoVars.VehicleLocation = Vehicle->GetActorLocation();
+    EgoVars.VehicleRotation = Vehicle->GetActorRotation();
+    EgoVars.CameraLocation = Camera->GetRelativeLocation();
+    EgoVars.CameraRotation = Camera->GetRelativeRotation();
+    EgoVars.Velocity = Vehicle->GetVehicleForwardSpeed();
+}
+
+/// ========================================== ///
+/// ---------------:FRAMECAP:----------------- ///
+/// ========================================== ///
+
+void AEgoSensor::ConstructFrameCapture()
+{
+    if (bCaptureFrameData)
+    {
+        // Frame capture
+        CaptureRenderTarget = CreateDefaultSubobject<UTextureRenderTarget2D>(TEXT("CaptureRenderTarget_DReyeVR"));
+        CaptureRenderTarget->CompressionSettings = TextureCompressionSettings::TC_Default;
+        CaptureRenderTarget->SRGB = false;
+        CaptureRenderTarget->bAutoGenerateMips = false;
+        CaptureRenderTarget->bGPUSharedFlag = true;
+        CaptureRenderTarget->ClearColor = FLinearColor::Black;
+        CaptureRenderTarget->UpdateResourceImmediate(true);
+        // CaptureRenderTarget->OverrideFormat = EPixelFormat::PF_FloatRGB;
+        CaptureRenderTarget->AddressX = TextureAddress::TA_Clamp;
+        CaptureRenderTarget->AddressY = TextureAddress::TA_Clamp;
+        const bool bInForceLinearGamma = false;
+        CaptureRenderTarget->InitCustomFormat(FrameCapWidth, FrameCapHeight, PF_B8G8R8A8, bInForceLinearGamma);
+        check(CaptureRenderTarget->GetSurfaceWidth() > 0 && CaptureRenderTarget->GetSurfaceHeight() > 0);
+
+        FrameCap = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("FrameCap"));
+        FrameCap->SetupAttachment(Camera);
+        FrameCap->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+        FrameCap->bCaptureOnMovement = false;
+        FrameCap->bCaptureEveryFrame = false;
+        FrameCap->bAlwaysPersistRenderingState = true;
+        FrameCap->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+
+        FrameCap->Deactivate();
+        FrameCap->TextureTarget = CaptureRenderTarget;
+        FrameCap->UpdateContent();
+        FrameCap->Activate();
+    }
+    if (FrameCap && !bCaptureFrameData)
+    {
+        FrameCap->Deactivate();
+    }
+}
+
+void AEgoSensor::InitFrameCapture()
+{
+    if (bCaptureFrameData)
+    {
+        // create out dir
+        /// TODO: add check for absolute paths
+        FrameCapLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() + FrameCapLocation);
+        UE_LOG(LogTemp, Log, TEXT("Outputting frame capture data to %s"), *FrameCapLocation);
+        IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+        if (!PlatformFile.DirectoryExists(*FrameCapLocation))
+        {
+#ifndef _WIN32
+            // this only seems to work on Unix systems, else CreateDirectoryW is not linked?
+            PlatformFile.CreateDirectory(*FrameCapLocation);
+#else
+            // using Windows system calls
+            CreateDirectory(*FrameCapLocation, NULL);
+#endif
+        }
+    }
+}
+
+void AEgoSensor::TickFrameCapture()
+{
+    // frame capture
+    if (bCaptureFrameData && FrameCap && Camera)
+    {
+        FMinimalViewInfo DesiredView;
+        Camera->GetCameraView(0, DesiredView);
+        FrameCap->SetCameraView(DesiredView); // move camera to the Camera view
+        FrameCap->CaptureScene();             // also available: CaptureSceneDeferred()
+        const FString Suffix = FString::Printf(TEXT("%04d.png"), TickCount);
+        SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix));
+    }
+}
+
+/// ========================================== ///
+/// -----------------:OTHER:------------------ ///
+/// ========================================== ///
+
+void AEgoSensor::Register()
+{
+    // Register EgoSensor with ActorRegistry
+    FActorView::IdType ID = 513;
+    FActorDescription SensorDescr;
+    SensorDescr.Id = "sensor.dreyevr.dreyevrsensor";
+    FString Tags = "EgoSensor,DReyeVR";
+    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, Tags, ID);
 }

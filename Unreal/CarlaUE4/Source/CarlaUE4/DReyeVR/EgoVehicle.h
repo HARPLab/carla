@@ -79,8 +79,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void FinishTick(); // do all the things necessary at the end of a tick
 
     ////////////////:CAMERA:////////////////
-    void InitSteamVR(); // Initialize the Head Mounted Display
-    void InitCamera();
+    void ConstructCamera(); // needs to be called in the constructor
+    void InitSteamVR();     // Initialize the Head Mounted Display
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
     class USceneComponent *VRCameraRoot;
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -142,9 +142,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 #endif
 
     ////////////////:SOUNDS:////////////////
-    // Audio components
-    void InitEgoSounds();
-    // void SoundUpdate(); // handled in parent class (with Engine rev)
+    void ConstructEgoSounds(); // needs to be called in the constructor
+    void TickSounds();
     UPROPERTY(Category = Audio, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UAudioComponent *GearShiftSound; // nice for toggling reverse
     UPROPERTY(Category = Audio, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -153,7 +152,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class UAudioComponent *CrashSound; // crashing with another actor
 
     ////////////////:COLLISIONS:////////////////
-    void InitCollisionHandler();
+    void ConstructCollisionHandler(); // needs to be called in the constructor
     UFUNCTION()
     void OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor, UPrimitiveComponent *OtherComp,
                         int32 OtherBodyIndex, bool bFromSweep, const FHitResult &SweepResult);
@@ -185,8 +184,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     ////////////////:DASH:////////////////
     // Text Render components (Like the HUD but part of the mesh and works in VR)
-    void InitDashText();
-    FVector DashboardLocnInVehicle{110, 0, 105}; // subject to change via params
+    void ConstructDashText(); // needs to be called in the constructor
     UPROPERTY(Category = Dash, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UTextRenderComponent *Speedometer;
     UPROPERTY(Category = Dash, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -195,6 +193,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     UPROPERTY(Category = Dash, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UTextRenderComponent *GearShifter;
     void UpdateDash();
+    FVector DashboardLocnInVehicle{110, 0, 105}; // can change via params
 
     ////////////////:OTHER:////////////////
 

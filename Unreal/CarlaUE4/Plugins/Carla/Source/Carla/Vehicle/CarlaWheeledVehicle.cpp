@@ -44,21 +44,24 @@ ACarlaWheeledVehicle::ACarlaWheeledVehicle(const FObjectInitializer& ObjectIniti
   GetVehicleMovementComponent()->bReverseAsBrake = false;
 
   // Initialize audio components
-  InitSounds();
+  ConstructSounds();
 }
 
 float ACarlaWheeledVehicle::NonEgoVolume = 1.f;
-void ACarlaWheeledVehicle::InitSounds()
+void ACarlaWheeledVehicle::ConstructSounds()
 {
   // add all sounds here
   static ConstructorHelpers::FObjectFinder<USoundCue> EngineCue(TEXT("SoundCue'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/EngineRev.EngineRev'"));
-  EngineRevSound = CreateDefaultSubobject<UAudioComponent>(TEXT("EngineRevving"));
-  EngineRevSound->SetupAttachment(GetRootComponent());      // attach to self
-  EngineRevSound->bAutoActivate = true;                     // start playing on begin
-  EngineRevSound->SetSound(EngineCue.Object);               // using this sound
-  EngineRevSound->SetRelativeLocation(EngineLocnInVehicle); // location of "engine" in vehicle (3D sound)
-  EngineRevSound->SetFloatParameter(FName("RPM"), 0.f);     // initially idle
-  EngineRevSound->Play();
+  if (EngineRevSound == nullptr){
+    EngineRevSound = CreateDefaultSubobject<UAudioComponent>(TEXT("EngineRevving"));
+    EngineRevSound->SetupAttachment(GetRootComponent());      // attach to self
+    EngineRevSound->bAutoActivate = true;                     // start playing on begin
+    EngineRevSound->SetSound(EngineCue.Object);               // using this sound
+    EngineRevSound->SetRelativeLocation(EngineLocnInVehicle); // location of "engine" in vehicle (3D sound)
+    EngineRevSound->SetFloatParameter(FName("RPM"), 0.f);     // initially idle
+    EngineRevSound->Play();
+  }
+  check(EngineRevSound != nullptr);
   SetVolume(ACarlaWheeledVehicle::NonEgoVolume);
 }
 
@@ -143,10 +146,10 @@ void ACarlaWheeledVehicle::Tick(float DeltaTime)
 {
   Super::Tick(DeltaTime);
 
-  SoundUpdate(); // change engine rev sound by RPM
+  TickSounds(); // change engine rev sound by RPM
 }
 
-void ACarlaWheeledVehicle::SoundUpdate()
+void ACarlaWheeledVehicle::TickSounds()
 {
   if (EngineRevSound)
   {
