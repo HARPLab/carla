@@ -57,13 +57,15 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     ////////////////:EYETRACKER:////////////////
     void InitEyeTracker();
     void DestroyEyeTracker();
-    void TickEyeTracker(); // tick hardware sensor
+    void ComputeDummyEyeData(); // when no hardware sensor is present
+    void TickEyeTracker();      // tick hardware sensor
     void ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius = 0.f);
     float ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const;
 #if USE_SRANIPAL
     SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
     SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
     ViveSR::anipal::Eye::EyeData *EyeData;    // SRanipal_Eyes_Enums.h
+    bool bSRanipalEnabled;                    // Whether or not the framework has been loaded
 #endif
     struct DReyeVR::SRanipalData EyeSensorData; // data from eye tracker
     struct DReyeVR::FocusInfo FocusInfoData;    // data from the focus computed from eye gaze

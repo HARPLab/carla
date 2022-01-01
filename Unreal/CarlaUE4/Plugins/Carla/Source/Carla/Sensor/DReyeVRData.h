@@ -3,6 +3,7 @@
 #define DREYEVR_SENSOR_DATA
 
 #include "Carla/Recorder/CarlaRecorderHelpers.h" // WriteValue, WriteFVector, WriteFString, ...
+#include <algorithm>                             // max, min, etc.
 #include <chrono>                                // timing threads
 #include <cstdint>                               // int64_t
 #include <fstream>
@@ -240,6 +241,8 @@ class AggregateData // all DReyeVR sensor data is held here
             return EyeTrackerData.Right.GazeDir;
         case DReyeVR::Gaze::COMBINED:
             return EyeTrackerData.Combined.GazeDir;
+        default: // need a default case for MSVC >:(
+            return EyeTrackerData.Combined.GazeDir;
         }
     }
     const FVector &GetGazeOrigin(DReyeVR::Gaze Index = DReyeVR::Gaze::COMBINED) const
@@ -251,6 +254,8 @@ class AggregateData // all DReyeVR sensor data is held here
         case DReyeVR::Gaze::RIGHT:
             return EyeTrackerData.Right.GazeOrigin;
         case DReyeVR::Gaze::COMBINED:
+            return EyeTrackerData.Combined.GazeOrigin;
+        default: // need a default case for MSVC >:(
             return EyeTrackerData.Combined.GazeOrigin;
         }
     }
@@ -264,6 +269,8 @@ class AggregateData // all DReyeVR sensor data is held here
             return EyeTrackerData.Right.GazeValid;
         case DReyeVR::Gaze::COMBINED:
             return EyeTrackerData.Combined.GazeValid;
+        default: // need a default case for MSVC >:(
+            return EyeTrackerData.Combined.GazeValid;
         }
     }
     float GetEyeOpenness(DReyeVR::Eye Index) const // returns eye openness as a percentage [0,1]
@@ -273,6 +280,8 @@ class AggregateData // all DReyeVR sensor data is held here
         case DReyeVR::Eye::LEFT:
             return EyeTrackerData.Left.EyeOpenness;
         case DReyeVR::Eye::RIGHT:
+            return EyeTrackerData.Right.EyeOpenness;
+        default: // need a default case for MSVC >:(
             return EyeTrackerData.Right.EyeOpenness;
         }
     }
@@ -284,6 +293,8 @@ class AggregateData // all DReyeVR sensor data is held here
             return EyeTrackerData.Left.EyeOpennessValid;
         case DReyeVR::Eye::RIGHT:
             return EyeTrackerData.Right.EyeOpennessValid;
+        default: // need a default case for MSVC >:(
+            return EyeTrackerData.Right.EyeOpennessValid;
         }
     }
     float GetPupilDiameter(DReyeVR::Eye Index) const // returns diameter in mm
@@ -293,6 +304,8 @@ class AggregateData // all DReyeVR sensor data is held here
         case DReyeVR::Eye::LEFT:
             return EyeTrackerData.Left.PupilDiameter;
         case DReyeVR::Eye::RIGHT:
+            return EyeTrackerData.Right.PupilDiameter;
+        default: // need a default case for MSVC >:(
             return EyeTrackerData.Right.PupilDiameter;
         }
     }
@@ -304,6 +317,8 @@ class AggregateData // all DReyeVR sensor data is held here
             return EyeTrackerData.Left.PupilPosition;
         case DReyeVR::Eye::RIGHT:
             return EyeTrackerData.Right.PupilPosition;
+        default: // need a default case for MSVC >:(
+            return EyeTrackerData.Right.PupilPosition;
         }
     }
     bool GetPupilPositionValidity(DReyeVR::Eye Index) const
@@ -313,6 +328,8 @@ class AggregateData // all DReyeVR sensor data is held here
         case DReyeVR::Eye::LEFT:
             return EyeTrackerData.Left.PupilPositionValid;
         case DReyeVR::Eye::RIGHT:
+            return EyeTrackerData.Right.PupilPositionValid;
+        default: // need a default case for MSVC >:(
             return EyeTrackerData.Right.PupilPositionValid;
         }
     }
@@ -372,7 +389,7 @@ class AggregateData // all DReyeVR sensor data is held here
     void Update(int64_t NewTimestamp, const struct SRanipalData &NewEyeData, const struct EgoVariables &NewEgoVars,
                 const struct FocusInfo &NewFocus, const struct UserInputs &NewInputs)
     {
-        TimestampCarlaUE4 = std::max(NewTimestamp, 0l);
+        TimestampCarlaUE4 = std::max(NewTimestamp, 0ll);
         EyeTrackerData = NewEyeData;
         EgoVars = NewEgoVars;
         FocusData = NewFocus;
