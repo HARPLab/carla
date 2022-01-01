@@ -135,6 +135,106 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FSt
         UE_LOG(LogTemp, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
 }
 
+static FVector ComputeClosestToRayIntersection(const FVector &L0, const FVector &LDir, const FVector &R0,
+                                               const FVector &RDir)
+{
+    // Recall that a 'line' can be defined as (L = origin(0) + t * direction(Dir)) for some t
+
+    // Calculating shortest line segment intersecting both lines
+    // Implementation sourced from http://paulbourke.net/geometry/pointlineplane/
+    FVector L0R0 = L0 - R0; // segment between L origin and R origin
+    if (L0R0.Size() == 0.f) // same origin
+        return FVector::ZeroVector;
+    const float epsilon = 0.00001f; // small positive real number
+
+    // Calculating dot-product equation to find perpendicular shortest-line-segment
+    float d1343 = L0R0.X * RDir.X + L0R0.Y * RDir.Y + L0R0.Z * RDir.Z;
+    float d4321 = RDir.X * LDir.X + RDir.Y * LDir.Y + RDir.Z * LDir.Z;
+    float d1321 = L0R0.X * LDir.X + L0R0.Y * LDir.Y + L0R0.Z * LDir.Z;
+    float d4343 = RDir.X * RDir.X + RDir.Y * RDir.Y + RDir.Z * RDir.Z;
+    float d2121 = LDir.X * LDir.X + LDir.Y * LDir.Y + LDir.Z * LDir.Z;
+    float denom = d2121 * d4343 - d4321 * d4321;
+    if (abs(denom) < epsilon)
+        return FVector::ZeroVector; // no intersection, would cause div by 0 err
+    float numer = d1343 * d4321 - d1321 * d4343;
+
+    // calculate scalars (mu) that scale the unit direction XDir to reach the desired points
+    float muL = numer / denom;                   // variable scale of direction vector for LEFT ray
+    float muR = (d1343 + d4321 * (muL)) / d4343; // variable scale of direction vector for RIGHT ray
+
+    // calculate the points on the respective rays that create the intersecting line
+    FVector ptL = L0 + muL * LDir; // the point on the Left ray
+    FVector ptR = R0 + muR * RDir; // the point on the Right ray
+
+    FVector ShortestLineSeg = ptL - ptR; // the shortest line segment between the two rays
+    // calculate the vector between the middle of the two endpoints and return its magnitude
+    FVector ptM = (ptL + ptR) / 2.0f; // middle point between two endpoints of shortest-line-segment
+    FVector oM = (L0 + R0) / 2.0f;    // midpoint between two (L & R) origins
+    return ptM - oM;                  // Combined ray between midpoints of endpoints
+}
+
+static void GenerateSquareImage(TArray<FColor> &Src, const float Size, const FColor &Colour)
+{
+    // Used to initialize any grid-based image onto an array
+    Src.Reserve(Size * Size); // allocate width*height space
+    for (int i = 0; i < Size; i++)
+    {
+        for (int j = 0; j < Size; j++)
+        {
+            // RGBA colours
+            FColor PixelColour;
+            const int Thickness = Size / 10;
+            bool LeftOrRight = (i < Thickness || i > Size - Thickness);
+            bool TopOrBottom = (j < Thickness || j > Size - Thickness);
+            if (LeftOrRight || TopOrBottom)
+                PixelColour = Colour; // (semi-opaque red)
+            else
+                PixelColour = FColor(0, 0, 0, 0); // (fully transparent inside)
+            Src.Add(PixelColour);
+        }
+    }
+}
+
+static void GenerateCrosshairImage(TArray<FColor> &Src, const float Size, const FColor &Colour)
+{
+    // Used to initialize any bitmap-based image that will be used as a
+    Src.Reserve(Size * Size); // allocate width*height space
+    for (int i = 0; i < Size; i++)
+    {
+        for (int j = 0; j < Size; j++)
+        {
+            // RGBA colours
+            FColor PixelColour;
+
+            const int x = i - Size / 2;
+            const int y = j - Size / 2;
+            const float Radius = Size / 3.f;
+            const int RadThickness = 3;
+            const int LineLen = 4 * RadThickness;
+            const float RadLo = Radius - LineLen;
+            const float RadHi = Radius + LineLen;
+            bool BelowRadius = (FMath::Square(x) + FMath::Square(y) <= FMath::Square(Radius + RadThickness));
+            bool AboveRadius = (FMath::Square(x) + FMath::Square(y) >= FMath::Square(Radius - RadThickness));
+            if (BelowRadius && AboveRadius)
+                PixelColour = Colour; // (semi-opaque red)
+            else
+            {
+                // Draw little rectangular markers
+                const bool RightMarker = (RadLo < x && x < RadHi) && std::fabs(y) < RadThickness;
+                const bool LeftMarker = (RadLo < -x && -x < RadHi) && std::fabs(y) < RadThickness;
+                const bool TopMarker = (RadLo < y && y < RadHi) && std::fabs(x) < RadThickness;
+                const bool BottomMarker = (RadLo < -y && -y < RadHi) && std::fabs(x) < RadThickness;
+                if (RightMarker || LeftMarker || TopMarker || BottomMarker)
+                    PixelColour = Colour; // (semi-opaque red)
+                else
+                    PixelColour = FColor(0, 0, 0, 0); // (fully transparent inside)
+            }
+
+            Src.Add(PixelColour);
+        }
+    }
+}
+
 static void SaveFrameToDisk(UTextureRenderTarget2D &RenderTarget, const FString &FilePath)
 {
     FTextureRenderTargetResource *RTResource = RenderTarget.GameThread_GetRenderTargetResource();

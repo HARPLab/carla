@@ -1,23 +1,23 @@
-#include "DReyeVRLevel.h"
+#include "LevelScript.h"
 #include "Carla/Game/CarlaStatics.h"           // UCarlaStatics::GetRecorder
 #include "Carla/Sensor/DReyeVRSensor.h"        // ADReyeVRSensor
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
-#include "Components/InputComponent.h" // BindKey (Also needs "SlateCore" & "Slate" in PublicDependencyModuleNames)
-#include "EgoVehicle.h"                // AEgoVehicle
-#include "Kismet/GameplayStatics.h"    // GetPlayerController
+#include "Components/AudioComponent.h"         // UAudioComponent
+#include "EgoVehicle.h"                        // AEgoVehicle
+#include "Kismet/GameplayStatics.h"            // GetPlayerController
+#include "UObject/UObjectIterator.h"           // TObjectInterator
 
-ADReyeVRLevel::ADReyeVRLevel()
+ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
 {
     // initialize stuff here
     PrimaryActorTick.bCanEverTick = false;
     PrimaryActorTick.bStartWithTickEnabled = false;
-}
 
-ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : ADReyeVRLevel()
-{
-    // initialize stuff here
-    PrimaryActorTick.bCanEverTick = false;
-    PrimaryActorTick.bStartWithTickEnabled = false;
+    ReadConfigValue("Level", "EgoVolumePercent", EgoVolumePercent);
+    ReadConfigValue("Level", "NonEgoVolumePercent", NonEgoVolumePercent);
+    ReadConfigValue("Level", "AmbientVolumePercent", AmbientVolumePercent);
+    // update the non-ego volume percent
+    ACarlaWheeledVehicle::NonEgoVolume = NonEgoVolumePercent / 100.f;
 }
 
 bool ADReyeVRLevel::FindEgoVehicle()
@@ -53,15 +53,17 @@ void ADReyeVRLevel::BeginPlay()
     // enable input tracking
     InputEnabled();
 
+    // set all the volumes (ego, non-ego, ambient/world)
+    SetVolume();
+
     // start input mapping
     SetupPlayerInputComponent();
 
     // Initialize DReyeVR spectator
     SetupSpectator();
 
-    /// TODO: optionally, spawn ego-vehicle here with parametrized inputs
-
     // Find the ego vehicle in the world
+    /// TODO: optionally, spawn ego-vehicle here with parametrized inputs
     FindEgoVehicle();
 
     // Initialize control mode
@@ -120,8 +122,6 @@ void ADReyeVRLevel::SetupPlayerInputComponent()
     InputComponent->BindAction("Restart_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::Restart);
     InputComponent->BindAction("Incr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::IncrTimestep);
     InputComponent->BindAction("Decr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::DecrTimestep);
-    // Mute the audio component
-    InputComponent->BindAction("Mute_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::ToggleMute);
     // Driver Handoff examples
     InputComponent->BindAction("EgoVehicle_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::PossessEgoVehicle);
     InputComponent->BindAction("Spectator_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::PossessSpectator);
@@ -224,28 +224,29 @@ void ADReyeVRLevel::DecrTimestep()
     UCarlaStatics::GetRecorder(GetWorld())->RecIncrTimestep(-0.2);
 }
 
-void ADReyeVRLevel::ToggleMute()
+void ADReyeVRLevel::SetVolume()
 {
-    // mute all components with audio
+    // for all in-world audio components such as ambient birdsong, fountain splashing, smoke, etc.
+    for (TObjectIterator<UAudioComponent> Itr; Itr; ++Itr)
+    {
+        if (Itr->GetWorld() != GetWorld()) // World Check
+        {
+            continue;
+        }
+        Itr->SetVolumeMultiplier(AmbientVolumePercent / 100.f);
+    }
+    // for all in-world vehicles (including the EgoVehicle) manually set their volumes
     TArray<AActor *> FoundActors;
-    // searching for all AWheeledVehicles instead of ACarlaWheeledVehicles to mute them too
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AWheeledVehicle::StaticClass(), FoundActors);
-    bIsMuted = !bIsMuted;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACarlaWheeledVehicle::StaticClass(), FoundActors);
     for (AActor *A : FoundActors)
     {
-        ACarlaWheeledVehicle *C = CastChecked<ACarlaWheeledVehicle>(A);
-        if (C != nullptr)
+        ACarlaWheeledVehicle *Vehicle = Cast<ACarlaWheeledVehicle>(A);
+        if (Vehicle != nullptr)
         {
-            float NewVolume;
-            if (C->IsA(AEgoVehicle::StaticClass()))
-            {
-                NewVolume = EgoVehicleMaxVolume * (1.f - int(bIsMuted));
-            }
-            else
-            {
-                NewVolume = NonEgoMaxVolume * (1.f - int(bIsMuted));
-            }
-            C->SetVolume(NewVolume);
+            float NewVolume = ACarlaWheeledVehicle::NonEgoVolume;
+            if (Vehicle->IsA(AEgoVehicle::StaticClass())) // dynamic cast, requires -frrti
+                NewVolume = EgoVolumePercent / 100.f;
+            Vehicle->SetVolume(NewVolume);
         }
     }
 }

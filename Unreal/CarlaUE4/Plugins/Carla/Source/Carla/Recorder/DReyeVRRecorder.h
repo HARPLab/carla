@@ -3,17 +3,17 @@
 #include <fstream>
 #include <vector>
 // DReyeVR include
-#include "Carla/Sensor/DReyeVRSensorData.h"
+#include "Carla/Sensor/DReyeVRData.h"
 
 #pragma pack(push, 1)
 struct DReyeVRDataRecorder
 {
     DReyeVRDataRecorder() = default;
-    DReyeVRDataRecorder(const DReyeVR::SensorData *Snapshot)
+    DReyeVRDataRecorder(const DReyeVR::AggregateData *DataIn)
     {
-        Data = *Snapshot;
+        Data = (*DataIn);
     }
-    DReyeVR::SensorData Data;
+    DReyeVR::AggregateData Data;
     void Read(std::ifstream &InFile);
     void Write(std::ofstream &OutFile) const;
     std::string Print() const;
@@ -30,5 +30,5 @@ class DReyeVRDataRecorders
 
   private:
     // using a vector as a queue that holds everything, gets written and flushed on every tick
-    std::vector<DReyeVRDataRecorder> AllSnapshots;
+    std::vector<DReyeVRDataRecorder> AllData;
 };

@@ -5,7 +5,7 @@
 #include "Engine/Font.h"         // UFont
 #include "GameFramework/HUD.h"   // AHUD
 
-#include "DReyeVRHUD.generated.h"
+#include "FlatHUD.generated.h"
 
 struct HUDText
 {

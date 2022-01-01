@@ -206,7 +206,8 @@ public:
 
   void SetWheelsFrictionScale(TArray<float> &WheelsFrictionScale);
 
-  virtual void SetVolume(const float Mult);
+  static float NonEgoVolume;
+  virtual void SetVolume(const float VolumeIn);
   /// @}
   // ===========================================================================
   /// @name Overriden from AActor
@@ -219,11 +220,11 @@ protected:
   // DReyeVR add-on (mostly sound related)
   virtual void Tick(float DeltaTime) override;
 
-  void InitSounds();
-  void SoundUpdate();
+  void ConstructSounds();
+  void TickSounds();
   const FVector EngineLocnInVehicle{180.f, 0.f, 70.f};
   UPROPERTY(Category = Sound, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-  class UAudioComponent *EngineRevSound;  // good for feedback on throttle
+  class UAudioComponent *EngineRevSound = nullptr;  // good for feedback on throttle
     
   UFUNCTION(BlueprintImplementableEvent)
   void RefreshLightState(const FVehicleLightState &VehicleLightState);
