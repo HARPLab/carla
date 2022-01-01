@@ -97,6 +97,7 @@ void AEgoSensor::PrePhysTick(float DeltaSeconds)
 void AEgoSensor::InitEyeTracker()
 {
 #if USE_SRANIPAL
+    bSRanipalEnabled = false;
     // initialize SRanipal framework for eye tracking
     UE_LOG(LogTemp, Warning, TEXT("Attempting to use SRanipal eye tracking"));
     // Initialize the SRanipal eye tracker (WINDOWS ONLY)
@@ -104,13 +105,19 @@ void AEgoSensor::InitEyeTracker()
     SRanipal = SRanipalEye_Core::Instance();
     // no easily discernible difference between v1 and v2
     /// TODO: use the status output from StartFramework to determine if SRanipal loaded successfully
-    SRanipalFramework->StartFramework(SupportedEyeVersion::version1);
+    int Status = SRanipalFramework->StartFramework(SupportedEyeVersion::version1);
+    if (Status == SRanipalEye_Framework::FrameworkStatus::ERROR_SRANIPAL || Status == SRanipalEye_Framework::FrameworkStatus::NOT_SUPPORT)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Unable to start SRanipal framework!"));
+        return;
+    }
     // SRanipal->SetEyeParameter_() // can set the eye gaze jitter parameter
     // see SRanipal_Eyes_Enums.h
     // Get the reference timing to synchronize the SRanipal timer with Carla
     SRanipal->GetEyeData_(EyeData);
     DeviceTickStartTime = EyeData->timestamp;
     UE_LOG(LogTemp, Log, TEXT("Successfully started SRanipal framework"));
+    bSRanipalEnabled = true;
 #else
     UE_LOG(LogTemp, Warning, TEXT("Not using SRanipal eye tracking"));
 #endif
@@ -136,38 +143,56 @@ void AEgoSensor::TickEyeTracker()
     auto Left = &(EyeSensorData.Left);
     auto Right = &(EyeSensorData.Right);
 #if USE_SRANIPAL
-    /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
-    // Getting real eye tracker data
-    check(SRanipal != nullptr);
-    // Get the "EyeData" which holds useful information such as the timestamp
-    SRanipal->GetEyeData_(EyeData);
-    EyeSensorData.TimestampDevice = EyeData->timestamp - DeviceTickStartTime;
-    EyeSensorData.FrameSequence = EyeData->frame_sequence;
-    // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
-    Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->GazeOrigin, Combined->GazeDir);
-    // Assign Left/Right Gaze direction
-    /// NOTE: the eye gazes are reversed bc SRanipal has a bug in their closed libraries
-    // see: https://forum.vive.com/topic/9306-possible-bug-in-unreal-sdk-for-leftright-eye-gazes
-    if (SRANIPAL_EYE_SWAP_FIXED) // if the latest SRanipal does not have this bug
+    if (bSRanipalEnabled)
     {
-        Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->GazeOrigin, Left->GazeDir);
-        Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->GazeOrigin, Right->GazeDir);
+        /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
+        // Getting real eye tracker data
+        check(SRanipal != nullptr);
+        // Get the "EyeData" which holds useful information such as the timestamp
+        SRanipal->GetEyeData_(EyeData);
+        EyeSensorData.TimestampDevice = EyeData->timestamp - DeviceTickStartTime;
+        EyeSensorData.FrameSequence = EyeData->frame_sequence;
+        // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
+        Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->GazeOrigin, Combined->GazeDir);
+        // Assign Left/Right Gaze direction
+        /// NOTE: the eye gazes are reversed bc SRanipal has a bug in their closed libraries
+        // see: https://forum.vive.com/topic/9306-possible-bug-in-unreal-sdk-for-leftright-eye-gazes
+        if (SRANIPAL_EYE_SWAP_FIXED) // if the latest SRanipal does not have this bug
+        {
+            Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->GazeOrigin, Left->GazeDir);
+            Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->GazeOrigin, Right->GazeDir);
+        }
+        else // this is the default case which we were dealing with during development
+        {
+            Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->GazeOrigin, Right->GazeDir);
+            Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->GazeOrigin, Left->GazeDir);
+        }
+        // Assign Eye openness
+        Left->EyeOpennessValid = SRanipal->GetEyeOpenness(EyeIndex::LEFT, Left->EyeOpenness);
+        Right->EyeOpennessValid = SRanipal->GetEyeOpenness(EyeIndex::RIGHT, Right->EyeOpenness);
+        // Assign Pupil positions
+        Left->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPosition);
+        Right->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPosition);
+        // Assign Pupil Diameters
+        Left->PupilDiameter = EyeData->verbose_data.left.pupil_diameter_mm;
+        Right->PupilDiameter = EyeData->verbose_data.right.pupil_diameter_mm;
     }
-    else // this is the default case which we were dealing with during development
+    else
     {
-        Left->GazeValid = SRanipal->GetGazeRay(GazeIndex::LEFT, Left->GazeOrigin, Right->GazeDir);
-        Right->GazeValid = SRanipal->GetGazeRay(GazeIndex::RIGHT, Right->GazeOrigin, Left->GazeDir);
+        ComputeDummyEyeData();
     }
-    // Assign Eye openness
-    Left->EyeOpennessValid = SRanipal->GetEyeOpenness(EyeIndex::LEFT, Left->EyeOpenness);
-    Right->EyeOpennessValid = SRanipal->GetEyeOpenness(EyeIndex::RIGHT, Right->EyeOpenness);
-    // Assign Pupil positions
-    Left->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPosition);
-    Right->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPosition);
-    // Assign Pupil Diameters
-    Left->PupilDiameter = EyeData->verbose_data.left.pupil_diameter_mm;
-    Right->PupilDiameter = EyeData->verbose_data.right.pupil_diameter_mm;
 #else
+    ComputeDummyEyeData();
+#endif
+    Combined->Vergence = ComputeVergence(Left->GazeOrigin, Left->GazeDir, Right->GazeOrigin, Right->GazeDir);
+    // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
+}
+
+void AEgoSensor::ComputeDummyEyeData()
+{
+    auto Combined = &(EyeSensorData.Combined);
+    auto Left = &(EyeSensorData.Left);
+    auto Right = &(EyeSensorData.Right);
     // generate dummy values bc no hardware sensor is present
     EyeSensorData.TimestampDevice = int64_t(
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - ChronoStartTime)
@@ -190,9 +215,6 @@ void AEgoSensor::TickEyeTracker()
     Left->GazeOrigin = Combined->GazeOrigin + 5 * FVector::LeftVector;
     Right->GazeDir = Combined->GazeDir;
     Right->GazeOrigin = Combined->GazeOrigin + 5 * FVector::RightVector;
-#endif
-    Combined->Vergence = ComputeVergence(Left->GazeOrigin, Left->GazeDir, Right->GazeOrigin, Right->GazeDir);
-    // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
 }
 
 void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius)
