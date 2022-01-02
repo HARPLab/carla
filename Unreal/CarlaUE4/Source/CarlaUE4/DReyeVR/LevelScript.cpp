@@ -4,6 +4,7 @@
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
 #include "Components/AudioComponent.h"         // UAudioComponent
 #include "EgoVehicle.h"                        // AEgoVehicle
+#include "HeadMountedDisplayFunctionLibrary.h" // IsHeadMountedDisplayAvailable
 #include "Kismet/GameplayStatics.h"            // GetPlayerController
 #include "UObject/UObjectIterator.h"           // TObjectInterator
 
@@ -18,6 +19,49 @@ ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
     ReadConfigValue("Level", "AmbientVolumePercent", AmbientVolumePercent);
     // update the non-ego volume percent
     ACarlaWheeledVehicle::NonEgoVolume = NonEgoVolumePercent / 100.f;
+}
+
+void ADReyeVRLevel::BeginPlay()
+{
+    Super::ReceiveBeginPlay();
+
+    // Initialize player
+    Player = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+
+    // Can we tick?
+    SetActorTickEnabled(false); // make sure we do not tick ourselves
+
+    // enable input tracking
+    InputEnabled();
+
+    // set all the volumes (ego, non-ego, ambient/world)
+    SetVolume();
+
+    // start input mapping
+    SetupPlayerInputComponent();
+
+    // Find the ego vehicle in the world
+    /// TODO: optionally, spawn ego-vehicle here with parametrized inputs
+    FindEgoVehicle();
+
+    // Initialize DReyeVR spectator
+    SetupSpectator();
+
+    // Initialize control mode
+    /// TODO: read in initial control mode from .ini
+    ControlMode = DRIVER::HUMAN;
+    switch (ControlMode)
+    {
+    case (DRIVER::HUMAN):
+        PossessEgoVehicle();
+        break;
+    case (DRIVER::SPECTATOR):
+        PossessSpectator();
+        break;
+    case (DRIVER::AI):
+        HandoffDriverToAI();
+        break;
+    }
 }
 
 bool ADReyeVRLevel::FindEgoVehicle()
@@ -40,59 +84,36 @@ bool ADReyeVRLevel::FindEgoVehicle()
     return false;
 }
 
-void ADReyeVRLevel::BeginPlay()
-{
-    Super::ReceiveBeginPlay();
-
-    // Initialize player
-    Player = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-
-    // Can we tick?
-    SetActorTickEnabled(false); // make sure we do not tick ourselves
-
-    // enable input tracking
-    InputEnabled();
-
-    // set all the volumes (ego, non-ego, ambient/world)
-    SetVolume();
-
-    // start input mapping
-    SetupPlayerInputComponent();
-
-    // Initialize DReyeVR spectator
-    SetupSpectator();
-
-    // Find the ego vehicle in the world
-    /// TODO: optionally, spawn ego-vehicle here with parametrized inputs
-    FindEgoVehicle();
-
-    // Initialize control mode
-    /// TODO: read in initial control mode from .ini
-    ControlMode = DRIVER::HUMAN;
-    switch (ControlMode)
-    {
-    case (DRIVER::HUMAN):
-        PossessEgoVehicle();
-        break;
-    case (DRIVER::SPECTATOR):
-        PossessSpectator();
-        break;
-    case (DRIVER::AI):
-        HandoffDriverToAI();
-        break;
-    }
-}
-
 void ADReyeVRLevel::SetupSpectator()
 {
-    UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(GetWorld());
-    if (Episode != nullptr)
-        SpectatorPtr = Episode->GetSpectatorPawn();
+    if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
+    {
+        FVector SpawnLocn;
+        FRotator SpawnRotn;
+        if (EgoVehiclePtr != nullptr)
+        {
+            SpawnLocn = EgoVehiclePtr->GetCameraPosn();
+            SpawnRotn = EgoVehiclePtr->GetCameraRot();
+        }
+        // create new spectator pawn
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        SpawnParams.ObjectFlags |= RF_Transient;
+        SpectatorPtr = GetWorld()->SpawnActor<ASpectatorPawn>(ASpectatorPawn::StaticClass(), // spectator
+                                                              SpawnLocn, SpawnRotn, SpawnParams);
+    }
     else
     {
-        if (Player != nullptr)
+        UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(GetWorld());
+        if (Episode != nullptr)
+            SpectatorPtr = Episode->GetSpectatorPawn();
+        else
         {
-            SpectatorPtr = Player->GetPawn();
+            if (Player != nullptr)
+            {
+                SpectatorPtr = Player->GetPawn();
+            }
         }
     }
 }
