@@ -85,7 +85,16 @@ void ADReyeVRLevel::BeginPlay()
 
 void ADReyeVRLevel::SetupSpectator()
 {
-    SpectatorPtr = UCarlaStatics::GetCurrentEpisode(GetWorld())->GetSpectatorPawn();
+    UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(GetWorld());
+    if (Episode != nullptr)
+        SpectatorPtr = Episode->GetSpectatorPawn();
+    else
+    {
+        if (Player != nullptr)
+        {
+            SpectatorPtr = Player->GetPawn();
+        }
+    }
 }
 
 void ADReyeVRLevel::BeginDestroy()
