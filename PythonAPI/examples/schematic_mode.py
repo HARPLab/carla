@@ -49,9 +49,9 @@ class DReyeVRWorld(World):
         self.hero_actor = find_ego_vehicle(world)
         self.hero_transform = self.hero_actor.get_transform()
         self.sensor = DReyeVRSensor(world)
-        self.sensor.eye_tracker.listen(self.sensor.update)  # subscribe to readout
+        self.sensor.ego_sensor.listen(self.sensor.update)  # subscribe to readout
 
-    def render_eye_tracker(self, surface, world_to_pixel, ray_length=20):
+    def render_ego_sensor(self, surface, world_to_pixel, ray_length=20):
         data: Dict[str, Any] = self.sensor.data
         if len(data) == 0:
             return
@@ -82,7 +82,7 @@ class DReyeVRWorld(World):
             surface, vehicles, traffic_lights, speed_limits, walkers
         )
         # render additional eye tracker components
-        self.render_eye_tracker(surface, self.map_image.world_to_pixel)
+        self.render_ego_sensor(surface, self.map_image.world_to_pixel)
 
 
 def schematic_run(args):

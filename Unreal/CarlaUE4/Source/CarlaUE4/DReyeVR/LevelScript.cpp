@@ -86,7 +86,10 @@ bool ADReyeVRLevel::FindEgoVehicle()
 
 void ADReyeVRLevel::SetupSpectator()
 {
-    if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
+    /// TODO: fix bug where HMD is not detected on package BeginPlay()
+    // if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
+    const bool bEnableVRSpectator = true; 
+    if (bEnableVRSpectator)
     {
         FVector SpawnLocn;
         FRotator SpawnRotn;

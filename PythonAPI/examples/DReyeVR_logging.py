@@ -33,12 +33,12 @@ except IndexError:
 import carla
 
 
-def create_ros_msg(eye_tracker: DReyeVRSensor, delim: str = "; "):
+def create_ros_msg(ego_sensor: DReyeVRSensor, delim: str = "; "):
     assert rospy is not None and String is not None
     # TODO: need to make this work with custom ROS types
     s = "rosT=" + str(rospy.get_time()) + delim
-    for key in eye_tracker.data:
-        s += f"{key}={eye_tracker.data[key]}{delim}"
+    for key in ego_sensor.data:
+        s += f"{key}={ego_sensor.data[key]}{delim}"
     return String(s)
 
 
@@ -124,7 +124,7 @@ def main():
         # print(data) # this print is defined in LibCarla/source/carla/data/DReyeVREvent.h
 
     # subscribe to DReyeVR sensor
-    sensor.eye_tracker.listen(publish_and_print)
+    sensor.ego_sensor.listen(publish_and_print)
     try:
         while True:
             if sync_mode:

@@ -32,11 +32,11 @@ def find_ego_vehicle(world: carla.libcarla.World) -> Optional[carla.libcarla.Veh
     return DReyeVR_vehicle
 
 
-def find_eye_tracker(world: carla.libcarla.World) -> Optional[carla.libcarla.Sensor]:
+def find_ego_sensor(world: carla.libcarla.World) -> Optional[carla.libcarla.Sensor]:
     sensor = None
-    eye_trackers = world.get_actors().filter("sensor.dreyevr.dreyevrsensor")
+    ego_sensors = world.get_actors().filter("sensor.dreyevr.dreyevrsensor")
     try:
-        sensor = eye_trackers[0]  # TODO: support for multiple eye trackers?
+        sensor = ego_sensors[0]  # TODO: support for multiple eye trackers?
     except IndexError:
         print("Unable to find DReyeVR ego vehicle in world!")
     return sensor
@@ -44,7 +44,7 @@ def find_eye_tracker(world: carla.libcarla.World) -> Optional[carla.libcarla.Sen
 
 class DReyeVRSensor:
     def __init__(self, world: carla.libcarla.World):
-        self.eye_tracker: carla.sensor.dreyevrsensor = find_eye_tracker(world)
+        self.ego_sensor: carla.sensor.dreyevrsensor = find_ego_sensor(world)
         self.data: Dict[str, Any] = {}
         print("initialized DReyeVRSensor PythonAPI client")
 
@@ -70,7 +70,7 @@ class DReyeVRSensor:
     def spawn(cls, world: carla.libcarla.World):
         # TODO: check if dreyevr sensor already exsists, then use it
         # spawn a DReyeVR sensor and begin listening
-        if find_eye_tracker(world) is None:
+        if find_ego_sensor(world) is None:
             bp = [x for x in world.get_blueprint_library().filter("sensor.dreyevr*")]
             try:
                 bp = bp[0]
@@ -78,10 +78,10 @@ class DReyeVRSensor:
                 print("no eye tracker in blueprint library?!")
                 return None
             ego_vehicle = find_ego_vehicle()
-            eye_tracker = world.spawn_actor(
+            ego_sensor = world.spawn_actor(
                 bp, ego_vehicle.get_transform(), attach_to=ego_vehicle
             )
-            print("Spawned DReyeVR sensor: " + eye_tracker.type_id)
+            print("Spawned DReyeVR sensor: " + ego_sensor.type_id)
         return cls(world)
 
     def calc_vergence_from_dir(self, L0, R0, LDir, RDir):

@@ -23,13 +23,12 @@ class DReyeVRSerializer
   public:
     struct Data
     {
-        /// EW: this is gross but necessary for the MSGPACK array
         /// TODO: refactor this struct to contain smaller structs similar to DReyeVR::AggregateData
         /// NOTE: this is missing some fields that can totally be added, but you get the idea.
         // Step 1: add new field field here in Data struct
         // Step 2: add new field in MSGPACK_DEFINE_ARRAY) in the SAME ORDER
         // Step 3: go to LibCarla/source/carla/sensor/data/DReyeVREvent.h and add a const getter
-        // Step 4: go to .cpp and add the getter to the list of available attributes just like the others
+        // Step 4: go to PythonAPI/carla/source/libcarla/SensorData.cpp and add the getter to the list of available attributes just like the others
         int64_t TimestampCarla;
         int64_t TimestampDevice;
         int64_t FrameSequence;
