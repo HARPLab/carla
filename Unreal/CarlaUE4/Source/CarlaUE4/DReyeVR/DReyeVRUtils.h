@@ -235,6 +235,17 @@ static void GenerateCrosshairImage(TArray<FColor> &Src, const float Size, const 
     }
 }
 
+static float CmPerSecondToXPerHour(const bool MilesPerHour)
+{
+    // convert cm/s to X/h
+    // X = miles if MilesPerHour == true, else X = KM
+    if (MilesPerHour)
+    {
+        return 0.0223694f;
+    }
+    return 0.036f;
+}
+
 static void SaveFrameToDisk(UTextureRenderTarget2D &RenderTarget, const FString &FilePath)
 {
     FTextureRenderTargetResource *RTResource = RenderTarget.GameThread_GetRenderTargetResource();

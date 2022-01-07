@@ -48,6 +48,7 @@ void AEgoVehicle::ReadConfigVariables()
 {
     ReadConfigValue("EgoVehicle", "CameraInit", CameraLocnInVehicle);
     ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
+    ReadConfigValue("EgoVehicle", "SpeedometerInMPH", bUseMPH);
     ReadConfigValue("EgoVehicle", "TurnSignalDuration", TurnSignalDuration);
     // camera
     ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
@@ -547,6 +548,7 @@ void AEgoVehicle::ConstructDashText() // dashboard text (speedometer, turn signa
     Speedometer->SetWorldSize(10); // scale the font with this
     Speedometer->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
     Speedometer->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+    SpeedometerScale = CmPerSecondToXPerHour(bUseMPH);
 
     // Create turn signals
     TurnSignals = CreateDefaultSubobject<UTextRenderComponent>(TEXT("TurnSignals"));
@@ -580,11 +582,11 @@ void AEgoVehicle::UpdateDash()
     if (Player == nullptr)
         return;
     // Draw text components
-    float MPH;
+    float XPH; // miles-per-hour or km-per-hour
     if (EgoSensor->IsReplaying())
     {
         const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
-        MPH = Replay->GetVehicleVelocity() * 0.0223694f; // cm/s to mph
+        XPH = Replay->GetVehicleVelocity() * SpeedometerScale; // FwdSpeed is in cm/s
         if (Replay->GetUserInputs().ToggledReverse)
         {
             bReverse = !bReverse;
@@ -603,10 +605,10 @@ void AEgoVehicle::UpdateDash()
     }
     else
     {
-        MPH = GetVehicleForwardSpeed() * 0.0223694f; // FwdSpeed is in cm/s, mult by 0.0223694 to get mph
+        XPH = GetVehicleForwardSpeed() * SpeedometerScale; // FwdSpeed is in cm/s
     }
 
-    const FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(MPH)));
+    const FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(XPH)));
     Speedometer->SetText(FText::FromString(Data));
 
     // Draw the signals

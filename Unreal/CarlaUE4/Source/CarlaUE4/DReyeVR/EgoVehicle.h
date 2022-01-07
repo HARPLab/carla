@@ -193,6 +193,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class UTextRenderComponent *GearShifter;
     void UpdateDash();
     FVector DashboardLocnInVehicle{110, 0, 105}; // can change via params
+    bool bUseMPH;
+    float SpeedometerScale; // scale from CM/s to MPH or KPH depending on bUseMPH
 
     ////////////////:OTHER:////////////////
 
