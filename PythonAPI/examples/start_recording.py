@@ -79,6 +79,11 @@ def main():
         world = client.get_world()
         blueprints = world.get_blueprint_library().filter('vehicle.*')
 
+        # NO FIXED TIMESTEP (DEBUG ONLY)
+        settings = world.get_settings()
+        settings.fixed_delta_seconds = 0.0
+        world.apply_settings(settings)
+
         spawn_points = world.get_map().get_spawn_points()
         random.shuffle(spawn_points)
 

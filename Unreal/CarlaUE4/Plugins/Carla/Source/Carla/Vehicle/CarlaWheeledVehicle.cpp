@@ -42,6 +42,27 @@ ACarlaWheeledVehicle::ACarlaWheeledVehicle(const FObjectInitializer& ObjectIniti
   #endif
 
   GetVehicleMovementComponent()->bReverseAsBrake = false;
+
+  // Initialize audio components
+  ConstructSounds();
+}
+
+float ACarlaWheeledVehicle::NonEgoVolume = 1.f;
+void ACarlaWheeledVehicle::ConstructSounds()
+{
+  // add all sounds here
+  static ConstructorHelpers::FObjectFinder<USoundCue> EngineCue(TEXT("SoundCue'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/EngineRev.EngineRev'"));
+  if (EngineRevSound == nullptr){
+    EngineRevSound = CreateDefaultSubobject<UAudioComponent>(TEXT("EngineRevving"));
+    EngineRevSound->SetupAttachment(GetRootComponent());      // attach to self
+    EngineRevSound->bAutoActivate = true;                     // start playing on begin
+    EngineRevSound->SetSound(EngineCue.Object);               // using this sound
+    EngineRevSound->SetRelativeLocation(EngineLocnInVehicle); // location of "engine" in vehicle (3D sound)
+    EngineRevSound->SetFloatParameter(FName("RPM"), 0.f);     // initially idle
+    EngineRevSound->Play();
+  }
+  check(EngineRevSound != nullptr);
+  SetVolume(ACarlaWheeledVehicle::NonEgoVolume);
 }
 
 ACarlaWheeledVehicle::~ACarlaWheeledVehicle() {}
@@ -119,6 +140,28 @@ void ACarlaWheeledVehicle::BeginPlay()
 
   Vehicle4W->WheelSetups = NewWheelSetups;
 
+}
+
+void ACarlaWheeledVehicle::Tick(float DeltaTime)
+{
+  Super::Tick(DeltaTime);
+
+  TickSounds(); // change engine rev sound by RPM
+}
+
+void ACarlaWheeledVehicle::TickSounds()
+{
+  if (EngineRevSound)
+  {
+      float RPM = FMath::Clamp(GetVehicleMovementComponent()->GetEngineRotationSpeed(), 0.f, 5650.0f);
+      EngineRevSound->SetFloatParameter(FName("RPM"), RPM);
+  }
+}
+
+void ACarlaWheeledVehicle::SetVolume(const float VolumeIn)
+{
+  if (EngineRevSound)
+      EngineRevSound->SetVolumeMultiplier(VolumeIn);
 }
 
 void ACarlaWheeledVehicle::AdjustVehicleBounds()

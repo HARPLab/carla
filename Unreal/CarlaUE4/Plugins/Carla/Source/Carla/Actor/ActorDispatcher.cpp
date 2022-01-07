@@ -92,6 +92,12 @@ bool UActorDispatcher::DestroyActor(AActor *Actor)
   }
   const auto &Id = View.GetActorInfo()->Description.Id;
 
+  // Do not destroy the DReyeVR actors
+  if (Id.Contains("dreyevr")) {
+    UE_LOG(LogCarla, Warning, TEXT("Not destroying '%s'"), *Id);
+    return false;
+  }
+
   // Destroy its controller if present.
   auto Pawn = Cast<APawn>(Actor);
   auto Controller = (Pawn != nullptr ? Pawn->GetController() : nullptr);

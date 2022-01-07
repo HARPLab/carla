@@ -144,6 +144,24 @@ public:
     return ActorDispatcher->GetActorRegistry();
   }
 
+  FActorView RegisterActor(AActor &Actor, FActorDescription ActorDescription, FString &Tags, FActorRegistry::IdType DesiredId = 0)
+  {
+    // first bind the already-spawned actor so it does not get spawned but found
+    auto FindFunctor = [&](const FTransform &Transform, const FActorDescription &Description) {
+      return FActorSpawnResult(&Actor);
+    };
+    // need to create an FActorDefinition from our FActorDescription for some reason -_-
+    FActorDefinition ActorDefinition;
+    ActorDefinition.Id = ActorDescription.Id;
+    ActorDefinition.Class = ActorDescription.Class;
+    ActorDefinition.Tags = Tags; // list of comma-separated tags
+    ActorDispatcher->Bind(ActorDefinition, FindFunctor);
+    // take the UId from the ActorDefinition which has just been updated in ActorDispatcher.cpp:BindAndReturnUId
+    ActorDescription.UId = ActorDispatcher->GetActorDefinitions().Last().UId;
+    // then register this actor with the ActorDispatcher
+    return ActorDispatcher->RegisterActor(Actor, ActorDescription, DesiredId);
+  }
+
   // ===========================================================================
   // -- Actor look up methods --------------------------------------------------
   // ===========================================================================
@@ -239,6 +257,8 @@ public:
   UFUNCTION(BlueprintCallable)
   bool DestroyActor(AActor *Actor)
   {
+      if (Actor->GetName().ToLower().Contains("dreyevr"))
+        return false; // don't destroy the DReyeVR EgoVehicle!
       if (Recorder->IsEnabled())
       {
         // recorder event
