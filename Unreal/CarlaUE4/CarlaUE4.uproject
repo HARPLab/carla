@@ -94,19 +94,16 @@
 		},
 		{
 			"Name": "SteamVR",
-			"Enabled": false
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win32",
+				"Win64",
+				"Linux",
+				"Mac"
+			]
 		},
 		{
 			"Name": "RenderDocPlugin",
-			"Enabled": true
-		},
-		{
-			"Name": "CarSim",
-			"Enabled": false,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/2d712649ca864c80812da7b5252f5608"
-		},
-		{
-			"Name": "EditorScriptingUtilities",
 			"Enabled": true
 		}
 	]

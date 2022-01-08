@@ -542,6 +542,26 @@ std::string CarlaRecorderQuery::QueryInfo(std::string Filename, bool bShowAll)
           SkipPacket();
         break;
 
+        // DReyeVR data
+        case static_cast<char>(CarlaRecorderPacketId::DReyeVR):
+        if (bShowAll)
+        {
+            ReadValue<uint16_t>(File, Total);
+            if (Total > 0 && !bFramePrinted)
+            {
+                PrintFrame(Info);
+                bFramePrinted = true;
+            }
+            Info << " DReyeVR sensor data: " << Total << std::endl;
+            for (i = 0; i < Total; ++i)
+            {
+                DReyeVRDataInstance.Read(File);
+                Info << DReyeVRDataInstance.Print() << std::endl;
+            }
+        }
+        else
+            SkipPacket();
+        break;
         // frame end
         case static_cast<char>(CarlaRecorderPacketId::FrameEnd):
         // do nothing, it is empty
