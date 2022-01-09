@@ -195,7 +195,7 @@ void LocalizationStage::Update(const unsigned long index) {
       // Pseudo-randomized path selection if found more than one choice.
       if (next_waypoints.size() > 1) {
         double r_sample = random_devices.at(actor_id).next();
-        selection_index = static_cast<uint64_t>(r_sample*next_waypoints.size()*0.01);
+        selection_index = static_cast<uint64_t>(r_sample * static_cast<double>(next_waypoints.size()) * 0.01);
       } else if (next_waypoints.size() == 0) {
         if (!parameters.GetOSMMode()) {
           std::cout << "This map has dead-end roads, please change the set_open_street_map parameter to true" << std::endl;
@@ -471,7 +471,7 @@ void LocalizationStage::ImportPath(Path &imported_path, Buffer &waypoint_buffer,
 
       // Choose correct path.
       if (next_waypoints.size() > 1) {
-        const float imported_road_id = imported->GetWaypoint()->GetRoadId();
+        const size_t imported_road_id = imported->GetWaypoint()->GetRoadId();
         float min_distance = std::numeric_limits<float>::infinity();
         for (uint64_t k = 0u; k < next_waypoints.size(); ++k) {
           SimpleWaypointPtr junction_end_point = next_waypoints.at(k);
@@ -484,7 +484,7 @@ void LocalizationStage::ImportPath(Path &imported_path, Buffer &waypoint_buffer,
           while (next_waypoints.at(k)->DistanceSquared(junction_end_point) < 50.0f) {
             junction_end_point = junction_end_point->GetNextWaypoint().front();
           }
-          float jep_road_id = junction_end_point->GetWaypoint()->GetRoadId();
+          size_t jep_road_id = junction_end_point->GetWaypoint()->GetRoadId();
           if (jep_road_id == imported_road_id) {
             selection_index = k;
             break;

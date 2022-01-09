@@ -289,7 +289,7 @@ namespace road {
       const double roll) {
     std::unique_ptr<Signal> &signal = _temp_signal_container[signal_id];
     signal->_using_inertial_position = true;
-    geom::Location location = geom::Location(x, -y, z);
+    geom::Location location = geom::Location(static_cast<float>(x), static_cast<float>(-y), static_cast<float>(z));
     signal->_transform = geom::Transform (location, geom::Rotation(
         geom::Math::ToDegrees(static_cast<float>(pitch)),
         geom::Math::ToDegrees(static_cast<float>(-hdg)),

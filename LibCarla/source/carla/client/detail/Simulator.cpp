@@ -157,7 +157,7 @@ namespace detail {
       std::string map_name;
       std::string map_base_path;
       bool fill_base_string = false;
-      for (int i = map_info.name.size() - 1; i >= 0; --i) {
+      for (size_t i = map_info.name.size() - 1; i >= 0; --i) {
         if (fill_base_string == false && map_info.name[i] != '/') {
           map_name += map_info.name[i];
         } else {
