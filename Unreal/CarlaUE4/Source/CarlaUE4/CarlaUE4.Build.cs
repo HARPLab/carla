@@ -11,6 +11,7 @@ public class CarlaUE4 : ModuleRules
 	public CarlaUE4(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivatePCHHeaderFile = "CarlaUE4.h";
+		ShadowVariableWarningLevel = WarningLevel.Off; // -Wno-shadow
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "UMG" });
 

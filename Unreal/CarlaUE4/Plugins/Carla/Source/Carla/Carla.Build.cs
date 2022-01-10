@@ -18,8 +18,6 @@ public class Carla : ModuleRules
     PrivatePCHHeaderFile = "Carla.h";
     ShadowVariableWarningLevel = WarningLevel.Off; // -Wno-shadow
     // DeprecationWarningLevel = WarningLevel.Off; // -Wno-deprecated-declarations
-    // Instead, need to go to Engine/Source/Programs/UnrealBuildTool/Platform/Linux/LinuxToolChain.cs
-    // and add {{Result += " -Wno-deprecated -Wno-deprecated-copy";}} before the ShadowVariableWarningLevel (~730)
 
     if (IsWindows(Target))
     {
