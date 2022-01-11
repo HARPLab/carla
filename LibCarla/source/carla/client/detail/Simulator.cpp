@@ -157,11 +157,11 @@ namespace detail {
       std::string map_name;
       std::string map_base_path;
       bool fill_base_string = false;
-      for (size_t i = map_info.name.size() - 1; i >= 0; --i) {
-        if (fill_base_string == false && map_info.name[i] != '/') {
-          map_name += map_info.name[i];
+      for (size_t i = map_info.name.size(); i > 0; --i) {
+        if (fill_base_string == false && map_info.name[i - 1] != '/') {
+          map_name += map_info.name[i - 1];
         } else {
-          map_base_path += map_info.name[i];
+          map_base_path += map_info.name[i - 1];
           fill_base_string = true;
         }
       }
