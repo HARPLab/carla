@@ -777,3 +777,10 @@ void CarlaReplayer::Advance(const float Amnt)
     ProcessToTime(DesiredTime, true);
   }
 }
+
+void CarlaReplayer::IncrTimeFactor(const float Amnt_s)
+{
+  double NewTimeFactor = FMath::Clamp(TimeFactor + Amnt_s, 0.0, 4.0); // min of paused, max of 4x
+  UE_LOG(LogTemp, Log, TEXT("Time factor: %.3fx -> %.3fx"), TimeFactor, NewTimeFactor);
+  SetTimeFactor(NewTimeFactor);
+}

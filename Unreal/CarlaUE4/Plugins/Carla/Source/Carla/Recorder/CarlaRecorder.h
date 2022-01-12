@@ -164,7 +164,7 @@ public:
   void RecFastForward();
   void RecRewind();
   void RecRestart();
-  void RecIncrTimestep(const float Amnt);
+  void IncrTimeFactor(const float Amnt);
 
 private:
 
@@ -204,7 +204,6 @@ private:
 
   // replayer
   CarlaReplayer Replayer;
-  float TimestepReplayer = 1.0;
 
   // query tools
   CarlaRecorderQuery Query;

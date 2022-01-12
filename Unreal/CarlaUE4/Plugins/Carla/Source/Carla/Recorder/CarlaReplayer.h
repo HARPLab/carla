@@ -96,6 +96,7 @@ public:
   void PlayPause();
   void Restart();
   void Advance(const float Amnt);
+  void IncrTimeFactor(const float Amnt_s);
   
 private:
 

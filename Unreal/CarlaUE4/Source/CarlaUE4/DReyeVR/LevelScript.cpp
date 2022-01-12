@@ -88,7 +88,7 @@ void ADReyeVRLevel::SetupSpectator()
 {
     /// TODO: fix bug where HMD is not detected on package BeginPlay()
     // if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
-    const bool bEnableVRSpectator = true; 
+    const bool bEnableVRSpectator = true;
     if (bEnableVRSpectator)
     {
         FVector SpawnLocn;
@@ -247,14 +247,12 @@ void ADReyeVRLevel::Restart()
 
 void ADReyeVRLevel::IncrTimestep()
 {
-    UE_LOG(LogTemp, Log, TEXT("Incr timestep"));
-    UCarlaStatics::GetRecorder(GetWorld())->RecIncrTimestep(0.2);
+    UCarlaStatics::GetRecorder(GetWorld())->IncrTimeFactor(0.1);
 }
 
 void ADReyeVRLevel::DecrTimestep()
 {
-    UE_LOG(LogTemp, Log, TEXT("Decr Timestep"));
-    UCarlaStatics::GetRecorder(GetWorld())->RecIncrTimestep(-0.2);
+    UCarlaStatics::GetRecorder(GetWorld())->IncrTimeFactor(-0.1);
 }
 
 void ADReyeVRLevel::SetVolume()

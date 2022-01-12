@@ -91,6 +91,9 @@ void ACarlaRecorder::Ticking(float DeltaSeconds)
     {
       FCarlaActor* View = It.Value().Get();
 
+      if (View->GetActorId() == 0)
+        continue; // don't record the spectator
+
       switch (View->GetActorType())
       {
         // save the transform for props
@@ -685,12 +688,12 @@ void ACarlaRecorder::RecPlayPause()
 
 void ACarlaRecorder::RecFastForward()
 {
-  Replayer.Advance(TimestepReplayer);
+  Replayer.Advance(1.f);
 }
 
 void ACarlaRecorder::RecRewind()
 {
-  Replayer.Advance(-TimestepReplayer);
+  Replayer.Advance(-1.f);
 }
 
 void ACarlaRecorder::RecRestart()
@@ -698,8 +701,7 @@ void ACarlaRecorder::RecRestart()
   Replayer.Restart();
 }
 
-void ACarlaRecorder::RecIncrTimestep(const float Amnt_s)
+void ACarlaRecorder::IncrTimeFactor(const float Amnt_s)
 {
-  TimestepReplayer = FMath::Clamp(TimestepReplayer + Amnt_s, 0.1f, 20.f);
-  UE_LOG(LogTemp, Log, TEXT("Timestep to: %.3f"), TimestepReplayer);
+  Replayer.IncrTimeFactor(Amnt_s);
 }
