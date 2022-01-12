@@ -1,7 +1,7 @@
 #include "EgoSensor.h"
 
 #include "Carla/Game/CarlaStatics.h"    // GetEpisode
-#include "DReyeVRUtils.h"               // ReadConfigValue, ComputeClosestToRayIntersection
+#include "Carla/Util/DReyeVRUtils.h"    // ReadConfigValue, ComputeClosestToRayIntersection
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "UObject/UObjectBaseUtility.h" // GetName
 

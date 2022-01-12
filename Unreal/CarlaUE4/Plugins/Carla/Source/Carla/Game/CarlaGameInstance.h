@@ -34,6 +34,8 @@ public:
 
   ~UCarlaGameInstance();
 
+  void Init(); // Virtual function to allow custom GameInstances to set up what it needs
+
   UCarlaSettings &GetCarlaSettings()
   {
     check(CarlaSettings != nullptr);

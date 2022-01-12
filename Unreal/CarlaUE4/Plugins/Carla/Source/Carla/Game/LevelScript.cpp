@@ -1,9 +1,8 @@
 #include "LevelScript.h"
 #include "Carla/Game/CarlaStatics.h"           // UCarlaStatics::GetRecorder
-#include "Carla/Sensor/DReyeVRSensor.h"        // ADReyeVRSensor
+#include "Carla/Util/DReyeVRUtils.h"           // ReadConfigValue
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
 #include "Components/AudioComponent.h"         // UAudioComponent
-#include "EgoVehicle.h"                        // AEgoVehicle
 #include "HeadMountedDisplayFunctionLibrary.h" // IsHeadMountedDisplayAvailable
 #include "Kismet/GameplayStatics.h"            // GetPlayerController
 #include "UObject/UObjectIterator.h"           // TObjectInterator
@@ -68,19 +67,23 @@ bool ADReyeVRLevel::FindEgoVehicle()
 {
     if (EgoVehiclePtr != nullptr)
         return true;
-    TArray<AActor *> FoundEgoVehicles;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEgoVehicle::StaticClass(), FoundEgoVehicles);
-    if (FoundEgoVehicles.Num() > 0)
+    TArray<AActor *> FoundVehicles;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACarlaWheeledVehicle::StaticClass(), FoundVehicles);
+    for (AActor *Actor : FoundVehicles)
     {
-        UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle"));
-        /// TODO: add support for multiple Ego Vehicles?
-        EgoVehiclePtr = Cast<AEgoVehicle>(FoundEgoVehicles[0]);
-        EgoVehiclePtr->SetLevel(this);
-        if (!AI_Player)
-            AI_Player = EgoVehiclePtr->GetController();
-        return true;
+        const FString &Name = Actor->GetName();
+        if (Name.ToLower().Contains("dreyevr"))
+        {
+            UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle: %s"), *Name);
+            /// TODO: add support for multiple Ego Vehicles?
+            EgoVehiclePtr = Cast<ACarlaWheeledVehicle>(Actor);
+            // TODO EgoVehiclePtr->SetLevel(this);
+            if (!AI_Player)
+                AI_Player = EgoVehiclePtr->GetController();
+            return true;
+        }
     }
-    UE_LOG(LogTemp, Log, TEXT("Did not find EgoVehicle"));
+    UE_LOG(LogTemp, Warning, TEXT("Did not find EgoVehicle in world!"));
     return false;
 }
 
@@ -95,8 +98,8 @@ void ADReyeVRLevel::SetupSpectator()
         FRotator SpawnRotn;
         if (EgoVehiclePtr != nullptr)
         {
-            SpawnLocn = EgoVehiclePtr->GetCameraPosn();
-            SpawnRotn = EgoVehiclePtr->GetCameraRot();
+            SpawnLocn = FVector::ZeroVector;   // TODO: EgoVehiclePtr->GetCameraPosn();
+            SpawnRotn = FRotator::ZeroRotator; // TODO: EgoVehiclePtr->GetCameraRot();
         }
         // create new spectator pawn
         FActorSpawnParameters SpawnParams;
@@ -136,8 +139,9 @@ void ADReyeVRLevel::Tick(float DeltaSeconds)
         {
             // Physically attach the Controller to the specified Pawn, so that our position reflects theirs.
             // const FVector &NewVehiclePosn = EgoVehiclePtr->GetNextCameraPosn(DeltaSeconds); // for pre-physics tick
-            const FVector &NewVehiclePosn = EgoVehiclePtr->GetCameraPosn(); // for post-physics tick
-            SpectatorPtr->SetActorLocationAndRotation(NewVehiclePosn, EgoVehiclePtr->GetCameraRot());
+            /// TODO:
+            // const FVector &NewVehiclePosn = EgoVehiclePtr->GetCameraPosn(); // for post-physics tick
+            // SpectatorPtr->SetActorLocationAndRotation(NewVehiclePosn, EgoVehiclePtr->GetCameraRot());
         }
     }
 }
@@ -193,8 +197,8 @@ void ADReyeVRLevel::PossessSpectator()
     if (EgoVehiclePtr)
     {
         // spawn from EgoVehicle head position
-        const FVector &EgoLocn = EgoVehiclePtr->GetCameraPosn();
-        const FRotator &EgoRotn = EgoVehiclePtr->GetCameraRot();
+        const FVector &EgoLocn = FVector::ZeroVector;    // TODO: EgoVehiclePtr->GetCameraPosn();
+        const FRotator &EgoRotn = FRotator::ZeroRotator; // TODO: EgoVehiclePtr->GetCameraRot();
         SpectatorPtr->SetActorLocationAndRotation(EgoLocn, EgoRotn);
     }
     // repossess the ego vehicle
@@ -275,7 +279,7 @@ void ADReyeVRLevel::SetVolume()
         if (Vehicle != nullptr)
         {
             float NewVolume = ACarlaWheeledVehicle::NonEgoVolume;
-            if (Vehicle->IsA(AEgoVehicle::StaticClass())) // dynamic cast, requires -frrti
+            if (Vehicle->IsA(ACarlaWheeledVehicle::StaticClass())) // dynamic cast, requires -frrti
                 NewVolume = EgoVolumePercent / 100.f;
             Vehicle->SetVolume(NewVolume);
         }

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "EgoVehicle.h"              // DReyeVR ego vehicle ptr
-#include "Engine/LevelScriptActor.h" // ALevelScriptActor
+#include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
+#include "Engine/LevelScriptActor.h"           // ALevelScriptActor
 
 #include "LevelScript.generated.h"
 
@@ -56,7 +56,7 @@ class ADReyeVRLevel : public ALevelScriptActor
     // for toggling bw spectator mode
     bool bIsSpectating = true;
     APawn *SpectatorPtr = nullptr;
-    AEgoVehicle *EgoVehiclePtr = nullptr;
+    ACarlaWheeledVehicle *EgoVehiclePtr = nullptr;
 
     // for audio control
     float EgoVolumePercent;

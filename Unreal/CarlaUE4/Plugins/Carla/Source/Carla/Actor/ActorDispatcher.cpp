@@ -121,8 +121,6 @@ bool UActorDispatcher::DestroyActor(FCarlaActor::IdType ActorId)
   }
 
   const FString &Id = View->GetActorInfo()->Description.Id;
-  if (Id.ToLower().Contains("dreyevr"))
-    return false; // don't destroy the DReyeVR EgoVehicle!
 
   // Destroy its controller if present.
   AActor* Actor = View->GetActor();
