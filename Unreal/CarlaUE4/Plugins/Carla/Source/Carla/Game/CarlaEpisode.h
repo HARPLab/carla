@@ -241,8 +241,6 @@ public:
   UFUNCTION(BlueprintCallable)
   bool DestroyActor(AActor *Actor)
   {
-    if (Actor->GetName().ToLower().Contains("dreyevr"))
-      return false; // don't destroy the DReyeVR EgoVehicle!
     FCarlaActor* CarlaActor = FindCarlaActor(Actor);
     if (CarlaActor)
     {
