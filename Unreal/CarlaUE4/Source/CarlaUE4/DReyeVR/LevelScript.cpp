@@ -70,18 +70,37 @@ bool ADReyeVRLevel::FindEgoVehicle()
         return true;
     TArray<AActor *> FoundEgoVehicles;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEgoVehicle::StaticClass(), FoundEgoVehicles);
-    if (FoundEgoVehicles.Num() > 0)
+    for (AActor *Vehicle : FoundEgoVehicles)
     {
-        UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle"));
-        /// TODO: add support for multiple Ego Vehicles?
-        EgoVehiclePtr = Cast<AEgoVehicle>(FoundEgoVehicles[0]);
+        UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle in world: %s"), *(Vehicle->GetName()));
+        EgoVehiclePtr = CastChecked<AEgoVehicle>(Vehicle);
         EgoVehiclePtr->SetLevel(this);
         if (!AI_Player)
             AI_Player = EgoVehiclePtr->GetController();
+        /// TODO: handle multiple ego-vehcles? (we should only ever have one!)
         return true;
     }
-    UE_LOG(LogTemp, Log, TEXT("Did not find EgoVehicle"));
-    return false;
+    UE_LOG(LogTemp, Error, TEXT("Did not find EgoVehicle"));
+#if 0
+    UE_LOG(LogTemp, Log, TEXT("Did not find EgoVehicle, spawning"));
+    FActorSpawnParameters EgoVehicleSpawnInfo;
+    EgoVehicleSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    FTransform Spawn = GetSpawnPoint();
+    FSoftObjectPath Ref(
+        "Blueprint'/Game/Carla/Blueprints/Vehicles/DReyeVR/BP_EgoVehicle_DReyeVR.BP_EgoVehicle_DReyeVR'");
+    UObject *Obj = Ref.ResolveObject();
+    UBlueprint *Blueprint = Cast<UBlueprint>(Obj);
+    if (Blueprint != nullptr)
+    {
+        EgoVehiclePtr = GetWorld()->SpawnActor<AEgoVehicle>(Blueprint->GeneratedClass, // TODO: refactor so
+                                                            Spawn.GetLocation(),       // that the EgoVehicle class
+                                                            Spawn.Rotator(),           // contains its own vehicle mesh
+                                                            EgoVehicleSpawnInfo);      // properties without BP
+    }
+    if (EgoVehiclePtr == nullptr)
+        UE_LOG(LogTemp, Error, TEXT("Spawning EgoVehicle failed!"))
+#endif
+    return (EgoVehiclePtr != nullptr);
 }
 
 void ADReyeVRLevel::SetupSpectator()
@@ -280,4 +299,23 @@ void ADReyeVRLevel::SetVolume()
             Vehicle->SetVolume(NewVolume);
         }
     }
+}
+
+FTransform ADReyeVRLevel::GetSpawnPoint(int SpawnPointIndex) const
+{
+    ACarlaGameModeBase *GM = UCarlaStatics::GetGameMode(GetWorld());
+    if (GM != nullptr)
+    {
+        TArray<FTransform> SpawnPoints = GM->GetSpawnPointsTransforms();
+        size_t WhichPoint = 0; // default to first one
+        if (SpawnPointIndex < 0)
+            WhichPoint = FMath::RandRange(0, SpawnPoints.Num());
+        else
+            WhichPoint = FMath::Clamp(SpawnPointIndex, 0, SpawnPoints.Num());
+
+        if (WhichPoint < SpawnPoints.Num()) // SpawnPoints could be empty
+            return SpawnPoints[WhichPoint];
+    }
+    /// TODO: return a safe bet (position of the player start maybe?)
+    return FTransform(FRotator::ZeroRotator, FVector::ZeroVector, FVector::OneVector);
 }
