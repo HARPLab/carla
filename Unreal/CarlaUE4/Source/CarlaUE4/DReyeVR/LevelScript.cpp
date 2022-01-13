@@ -18,7 +18,7 @@ ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
     ReadConfigValue("Level", "NonEgoVolumePercent", NonEgoVolumePercent);
     ReadConfigValue("Level", "AmbientVolumePercent", AmbientVolumePercent);
     // update the non-ego volume percent
-    ACarlaWheeledVehicle::NonEgoVolume = NonEgoVolumePercent / 100.f;
+    ACarlaWheeledVehicle::Volume = NonEgoVolumePercent / 100.f;
 }
 
 void ADReyeVRLevel::BeginPlay()
@@ -293,8 +293,8 @@ void ADReyeVRLevel::SetVolume()
         ACarlaWheeledVehicle *Vehicle = Cast<ACarlaWheeledVehicle>(A);
         if (Vehicle != nullptr)
         {
-            float NewVolume = ACarlaWheeledVehicle::NonEgoVolume;
-            if (Vehicle->IsA(AEgoVehicle::StaticClass())) // dynamic cast, requires -frrti
+            float NewVolume = ACarlaWheeledVehicle::Volume; // Non ego volume
+            if (Vehicle->IsA(AEgoVehicle::StaticClass()))   // dynamic cast, requires -frrti
                 NewVolume = EgoVolumePercent / 100.f;
             Vehicle->SetVolume(NewVolume);
         }

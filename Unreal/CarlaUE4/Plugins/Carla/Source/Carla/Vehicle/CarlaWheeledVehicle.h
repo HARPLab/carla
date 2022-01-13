@@ -251,8 +251,9 @@ public:
     return Cast<T>(BaseMovementComponent);
   }
 
-  static float NonEgoVolume;
+  static float Volume;
   virtual void SetVolume(const float VolumeIn);
+  void PlayCrashSound(const float DelayBeforePlay = 0.f) const;
   /// @}
   // ===========================================================================
   /// @name Overriden from AActor
@@ -264,14 +265,20 @@ protected:
   virtual void BeginPlay() override;
   virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
-  // DReyeVR add-on (mostly sound related)
-  virtual void Tick(float DeltaTime) override;
-
+  // sounds (DReyeVR)
   void ConstructSounds();
   void TickSounds();
   const FVector EngineLocnInVehicle{180.f, 0.f, 70.f};
-  UPROPERTY(Category = Sound, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-  class UAudioComponent *EngineRevSound = nullptr;  // good for feedback on throttle
+  class UAudioComponent *EngineRevSound = nullptr;  // driver feedback on throttle
+  class UAudioComponent *CrashSound = nullptr; // crashing with another actor
+  double CollisionCooldownTime = 0.0;
+  // can add more sounds here... like a horn maybe?
+  
+  // collisions (DReyeVR)
+  void ConstructCollisionHandler(); // needs to be called in the constructor
+  UFUNCTION()
+  void OnOverlapBegin(UPrimitiveComponent *OverlappedComp, AActor *OtherActor, UPrimitiveComponent *OtherComp,
+                      int32 OtherBodyIndex, bool bFromSweep, const FHitResult &SweepResult);
 
   UFUNCTION(BlueprintImplementableEvent)
   void RefreshLightState(const FVehicleLightState &VehicleLightState);
