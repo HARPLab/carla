@@ -21,29 +21,48 @@ public class CarlaUE4 : ModuleRules
 		}
 		else
 		{
-			// only build this carla exception in Editor mode
+			// only build this carla exception in package mode
 			PublicDefinitions.Add("NO_DREYEVR_EXCEPTIONS");
 		}
+
 		// Add module for SteamVR support with UE4
 		PublicDependencyModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
 
-		// SRanipal plugin for Windows
 		if (IsWindows(Target))
-		{ // SRanipal unfortunately only works on Windows
+		{ 
 			bEnableExceptions = true; // enable unwind semantics for C++-style exceptions
-			PrivateDependencyModuleNames.AddRange(new string[] { "SRanipalEye", "LogitechWheelPlugin" });
+		}
+
+		////////////////////////////////////////////////////////////////////////////////////
+		// Edit these variables to enable/disable features of DReyeVR
+		bool UseSRanipal = false;
+		bool UseLogitechPlugin = false;
+		////////////////////////////////////////////////////////////////////////////////////
+
+		if (!IsWindows(Target))
+		{
+			// adjust definitions so they are OS-compatible
+			UseSRanipal = false;       // SRanipal only works on Windows
+			UseLogitechPlugin = false; // LogitechWheelPlugin also only works on Windows
+		}
+
+		// Add these preprocessor definitions to code
+		PublicDefinitions.Add("USE_SRANIPAL=" + (UseSRanipal ? "true" : "false"));
+		PublicDefinitions.Add("USE_LOGITECH_WHEEL=" + (UseLogitechPlugin ? "true" : "false"));
+
+		// Add plugin dependencies 
+		if (UseSRanipal)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[] { "SRanipalEye" });
 			PrivateIncludePathModuleNames.AddRange(new string[] { "SRanipalEye" });
+		}
+
+		if (UseLogitechPlugin)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[] { "LogitechWheelPlugin" });
 		}
 
 
 		PrivateDependencyModuleNames.AddRange( new string[] {"ImageWriteQueue"});
-		
-		// Uncomment if you are using Slate UI
-		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
-
-		// Uncomment if you are using online features
-		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
-
-		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
 	}
 }
