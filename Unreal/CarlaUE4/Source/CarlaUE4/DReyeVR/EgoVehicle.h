@@ -17,15 +17,15 @@
 #include <stdio.h>
 #include <vector>
 
-#define USE_LOGITECH_WHEEL true // try to use the LogitechWheel plugin if available
+// #define USE_LOGITECH_PLUGIN true // handled in .Build.cs file
 
 #ifndef _WIN32
 // can only use LogitechWheel plugin on Windows! :(
-#undef USE_LOGITECH_WHEEL
-#define USE_LOGITECH_WHEEL false
+#undef USE_LOGITECH_PLUGIN
+#define USE_LOGITECH_PLUGIN false
 #endif
 
-#if USE_LOGITECH_WHEEL
+#if USE_LOGITECH_PLUGIN
 #include "LogitechSteeringWheelLib.h" // LogitechWheel plugin for hardware integration & force feedback
 #endif
 
@@ -133,7 +133,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     void InitLogiWheel();
     void TickLogiWheel();
-#if USE_LOGITECH_WHEEL
+#if USE_LOGITECH_PLUGIN
     DIJOYSTATE2 *Old = nullptr; // global "old" struct for the last state
     void LogLogitechPluginStruct(const DIJOYSTATE2 *Now);
     void LogitechWheelUpdate();      // for logitech wheel integration

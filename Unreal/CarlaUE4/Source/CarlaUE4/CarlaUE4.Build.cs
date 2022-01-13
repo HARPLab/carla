@@ -47,8 +47,8 @@ public class CarlaUE4 : ModuleRules
 		}
 
 		// Add these preprocessor definitions to code
-		PublicDefinitions.Add("USE_SRANIPAL=" + (UseSRanipal ? "true" : "false"));
-		PublicDefinitions.Add("USE_LOGITECH_WHEEL=" + (UseLogitechPlugin ? "true" : "false"));
+		PublicDefinitions.Add("USE_SRANIPAL_PLUGIN=" + (UseSRanipal ? "true" : "false"));
+		PublicDefinitions.Add("USE_LOGITECH_PLUGIN=" + (UseLogitechPlugin ? "true" : "false"));
 
 		// Add plugin dependencies 
 		if (UseSRanipal)
