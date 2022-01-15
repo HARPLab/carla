@@ -177,13 +177,16 @@ void ACarlaWheeledVehicle::BeginPlay()
   Vehicle4W->WheelSetups = NewWheelSetups;
 
   LastPhysicsControl = GetVehiclePhysicsControl();
+
+  // Turn off all audio until vehicle starts running
+  SetVolume(0);
 }
 
 // =============================================================================
 // -- Sound Functions ----------------------------------------------------------
 // =============================================================================
 
-float ACarlaWheeledVehicle::Volume = 1.f; // static for all non-ego vehicles
+float ACarlaWheeledVehicle::Volume = 1.f; // static for all non-ego vehicles (use DReyeVRLevel::SetVolume)
 
 void ACarlaWheeledVehicle::ConstructSounds()
 {
@@ -198,7 +201,6 @@ void ACarlaWheeledVehicle::ConstructSounds()
   EngineRevSound->SetRelativeLocation(EngineLocnInVehicle);  // location of "engine" in vehicle (3D sound)
   EngineRevSound->SetFloatParameter(FName("RPM"), 0.f);      // initially idle
   EngineRevSound->bAutoDestroy = false;                      // No automatic destroy, persist along with vehicle
-  EngineRevSound->Play();
   check(EngineRevSound != nullptr);
 
   static ConstructorHelpers::FObjectFinder<USoundCue> CarCrashCue(
@@ -209,20 +211,24 @@ void ACarlaWheeledVehicle::ConstructSounds()
   CrashSound->SetSound(CarCrashCue.Object);
   CrashSound->bAutoDestroy = false;
   check(CrashSound != nullptr);
-
-  // Finally...
-  SetVolume(ACarlaWheeledVehicle::Volume);
 }
 
 void ACarlaWheeledVehicle::TickSounds()
 {
+  // Respect the global vehicle volume param
+  SetVolume(ACarlaWheeledVehicle::Volume);
+  
   if (EngineRevSound)
   {
+    if (!EngineRevSound->IsPlaying()) {
+      EngineRevSound->Play(); // turn on the engine sound if not already on 
+    }
     float RPM = FMath::Clamp(GetVehicleMovementComponent()->GetEngineRotationSpeed(), 0.f, 5650.0f);
     EngineRevSound->SetFloatParameter(FName("RPM"), RPM);
   }
   // add other sounds that need tick-level granularity here...
 }
+
 void ACarlaWheeledVehicle::PlayCrashSound(const float DelayBeforePlay) const
 {
   if (this->CrashSound)

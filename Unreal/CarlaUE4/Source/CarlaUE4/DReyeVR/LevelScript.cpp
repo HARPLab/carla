@@ -17,8 +17,6 @@ ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
     ReadConfigValue("Level", "EgoVolumePercent", EgoVolumePercent);
     ReadConfigValue("Level", "NonEgoVolumePercent", NonEgoVolumePercent);
     ReadConfigValue("Level", "AmbientVolumePercent", AmbientVolumePercent);
-    // update the non-ego volume percent
-    ACarlaWheeledVehicle::Volume = NonEgoVolumePercent / 100.f;
 }
 
 void ADReyeVRLevel::BeginPlay()
@@ -276,6 +274,9 @@ void ADReyeVRLevel::DecrTimestep()
 
 void ADReyeVRLevel::SetVolume()
 {
+    // update the non-ego volume percent
+    ACarlaWheeledVehicle::Volume = NonEgoVolumePercent / 100.f;
+
     // for all in-world audio components such as ambient birdsong, fountain splashing, smoke, etc.
     for (TObjectIterator<UAudioComponent> Itr; Itr; ++Itr)
     {
@@ -285,6 +286,7 @@ void ADReyeVRLevel::SetVolume()
         }
         Itr->SetVolumeMultiplier(AmbientVolumePercent / 100.f);
     }
+
     // for all in-world vehicles (including the EgoVehicle) manually set their volumes
     TArray<AActor *> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACarlaWheeledVehicle::StaticClass(), FoundActors);
