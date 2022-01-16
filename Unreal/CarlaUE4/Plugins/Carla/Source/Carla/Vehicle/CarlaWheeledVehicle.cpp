@@ -220,7 +220,8 @@ void ACarlaWheeledVehicle::TickSounds()
   
   if (EngineRevSound)
   {
-    if (!EngineRevSound->IsPlaying()) {
+    if (!EngineRevSound->IsPlaying()) 
+    {
       EngineRevSound->Play(); // turn on the engine sound if not already on 
     }
     float RPM = FMath::Clamp(GetVehicleMovementComponent()->GetEngineRotationSpeed(), 0.f, 5650.0f);
@@ -266,7 +267,6 @@ void ACarlaWheeledVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, A
     FString actor_name = OtherActor->GetName();
     UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
     // can be more flexible, such as having collisions with static props or people too
-    // if (OtherActor->IsA(ACarlaWheeledVehicle::StaticClass())) // only collide with other vehicles
     const FString OtherName = OtherActor->GetName().ToLower();
     double Now = FPlatformTime::Seconds();
     bool bIsAVehicle = OtherActor->IsA(ACarlaWheeledVehicle::StaticClass());
@@ -284,21 +284,9 @@ void ACarlaWheeledVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, A
       FVector SoundEmitLocation = EngineLocnInVehicle;
       if (bIsAVehicle) { // in the case where the other actor is a vehicle, do emit the sound at the location midpoint
         SoundEmitLocation = (OtherActor->GetActorLocation() - this->GetActorLocation()) / 2.f;
+        SoundEmitLocation += 75.f * FVector::UpVector; // Make the sound emitted not at the ground (0.75m above ground)
       }
-      if (CrashSound != nullptr)
-      {
-        const float MinVol = 0.2f;
-        const float MaxVol = 2.f;
-        const float MaxVolumeSpeed = 50.f; // speed (MPH) past this is all at max volume
-        const float MPH = GetVehicleForwardSpeed() * 0.0223694f;
-
-        float VolMult = MinVol + ((MaxVol - MinVol) / MaxVolumeSpeed) * MPH; // volume dependent on speed (MPH)
-        VolMult = FMath::Clamp(VolMult, MinVol, MaxVol);
-        // float PitchMult = 
-        // "fire and forget" sound function
-        // UGameplayStatics::PlaySoundAtLocation(GetWorld(), CrashSound->Sound, Location, Rotation, VolMult, PitchMult,
-        //                                       SoundStartTime, CrashSound->AttenuationSettings, nullptr, this);
-        CrashSound->SetVolumeMultiplier(ACarlaWheeledVehicle::Volume * VolMult); // still respect ACarlaWheeledVehicle::Volume
+      if (CrashSound != nullptr) {
         CrashSound->SetRelativeLocation(SoundEmitLocation);
         PlayCrashSound();
         CollisionCooldownTime = Now + 0.5f; // have at least 1s of buffer between collision audio
