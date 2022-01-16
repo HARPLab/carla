@@ -269,18 +269,22 @@ void ACarlaWheeledVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, A
     // if (OtherActor->IsA(ACarlaWheeledVehicle::StaticClass())) // only collide with other vehicles
     const FString OtherName = OtherActor->GetName().ToLower();
     double Now = FPlatformTime::Seconds();
-    if (CollisionCooldownTime < Now &&                           // respect collision audio cooldown
-        (OtherActor->IsA(ACarlaWheeledVehicle::StaticClass()) || // do collide with vehicles
-         OtherName.Contains("spline") ||                         // do collide with carla "spline" (misc) objects 
-         OtherName.Contains("streetlight") ||                    // do collide with street lights
-         OtherName.Contains("curb")                              // do collide with curb objects
+    bool bIsAVehicle = OtherActor->IsA(ACarlaWheeledVehicle::StaticClass());
+    if (CollisionCooldownTime < Now &&        // respect collision audio cooldown
+        (bIsAVehicle ||                       // do collide with vehicles
+         OtherName.Contains("spline") ||      // do collide with carla "spline" (misc) objects 
+         OtherName.Contains("streetlight") || // do collide with street lights
+         OtherName.Contains("curb")           // do collide with curb objects
         )
     )
     {
       // emit the car collision sound at the midpoint between the vehicles' collision
       /// TODO: would be ideal to use FHitPoint::ImpactPoint but there is a bug in UE4 where this is not initialized
       // see: https://answers.unrealengine.com/questions/219744/component-overlap-hit-position-always-returns-000.html
-      const FVector SoundEmitLocation = EngineLocnInVehicle;
+      FVector SoundEmitLocation = EngineLocnInVehicle;
+      if (bIsAVehicle) { // in the case where the other actor is a vehicle, do emit the sound at the location midpoint
+        SoundEmitLocation = (OtherActor->GetActorLocation() - this->GetActorLocation()) / 2.f;
+      }
       if (CrashSound != nullptr)
       {
         const float MinVol = 0.2f;
