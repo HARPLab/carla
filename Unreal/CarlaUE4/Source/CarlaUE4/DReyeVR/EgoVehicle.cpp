@@ -506,7 +506,7 @@ void AEgoVehicle::ConstructDashText() // dashboard text (speedometer, turn signa
     // Create turn signals
     TurnSignals = CreateDefaultSubobject<UTextRenderComponent>(TEXT("TurnSignals"));
     TurnSignals->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-    TurnSignals->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, -40.f, 0));
+    TurnSignals->SetRelativeLocation(DashboardLocnInVehicle + FVector(0, 11.f, -5.f));
     TurnSignals->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // need to flip it to get the text in driver POV
     TurnSignals->SetTextRenderColor(FColor::Red);
     TurnSignals->SetText(FText::FromString(""));
