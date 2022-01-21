@@ -35,23 +35,23 @@ public class CarlaUE4 : ModuleRules
 
 		////////////////////////////////////////////////////////////////////////////////////
 		// Edit these variables to enable/disable features of DReyeVR
-		bool UseSRanipal = true;
+		bool UseSRanipalPlugin = true;
 		bool UseLogitechPlugin = true;
 		////////////////////////////////////////////////////////////////////////////////////
 
 		if (!IsWindows(Target))
 		{
 			// adjust definitions so they are OS-compatible
-			UseSRanipal = false;       // SRanipal only works on Windows
+			UseSRanipalPlugin = false;       // SRanipal only works on Windows
 			UseLogitechPlugin = false; // LogitechWheelPlugin also only works on Windows
 		}
 
 		// Add these preprocessor definitions to code
-		PublicDefinitions.Add("USE_SRANIPAL_PLUGIN=" + (UseSRanipal ? "true" : "false"));
+		PublicDefinitions.Add("USE_SRANIPAL_PLUGIN=" + (UseSRanipalPlugin ? "true" : "false"));
 		PublicDefinitions.Add("USE_LOGITECH_PLUGIN=" + (UseLogitechPlugin ? "true" : "false"));
 
 		// Add plugin dependencies 
-		if (UseSRanipal)
+		if (UseSRanipalPlugin)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "SRanipalEye" });
 			PrivateIncludePathModuleNames.AddRange(new string[] { "SRanipalEye" });
