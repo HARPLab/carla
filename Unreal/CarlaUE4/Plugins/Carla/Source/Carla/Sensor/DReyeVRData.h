@@ -149,6 +149,16 @@ struct UserInputs
     bool TurnSignalLeft = false;
     bool TurnSignalRight = false;
     bool HoldHandbrake = false;
+    // periph variables
+    FVector WorldPos = FVector::ZeroVector;
+    FRotator WorldRot = FRotator::ZeroRotator;
+    FVector CombinedOrigin = FVector::ZeroVector; // Absolute Eye Origin
+    float gaze2target_pitch = 0.f;
+    float gaze2target_yaw = 0.f;
+    float head2target_pitch = 0.f;
+    float head2target_yaw = 0.f;
+    bool LightOn = false;
+    bool ButtonPressed = false;
     // Add more inputs here!
 
     void Read(std::ifstream &InFile)
@@ -160,6 +170,15 @@ struct UserInputs
         ReadValue<bool>(InFile, TurnSignalLeft);
         ReadValue<bool>(InFile, TurnSignalRight);
         ReadValue<bool>(InFile, HoldHandbrake);
+        ReadFVector(InFile, WorldPos);
+        ReadFRotator(InFile, WorldRot);
+        ReadFVector(InFile, CombinedOrigin);
+        ReadValue<float>(InFile, gaze2target_pitch);
+        ReadValue<float>(InFile, gaze2target_yaw);
+        ReadValue<float>(InFile, head2target_pitch);
+        ReadValue<float>(InFile, head2target_yaw);
+        ReadValue<bool>(InFile, LightOn);
+        ReadValue<bool>(InFile, ButtonPressed);
     }
     void Write(std::ofstream &OutFile) const
     {
@@ -170,6 +189,15 @@ struct UserInputs
         WriteValue<bool>(OutFile, TurnSignalLeft);
         WriteValue<bool>(OutFile, TurnSignalRight);
         WriteValue<bool>(OutFile, HoldHandbrake);
+        WriteFVector(OutFile, WorldPos);
+        WriteFRotator(OutFile, WorldRot);
+        WriteFVector(OutFile, CombinedOrigin);
+        WriteValue<float>(OutFile, gaze2target_pitch);
+        WriteValue<float>(OutFile, gaze2target_yaw);
+        WriteValue<float>(OutFile, head2target_pitch);
+        WriteValue<float>(OutFile, head2target_yaw);
+        WriteValue<bool>(OutFile, LightOn);
+        WriteValue<bool>(OutFile, ButtonPressed);
     }
     FString ToString() const
     {
@@ -181,6 +209,15 @@ struct UserInputs
         Print += FString::Printf(TEXT("TurnSignalLeft:%d,"), TurnSignalLeft);
         Print += FString::Printf(TEXT("TurnSignalRight:%d,"), TurnSignalRight);
         Print += FString::Printf(TEXT("HoldHandbrake:%d,"), HoldHandbrake);
+        Print += FString::Printf(TEXT("WorldPos:%s,"), *WorldPos.ToString());
+        Print += FString::Printf(TEXT("WorldRot:%s,"), *WorldRot.ToString());
+        Print += FString::Printf(TEXT("CombinedOrigin:%s,"), *CombinedOrigin.ToString());
+        Print += FString::Printf(TEXT("gaze2target_pitch:%.4f,"), gaze2target_pitch);
+        Print += FString::Printf(TEXT("gaze2target_yaw:%.4f,"), gaze2target_yaw);
+        Print += FString::Printf(TEXT("head2target_pitch:%.4f,"), head2target_pitch);
+        Print += FString::Printf(TEXT("head2target_yaw:%.4f,"), head2target_yaw);
+        Print += FString::Printf(TEXT("LightOn:%d,"), LightOn);
+        Print += FString::Printf(TEXT("ButtonPressed:%d,"), ButtonPressed);
         return Print;
     }
 };

@@ -9,6 +9,11 @@ const DReyeVR::UserInputs &AEgoVehicle::GetVehicleInputs() const
     return VehicleInputs;
 }
 
+void AEgoVehicle::ResetInputs()
+{
+    VehicleInputs = {}; // clear inputs to be updated on the next tick
+}
+
 // Called to bind functionality to input
 void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponent)
 {
@@ -138,6 +143,7 @@ void AEgoVehicle::TurnSignalRight()
 {
     // store in local input container
     VehicleInputs.TurnSignalRight = true;
+    VehicleInputs.ButtonPressed = true; // activate periph trigger
 
     // apply new light state
     FVehicleLightState Lights = this->GetVehicleLightState();
@@ -154,6 +160,7 @@ void AEgoVehicle::TurnSignalLeft()
 {
     // store in local input container
     VehicleInputs.TurnSignalLeft = true;
+    VehicleInputs.ButtonPressed = true; // activate periph trigger
 
     // apply new light state
     FVehicleLightState Lights = this->GetVehicleLightState();

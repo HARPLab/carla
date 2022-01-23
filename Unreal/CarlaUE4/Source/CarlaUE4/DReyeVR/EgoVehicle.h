@@ -13,6 +13,7 @@
 #include "FlatHUD.h"                           // ADReyeVRHUD
 #include "ImageUtils.h"                        // CreateTexture2D
 #include "LevelScript.h"                       // ADReyeVRLevel
+#include "LightBall.h"                         // ALightBall
 #include "WheeledVehicle.h"                    // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
@@ -74,8 +75,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class APlayerController *Player;
 
   private:
-    void Register();   // function to register the AEgoVehicle with Carla's ActorRegistry
-    void FinishTick(); // do all the things necessary at the end of a tick
+    void Register(); // function to register the AEgoVehicle with Carla's ActorRegistry
 
     ////////////////:CAMERA:////////////////
     void ConstructCamera(); // needs to be called in the constructor
@@ -99,6 +99,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     ////////////////:INPUTS:////////////////
     /// NOTE: since there are so many functions here, they are defined in EgoInputs.cpp
     struct DReyeVR::UserInputs VehicleInputs; // struct for user inputs
+    void ResetInputs();
     // Vehicle control functions
     void SetSteering(const float SteeringInput);
     void SetThrottle(const float ThrottleInput);
@@ -197,6 +198,36 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float MaxSteerAngleDeg;
     float MaxSteerVelocity;
     float SteeringScale;
+
+    ////////////////:PERIPH:////////////////
+    void InitLightBall();
+    void TickPeriphTarget(float DeltaSeconds);
+    void GenerateSphere(const FVector &HeadDirection, const FVector &CombinedGazePosn, const FRotator &WorldRot,
+                        const FVector &CombinedOriginIn, float DeltaTime);
+
+    // Light Ball Component
+    UPROPERTY(Category = DReyeVR, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class ALightBall *LightBallObject;
+
+    // Other periph things
+    std::tuple<float, float> GetAngles(FVector UnitGazeVec, FVector RotVec) const;
+    FVector GenerateRotVec(FVector UnitGazeVec) const;
+    FVector GenerateRotVecGivenAngles(FVector UnitGazeVec, float yaw, float pitch) const;
+    // GazeDataEntry SensorData2GazeDataEntry(const DReyeVR::SensorData *SensorDataS) const;
+
+    const float pitchMax = 0.25;
+    const float yawMax = 0.6;
+    const float vert_offset = 0.15f;
+    float FlashDuration = 0.25f;      // updated with params file
+    float TimeBetweenFlash = 10.0f;   // updated with params file
+    float TargetRadius = 0.05;        // updated with params file
+    float TargetRenderDistance = 300; // updated with params file
+    float TimeSinceIntervalStart = 0.f;
+    float TimeStart = 0.f;
+    // persistent vars (because the VehicleInputs get flushed after every tick)
+    bool light_visible = false;
+    float head2light_pitch = 0.f;
+    float head2light_yaw = 0.f;
 
     ////////////////:OTHER:////////////////
 
