@@ -69,7 +69,7 @@ void AEgoSensor::BeginDestroy()
     Super::BeginDestroy();
 }
 
-void AEgoSensor::PrePhysTick(float DeltaSeconds)
+void AEgoSensor::ManualTick(float DeltaSeconds)
 {
     if (!bIsReplaying) // only update the sensor with local values if not replaying
     {

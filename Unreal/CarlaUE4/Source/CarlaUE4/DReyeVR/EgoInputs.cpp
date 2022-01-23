@@ -9,6 +9,11 @@ const DReyeVR::UserInputs &AEgoVehicle::GetVehicleInputs() const
     return VehicleInputs;
 }
 
+void AEgoVehicle::ResetInputs()
+{
+    VehicleInputs = {}; // clear inputs (default constructor)
+}
+
 // Called to bind functionality to input
 void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponent)
 {

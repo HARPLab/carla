@@ -74,8 +74,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class APlayerController *Player;
 
   private:
-    void Register();   // function to register the AEgoVehicle with Carla's ActorRegistry
-    void FinishTick(); // do all the things necessary at the end of a tick
+    void Register(); // function to register the AEgoVehicle with Carla's ActorRegistry
 
     ////////////////:CAMERA:////////////////
     void ConstructCamera(); // needs to be called in the constructor
@@ -99,6 +98,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     ////////////////:INPUTS:////////////////
     /// NOTE: since there are so many functions here, they are defined in EgoInputs.cpp
     struct DReyeVR::UserInputs VehicleInputs; // struct for user inputs
+    void ResetInputs();
     // Vehicle control functions
     void SetSteering(const float SteeringInput);
     void SetThrottle(const float ThrottleInput);

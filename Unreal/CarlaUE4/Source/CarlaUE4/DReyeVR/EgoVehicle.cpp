@@ -154,9 +154,6 @@ void AEgoVehicle::Tick(float DeltaSeconds)
 
     // Tick the logitech wheel
     TickLogiWheel();
-
-    // Finish the EgoVehicle tick
-    FinishTick();
 }
 
 /// ========================================== ///
@@ -261,6 +258,10 @@ void AEgoVehicle::ReplayTick()
 
 void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
+    // Explicitly update the EgoSensor here, synchronized with EgoVehicle tick
+    EgoSensor->ManualTick(DeltaSeconds); // Ensures we always get the latest data
+    ResetInputs();                       // Reset (sensor-known) vehicle inputs for the next tick
+
     // Calculate gaze data (in world space) using eye tracker data
     const DReyeVR::AggregateData *Data = EgoSensor->GetData();
     // Compute World positions and orientations
@@ -656,11 +657,6 @@ void AEgoVehicle::Register()
     Description.Variations.Add(NumWheels.Id, std::move(NumWheels));
     FString RegistryTags = "EgoVehicle,DReyeVR";
     Episode->RegisterActor(*this, Description, RegistryTags, ID);
-}
-
-void AEgoVehicle::FinishTick()
-{
-    VehicleInputs = {}; // clear inputs to be updated on the next tick
 }
 
 /// ========================================== ///

@@ -39,7 +39,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
   public:
     AEgoSensor(const FObjectInitializer &ObjectInitializer);
 
-    void PrePhysTick(float DeltaSeconds);
+    void ManualTick(float DeltaSeconds); // Tick called explicitly from DReyeVR EgoVehicle
 
     void SetEgoVehicle(class AEgoVehicle *EgoVehicle); // provide access to EgoVehicle (and by extension its camera)
 
