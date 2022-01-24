@@ -260,7 +260,6 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
     // Explicitly update the EgoSensor here, synchronized with EgoVehicle tick
     EgoSensor->ManualTick(DeltaSeconds); // Ensures we always get the latest data
-    ResetInputs();                       // Reset (sensor-known) vehicle inputs for the next tick
 
     // Calculate gaze data (in world space) using eye tracker data
     const DReyeVR::AggregateData *Data = EgoSensor->GetData();
