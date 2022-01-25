@@ -174,11 +174,11 @@ void AEgoSensor::TickEyeTracker()
         int EyeDataStatus = SRanipal->GetEyeData_(&EyeData);
         if (EyeDataStatus == ViveSR::Error::WORK)
         {
-            EyeSensorData.TimestampDevice = EyeData->timestamp;
-            EyeSensorData.FrameSequence = EyeData->frame_sequence;
+            EyeSensorData.TimestampDevice = EyeData.timestamp;
+            EyeSensorData.FrameSequence = EyeData.frame_sequence;
             // Assign Pupil Diameters
-            Left->PupilDiameter = EyeData->verbose_data.left.pupil_diameter_mm;
-            Right->PupilDiameter = EyeData->verbose_data.right.pupil_diameter_mm;
+            Left->PupilDiameter = EyeData.verbose_data.left.pupil_diameter_mm;
+            Right->PupilDiameter = EyeData.verbose_data.right.pupil_diameter_mm;
         }
     }
     else

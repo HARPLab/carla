@@ -20,11 +20,9 @@
 /// NOTE: Can only use SRanipal on Windows machines
 #include "SRanipalEye.h"      // SRanipal Module Framework
 #include "SRanipalEye_Core.h" // SRanipal Eye Tracker
-// for some reason the SRanipal code (v1.3.1.1) has an enum called "ERROR" in SRanipal/Public/SRanipal_Enums.h:28
-// which is used in SRanipal/Private/SRanipal_Enums.cpp:50 & 62. However, it appears that Carla has its own #define for
-// ERROR which then makes the compiler complain about multiple constants. The simplest *workaround* for this is to
-// rename the ERROR in the above files to something like SR_ERROR or anything but a commonly used #define
-#include "SRanipalEye_Framework.h"
+#include "ViveSR_Enums.h"     // ViveSR::Error::WORK
+// Make sure to patch sranipal before using it here!
+#include "SRanipalEye_Framework.h" // StartFramework
 #endif
 
 #include "EgoSensor.generated.h"
