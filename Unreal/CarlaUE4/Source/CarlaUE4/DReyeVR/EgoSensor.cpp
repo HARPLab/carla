@@ -148,13 +148,6 @@ void AEgoSensor::TickEyeTracker()
         /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
         // Getting real eye tracker data
         check(SRanipal != nullptr);
-#if 0
-        // Get the "EyeData" which holds useful information such as the timestamp
-        SRanipal->GetEyeData_(EyeData);
-        check(EyeData != nullptr);
-        EyeSensorData.TimestampDevice = EyeData->timestamp;
-        EyeSensorData.FrameSequence = EyeData->frame_sequence;
-#endif
         // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
         Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->GazeOrigin, Combined->GazeDir);
         // Assign Left/Right Gaze direction
@@ -176,11 +169,17 @@ void AEgoSensor::TickEyeTracker()
         // Assign Pupil positions
         Left->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPosition);
         Right->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPosition);
-#if 0
-        // Assign Pupil Diameters
-        Left->PupilDiameter = EyeData->verbose_data.left.pupil_diameter_mm;
-        Right->PupilDiameter = EyeData->verbose_data.right.pupil_diameter_mm;
-#endif
+
+        // Get the "EyeData" which holds useful information such as the timestamp
+        int EyeDataStatus = SRanipal->GetEyeData_(&EyeData);
+        if (EyeDataStatus == ViveSR::Error::WORK)
+        {
+            EyeSensorData.TimestampDevice = EyeData->timestamp;
+            EyeSensorData.FrameSequence = EyeData->frame_sequence;
+            // Assign Pupil Diameters
+            Left->PupilDiameter = EyeData->verbose_data.left.pupil_diameter_mm;
+            Right->PupilDiameter = EyeData->verbose_data.right.pupil_diameter_mm;
+        }
     }
     else
     {
@@ -195,6 +194,8 @@ void AEgoSensor::TickEyeTracker()
 
 void AEgoSensor::ComputeDummyEyeData()
 {
+    // Function to make "dummy" eye data where the eye gaze just looks around in a CCW circle.
+    // Useful for when the eye data is unavailable (Plugin not initialized, on Linux, etc.)
     auto Combined = &(EyeSensorData.Combined);
     auto Left = &(EyeSensorData.Left);
     auto Right = &(EyeSensorData.Right);
