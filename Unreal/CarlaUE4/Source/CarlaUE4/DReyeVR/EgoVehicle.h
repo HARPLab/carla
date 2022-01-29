@@ -99,7 +99,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     ////////////////:INPUTS:////////////////
     /// NOTE: since there are so many functions here, they are defined in EgoInputs.cpp
     struct DReyeVR::UserInputs VehicleInputs; // struct for user inputs
-    void ResetInputs();
+
     // Vehicle control functions
     void SetSteering(const float SteeringInput);
     void SetThrottle(const float ThrottleInput);

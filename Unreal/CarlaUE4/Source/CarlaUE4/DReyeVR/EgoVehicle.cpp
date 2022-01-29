@@ -132,9 +132,6 @@ void AEgoVehicle::BeginDestroy()
 void AEgoVehicle::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
-    // Flush inputs from the last tick before this tick
-    // since components (such as the EgoSensor) tick after the parent/owner
-    ResetInputs();
 
     // Update the positions based off replay data
     ReplayTick();
