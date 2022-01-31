@@ -82,6 +82,8 @@ void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
 // to actually move the vehicle we'll use GetVehicleMovementComponent() which is part of AWheeledVehicle
 void AEgoVehicle::SetSteering(const float SteeringInput)
 {
+    if (SteeringInput == 0.f && this->bIsLogiConnected)
+        return; // don't override logitech inputs
     float ScaledSteeringInput = this->ScaleSteeringInput * SteeringInput;
     this->GetVehicleMovementComponent()->SetSteeringInput(ScaledSteeringInput); // UE4 control
     // assign to input struct
@@ -91,6 +93,8 @@ void AEgoVehicle::SetSteering(const float SteeringInput)
 
 void AEgoVehicle::SetThrottle(const float ThrottleInput)
 {
+    if (ThrottleInput == 0.f && this->bIsLogiConnected)
+        return; // don't override logitech inputs
     float ScaledThrottleInput = this->ScaleThrottleInput * ThrottleInput;
     this->GetVehicleMovementComponent()->SetThrottleInput(ScaledThrottleInput); // UE4 control
 
@@ -107,6 +111,8 @@ void AEgoVehicle::SetThrottle(const float ThrottleInput)
 
 void AEgoVehicle::SetBrake(const float BrakeInput)
 {
+    if (BrakeInput == 0.f && this->bIsLogiConnected)
+        return; // don't override logitech inputs
     float ScaledBrakeInput = this->ScaleBrakeInput * BrakeInput;
     this->GetVehicleMovementComponent()->SetBrakeInput(ScaledBrakeInput); // UE4 control
 
@@ -356,7 +362,7 @@ void AEgoVehicle::LogitechWheelUpdate()
     // only execute this in Windows, the Logitech plugin is incompatible with Linux
     LogiUpdate(); // update the logitech wheel
     DIJOYSTATE2 *WheelState = LogiGetState(0);
-    LogLogitechPluginStruct(WheelState);
+    // LogLogitechPluginStruct(WheelState);
     /// NOTE: obtained these from LogitechWheelInputDevice.cpp:~111
     // -32768 to 32767. -32768 = all the way to the left. 32767 = all the way to the right.
     const float WheelRotation = FMath::Clamp(float(WheelState->lX), -32767.0f, 32767.0f) / 32767.0f; // (-1, 1)
@@ -367,9 +373,9 @@ void AEgoVehicle::LogitechWheelUpdate()
     // -1 = not pressed. 0 = Top. 0.25 = Right. 0.5 = Bottom. 0.75 = Left.
     const float Dpad = fabs(((WheelState->rgdwPOV[0] - 32767.0f) / (65535.0f)));
     // apply to DReyeVR inputs
-    SetSteering(WheelRotation);
-    SetThrottle(AccelerationPedal);
-    SetBrake(BrakePedal);
+    this->SetSteering(WheelRotation);
+    this->SetThrottle(AccelerationPedal);
+    this->SetBrake(BrakePedal);
 
     //    UE_LOG(LogTemp, Log, TEXT("Dpad value %f"), Dpad);
     //    if (WheelState->rgdwPOV[0] == 0) // should work now
