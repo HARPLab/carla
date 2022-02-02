@@ -18,9 +18,9 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
 
     /// NOTE: an Action is a digital input, an Axis is an analog input
     // steering and throttle analog inputs (axes)
-    PlayerInputComponent->BindAxis("Steer_DReyeVR", this, &AEgoVehicle::SetSteering);
-    PlayerInputComponent->BindAxis("Throttle_DReyeVR", this, &AEgoVehicle::SetThrottle);
-    PlayerInputComponent->BindAxis("Brake_DReyeVR", this, &AEgoVehicle::SetBrake);
+    PlayerInputComponent->BindAxis("Steer_DReyeVR", this, &AEgoVehicle::SetSteeringKbd);
+    PlayerInputComponent->BindAxis("Throttle_DReyeVR", this, &AEgoVehicle::SetThrottleKbd);
+    PlayerInputComponent->BindAxis("Brake_DReyeVR", this, &AEgoVehicle::SetBrakeKbd);
     // button actions (press & release)
     PlayerInputComponent->BindAction("ToggleReverse_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressReverse);
     PlayerInputComponent->BindAction("TurnSignalRight_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressTurnSignalR);
@@ -78,12 +78,15 @@ void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
     VRCameraRoot->SetRelativeLocation(CurrentRelLocation + displacement);
 }
 
-/// NOTE: the CarlaVehicle does not actually move the vehicle, only its state/animations
-// to actually move the vehicle we'll use GetVehicleMovementComponent() which is part of AWheeledVehicle
+void AEgoVehicle::SetSteeringKbd(const float SteeringInput)
+{
+    if (SteeringInput == 0.f)
+        return;
+    SetSteering(SteeringInput);
+}
+
 void AEgoVehicle::SetSteering(const float SteeringInput)
 {
-    if (SteeringInput == 0.f && this->bIsLogiConnected)
-        return; // don't override logitech inputs
     float ScaledSteeringInput = this->ScaleSteeringInput * SteeringInput;
     this->GetVehicleMovementComponent()->SetSteeringInput(ScaledSteeringInput); // UE4 control
     // assign to input struct
@@ -91,10 +94,15 @@ void AEgoVehicle::SetSteering(const float SteeringInput)
     VehicleInputs.Steering = ScaledSteeringInput;
 }
 
+void AEgoVehicle::SetThrottleKbd(const float ThrottleInput)
+{
+    if (ThrottleInput == 0.f)
+        return;
+    SetThrottle(ThrottleInput);
+}
+
 void AEgoVehicle::SetThrottle(const float ThrottleInput)
 {
-    if (ThrottleInput == 0.f && this->bIsLogiConnected)
-        return; // don't override logitech inputs
     float ScaledThrottleInput = this->ScaleThrottleInput * ThrottleInput;
     this->GetVehicleMovementComponent()->SetThrottleInput(ScaledThrottleInput); // UE4 control
 
@@ -109,10 +117,15 @@ void AEgoVehicle::SetThrottle(const float ThrottleInput)
     VehicleInputs.Throttle = ScaledThrottleInput;
 }
 
+void AEgoVehicle::SetBrakeKbd(const float BrakeInput)
+{
+    if (BrakeInput == 0.f)
+        return;
+    SetBrake(BrakeInput);
+}
+
 void AEgoVehicle::SetBrake(const float BrakeInput)
 {
-    if (BrakeInput == 0.f && this->bIsLogiConnected)
-        return; // don't override logitech inputs
     float ScaledBrakeInput = this->ScaleBrakeInput * BrakeInput;
     this->GetVehicleMovementComponent()->SetBrakeInput(ScaledBrakeInput); // UE4 control
 
@@ -273,13 +286,13 @@ void AEgoVehicle::InitLogiWheel()
 #if USE_LOGITECH_PLUGIN
     LogiSteeringInitialize(false);
     bIsLogiConnected = LogiIsConnected(0); // get status of connected device
-    if (!bIsLogiConnected)
+    if (bIsLogiConnected)
     {
-        UE_LOG(LogTemp, Log, TEXT("WARNING: Could not find Logitech device connected on input 0"));
+        UE_LOG(LogTemp, Log, TEXT("Found a Logitech device connected on input 0"));
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("Found a Logitech device connected on input 0"));
+        UE_LOG(LogTemp, Warning, TEXT("Could not find Logitech device connected on input 0"));
     }
 #endif
 }
@@ -371,6 +384,10 @@ void AEgoVehicle::LogitechWheelUpdate()
     // -1 = not pressed. 0 = Top. 0.25 = Right. 0.5 = Bottom. 0.75 = Left.
     const float Dpad = fabs(((WheelState->rgdwPOV[0] - 32767.0f) / (65535.0f)));
     // apply to DReyeVR inputs
+    /// (NOTE: these function calls occur in the EgoVehicle::Tick, meaning other
+    // control calls could theoretically conflict/override them if called later. This is
+    // the case with the keyboard inputs which is why there are wrappers (suffixed with "Kbd")
+    // that always override logi inputs IF their values are nonzero
     this->SetSteering(WheelRotation);
     this->SetThrottle(AccelerationPedal);
     this->SetBrake(BrakePedal);

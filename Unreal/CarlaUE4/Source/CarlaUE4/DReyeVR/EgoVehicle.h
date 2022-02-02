@@ -102,6 +102,10 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void SetSteering(const float SteeringInput);
     void SetThrottle(const float ThrottleInput);
     void SetBrake(const float BrakeInput);
+    // keyboard mechanisms to access Axis vehicle control (steering, throttle, brake)
+    void SetSteeringKbd(const float SteeringInput);
+    void SetThrottleKbd(const float ThrottleInput);
+    void SetBrakeKbd(const float BrakeInput);
     bool bReverse;
     // "button presses" should have both a "Press" and "Release" function
     // And, if using the logitech plugin, should also have an "is rising edge" bool so they can only
@@ -170,6 +174,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void InitReticleTexture();  // initializes the spectator-reticle texture
     void DrawSpectatorScreen(); // called on every tick
     UTexture2D *ReticleTexture; // UE4 texture for eye reticle
+    float HUDScaleVR;           // How much to scale the HUD in VR
 
     ////////////////:FLATHUD:////////////////
     // (Flat) HUD (NOTE: ONLY FOR NON VR)
@@ -210,7 +215,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     FRotator InitWheelRotation;
     float MaxSteerAngleDeg;
     float MaxSteerVelocity;
-    float SteeringScale;
+    float SteeringAnimScale;
+    bool bUse1To1Anim;
 
     ////////////////:OTHER:////////////////
 

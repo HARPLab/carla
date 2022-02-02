@@ -55,13 +55,15 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("SteeringWheel", "InitRotation", InitWheelRotation);
     ReadConfigValue("SteeringWheel", "MaxSteerAngleDeg", MaxSteerAngleDeg);
     ReadConfigValue("SteeringWheel", "MaxSteerVelocity", MaxSteerVelocity);
-    ReadConfigValue("SteeringWheel", "SteeringScale", SteeringScale);
+    ReadConfigValue("SteeringWheel", "SteeringScale", SteeringAnimScale);
+    ReadConfigValue("SteeringWheel", "Use1To1Anim", bUse1To1Anim);
     // camera
     ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
     // other/cosmetic
     ReadConfigValue("EgoVehicle", "ActorRegistryID", EgoVehicleID);
     ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
     // HUD (Head's Up Display)
+    ReadConfigValue("EgoVehicleHUD", "HUDScaleVR", HUDScaleVR);
     ReadConfigValue("EgoVehicleHUD", "DrawFPSCounter", bDrawFPSCounter);
     ReadConfigValue("EgoVehicleHUD", "DrawFlatReticle", bDrawFlatReticle);
     ReadConfigValue("EgoVehicleHUD", "ReticleSize", ReticleSize);
@@ -355,6 +357,8 @@ void AEgoVehicle::InitSpectator()
 
 void AEgoVehicle::InitReticleTexture()
 {
+    if (bIsHMDConnected)
+        ReticleSize *= HUDScaleVR;
 
     /// NOTE: need to create transient like this bc of a UE4 bug in release mode
     // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
@@ -602,17 +606,26 @@ void AEgoVehicle::ConstructSteeringWheel()
 void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
 {
     const FRotator CurrentRotation = SteeringWheel->GetRelativeRotation();
-    const float TargetAngle = GetVehicleInputs().Steering * SteeringScale;
-    float DeltaAngle = (TargetAngle - CurrentRotation.Roll);
+    const float RawSteering = GetVehicleInputs().Steering; // this is scaled in SetSteering
+    const float TargetAngle = (RawSteering / ScaleSteeringInput) * SteeringAnimScale;
+    FRotator NewRotation = CurrentRotation;
+    if (bUse1To1Anim)
+    {
+        NewRotation.Roll = TargetAngle;
+    }
+    else
+    {
+        float DeltaAngle = (TargetAngle - CurrentRotation.Roll);
 
-    // place a speed-limit on the steering wheel
-    DeltaAngle = FMath::Clamp(DeltaAngle, -MaxSteerVelocity, MaxSteerVelocity);
+        // place a speed-limit on the steering wheel
+        DeltaAngle = FMath::Clamp(DeltaAngle, -MaxSteerVelocity, MaxSteerVelocity);
 
-    // create the new rotation using the deltas
-    FRotator NewRotation = CurrentRotation + DeltaTime * FRotator(0.f, 0.f, DeltaAngle);
+        // create the new rotation using the deltas
+        NewRotation += DeltaTime * FRotator(0.f, 0.f, DeltaAngle);
 
-    // Clamp the roll amount so the wheel can't spin infinitely
-    NewRotation.Roll = FMath::Clamp(NewRotation.Roll, -MaxSteerAngleDeg, MaxSteerAngleDeg);
+        // Clamp the roll amount so the wheel can't spin infinitely
+        NewRotation.Roll = FMath::Clamp(NewRotation.Roll, -MaxSteerAngleDeg, MaxSteerAngleDeg);
+    }
     SteeringWheel->SetRelativeRotation(NewRotation);
 }
 
