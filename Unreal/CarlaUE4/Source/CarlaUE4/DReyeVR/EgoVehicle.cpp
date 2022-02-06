@@ -56,7 +56,6 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("SteeringWheel", "MaxSteerAngleDeg", MaxSteerAngleDeg);
     ReadConfigValue("SteeringWheel", "MaxSteerVelocity", MaxSteerVelocity);
     ReadConfigValue("SteeringWheel", "SteeringScale", SteeringAnimScale);
-    ReadConfigValue("SteeringWheel", "Use1To1Anim", bUse1To1Anim);
     // camera
     ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
     // other/cosmetic
@@ -609,7 +608,7 @@ void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
     const float RawSteering = GetVehicleInputs().Steering; // this is scaled in SetSteering
     const float TargetAngle = (RawSteering / ScaleSteeringInput) * SteeringAnimScale;
     FRotator NewRotation = CurrentRotation;
-    if (bUse1To1Anim)
+    if (bIsLogiConnected)
     {
         NewRotation.Roll = TargetAngle;
     }

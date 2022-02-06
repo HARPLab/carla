@@ -216,7 +216,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float MaxSteerAngleDeg;
     float MaxSteerVelocity;
     float SteeringAnimScale;
-    bool bUse1To1Anim;
 
     ////////////////:OTHER:////////////////
 

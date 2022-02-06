@@ -80,7 +80,7 @@ void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
 
 void AEgoVehicle::SetSteeringKbd(const float SteeringInput)
 {
-    if (SteeringInput == 0.f)
+    if (SteeringInput == 0.f && bIsLogiConnected)
         return;
     SetSteering(SteeringInput);
 }
@@ -96,7 +96,7 @@ void AEgoVehicle::SetSteering(const float SteeringInput)
 
 void AEgoVehicle::SetThrottleKbd(const float ThrottleInput)
 {
-    if (ThrottleInput == 0.f)
+    if (ThrottleInput == 0.f && bIsLogiConnected)
         return;
     SetThrottle(ThrottleInput);
 }
@@ -119,7 +119,7 @@ void AEgoVehicle::SetThrottle(const float ThrottleInput)
 
 void AEgoVehicle::SetBrakeKbd(const float BrakeInput)
 {
-    if (BrakeInput == 0.f)
+    if (BrakeInput == 0.f && bIsLogiConnected)
         return;
     SetBrake(BrakeInput);
 }
@@ -292,7 +292,13 @@ void AEgoVehicle::InitLogiWheel()
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("Could not find Logitech device connected on input 0"));
+        const FString LogiError = "Could not find Logitech device connected on input 0";
+        const bool PrintToLog = false;
+        const bool PrintToScreen = true;
+        const float ScreenDurationSec = 20.f;
+        const FLinearColor MsgColour = FLinearColor(1, 0, 0, 1); // RED
+        UKismetSystemLibrary::PrintString(World, LogiError, PrintToScreen, PrintToLog, MsgColour, ScreenDurationSec);
+        UE_LOG(LogTemp, Error, TEXT("%s"), *LogiError); // Error is RED
     }
 #endif
 }
