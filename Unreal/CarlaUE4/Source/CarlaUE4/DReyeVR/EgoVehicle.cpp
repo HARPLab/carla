@@ -183,7 +183,6 @@ void AEgoVehicle::ConstructCamera()
     // Spawn the RootComponent and Camera for the VR camera
     VRCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VRCameraRoot"));
     VRCameraRoot->SetupAttachment(GetRootComponent());      // The vehicle blueprint itself
-    VRCameraRoot->SetRelativeLocation(CameraLocnInVehicle); // Offset from center of camera
 
     // Create a camera and attach to root component
     FirstPersonCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCam"));
@@ -191,6 +190,8 @@ void AEgoVehicle::ConstructCamera()
     FirstPersonCam->bUsePawnControlRotation = false; // free for VR movement
     FirstPersonCam->bLockToHmd = true;               // lock orientation and position to HMD
     FirstPersonCam->FieldOfView = FieldOfView;       // editable
+
+    ResetCamera();
 }
 
 const UCameraComponent *AEgoVehicle::GetCamera() const
@@ -406,9 +407,10 @@ void AEgoVehicle::DrawSpectatorScreen()
         // define min and max bounds
         FVector2D TextureRectMin(FMath::Clamp(ReticlePos.X / ViewSize.X, 0.f, 1.f),
                                  FMath::Clamp(ReticlePos.Y / ViewSize.Y, 0.f, 1.f));
-        // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
-        FVector2D TextureRectMax(FMath::Clamp((ReticlePos.X + ReticleSize) / ViewSize.X, 0.f, 1.f),
-                                 FMath::Clamp((ReticlePos.Y + ReticleSize) / ViewSize.Y, 0.f, 1.f));
+        // max needs to define the bottom right corner, so needs to be +Dim.X ri// max needs to define the bottom 
+        // right corner, so needs to be +Dim.X right, and +Dim.Y down
+        FVector2D TextureRectMax(FMath::Clamp((ReticlePos.X + ReticleSize) / ViewSize.X, TextureRectMin.X, 1.f),
+                                 FMath::Clamp((ReticlePos.Y + ReticleSize) / ViewSize.Y, TextureRectMin.Y, 1.f));
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
             FVector2D{0.f, 0.f}, // whole window (top left)
             FVector2D{1.f, 1.f}, // whole window (top ->*bottom? right)

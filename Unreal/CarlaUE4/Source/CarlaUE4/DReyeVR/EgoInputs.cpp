@@ -1,5 +1,7 @@
 #include "EgoVehicle.h"
-#include "Math/NumericLimits.h" // TNumericLimits<float>::Max
+#include "Math/NumericLimits.h"                // TNumericLimits<float>::Max
+#include "HeadMountedDisplayFunctionLibrary.h" // SetTrackingOrigin, GetWorldToMetersScale
+#include "HeadMountedDisplayTypes.h"           // EOrientPositionSelector
 
 ////////////////:INPUTS:////////////////
 /// NOTE: Here we define all the Input functions for the EgoVehicle just to keep them
@@ -30,6 +32,8 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
     PlayerInputComponent->BindAction("TurnSignalLeft_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseTurnSignalL);
     PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Pressed, this, &AEgoVehicle::HoldHandbrake);
     PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseHandbrake);
+    PlayerInputComponent->BindAction("ResetCamera_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressResetCamera);
+    PlayerInputComponent->BindAction("ResetCamera_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseResetCamera);
     /// Mouse X and Y input for looking up and turning
     PlayerInputComponent->BindAxis("MouseLookUp_DReyeVR", this, &AEgoVehicle::MouseLookUp);
     PlayerInputComponent->BindAxis("MouseTurn_DReyeVR", this, &AEgoVehicle::MouseTurn);
@@ -76,6 +80,34 @@ void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
 {
     const FVector &CurrentRelLocation = VRCameraRoot->GetRelativeLocation();
     VRCameraRoot->SetRelativeLocation(CurrentRelLocation + displacement);
+}
+
+void AEgoVehicle::PressResetCamera()
+{
+    if (!bCanResetCamera)
+        return;
+    bCanResetCamera = false;
+    ResetCamera();
+}
+
+void AEgoVehicle::ReleaseResetCamera()
+{
+    bCanResetCamera = true;
+}
+
+void AEgoVehicle::ResetCamera()
+{
+    // First, set the root of the camera to the driver's seat head pos
+    VRCameraRoot->SetRelativeLocation(CameraLocnInVehicle);
+    // Then set the actual camera to be at its origin (attached to VRCameraRoot)
+    FirstPersonCam->SetRelativeLocation(FVector::ZeroVector);
+    FirstPersonCam->SetRelativeRotation(FRotator::ZeroRotator);
+    if (bIsHMDConnected)
+    {
+        UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition(0, EOrientPositionSelector::OrientationAndPosition);
+        // reload world
+        UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()), false);
+    }
 }
 
 void AEgoVehicle::SetSteeringKbd(const float SteeringInput)
@@ -319,7 +351,13 @@ void AEgoVehicle::TickLogiWheel()
 
 #if USE_LOGITECH_PLUGIN
 
-const std::vector<FString> VarNames = {"rgdwPOV[0]", "rgdwPOV[1]", "rgdwPOV[2]", "rgdwPOV[3]"};
+// const std::vector<FString> VarNames = {"rgdwPOV[0]", "rgdwPOV[1]", "rgdwPOV[2]", "rgdwPOV[3]"};
+const std::vector<FString> VarNames = {                                                    // 34 values
+    "lX",           "lY",           "lZ",         "lRz",           "lRy",           "lRz", // variable names
+    "rglSlider[0]", "rglSlider[1]", "rgdwPOV[0]", "rgbButtons[0]", "lVX",           "lVY",           "lVZ",
+    "lVRx",         "lVRy",         "lVRz",       "rglVSlider[0]", "rglVSlider[1]", "lAX",           "lAY",
+    "lAZ",          "lARx",         "lARy",       "lARz",          "rglASlider[0]", "rglASlider[1]", "lFX",
+    "lFY",          "lFZ",          "lFRx",       "lFRy",          "lFRz",          "rglFSlider[0]", "rglFSlider[1]"};
 /// NOTE: this is a debug function used to dump all the information we can regarding
 // the Logitech wheel hardware we used since the exact buttons were not documented in
 // the repo: https://github.com/HARPLab/LogitechWheelPlugin
@@ -331,12 +369,21 @@ void AEgoVehicle::LogLogitechPluginStruct(const DIJOYSTATE2 *Now)
         (*Old) = (*Now); // assign to the new (current) dijoystate struct
         return;          // initializing the Old struct ptr
     }
-    // Getting all (4) values from the current struct
-    const std::vector<int> NowVals = {int(Now->rgdwPOV[0]), int(Now->rgdwPOV[1]), int(Now->rgdwPOV[2]),
-                                      int(Now->rgdwPOV[3])};
-    // Getting the (4) values from the old struct
-    const std::vector<int> OldVals = {int(Old->rgdwPOV[0]), int(Old->rgdwPOV[1]), int(Old->rgdwPOV[2]),
-                                      int(Old->rgdwPOV[3])};
+    const std::vector<int> NowVals = {
+        Now->lX, Now->lY, Now->lZ, Now->lRx, Now->lRy, Now->lRz, Now->rglSlider[0], Now->rglSlider[1],
+        // Converting unsigned int & unsigned char to int
+        int(Now->rgdwPOV[0]), int(Now->rgbButtons[0]), Now->lVX, Now->lVY, Now->lVZ, Now->lVRx, Now->lVRy, Now->lVRz,
+        Now->rglVSlider[0], Now->rglVSlider[1], Now->lAX, Now->lAY, Now->lAZ, Now->lARx, Now->lARy, Now->lARz,
+        Now->rglASlider[0], Now->rglASlider[1], Now->lFX, Now->lFY, Now->lFZ, Now->lFRx, Now->lFRy, Now->lFRz,
+        Now->rglFSlider[0], Now->rglFSlider[1]}; // 32 elements
+    // Getting the (34) values from the old struct
+    const std::vector<int> OldVals = {
+        Old->lX, Old->lY, Old->lZ, Old->lRx, Old->lRy, Old->lRz, Old->rglSlider[0], Old->rglSlider[1],
+        // Converting unsigned int & unsigned char to int
+        int(Old->rgdwPOV[0]), int(Old->rgbButtons[0]), Old->lVX, Old->lVY, Old->lVZ, Old->lVRx, Old->lVRy, Old->lVRz,
+        Old->rglVSlider[0], Old->rglVSlider[1], Old->lAX, Old->lAY, Old->lAZ, Old->lARx, Old->lARy, Old->lARz,
+        Old->rglASlider[0], Old->rglASlider[1], Old->lFX, Old->lFY, Old->lFZ, Old->lFRx, Old->lFRy, Old->lFRz,
+        Old->rglFSlider[0], Old->rglFSlider[1]};
 
     check(NowVals.size() == OldVals.size() && NowVals.size() == VarNames.size());
 
@@ -417,6 +464,11 @@ void AEgoVehicle::LogitechWheelUpdate()
         PressTurnSignalL();
     else
         ReleaseTurnSignalL();
+
+    if (WheelState->rgbButtons[23]) // big red button on right side of g923
+        PressResetCamera();
+    else
+        ReleaseResetCamera();
 
     // VRCamerRoot base position adjustment
     if (WheelState->rgdwPOV[0] == 0) // positive in X

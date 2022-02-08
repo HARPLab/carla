@@ -141,6 +141,11 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void CameraUp();
     void CameraDown();
 
+    void PressResetCamera();
+    void ReleaseResetCamera();
+    void ResetCamera();
+    bool bCanResetCamera = true;
+
     // Vehicle parameters
     float ScaleSteeringInput;
     float ScaleThrottleInput;
