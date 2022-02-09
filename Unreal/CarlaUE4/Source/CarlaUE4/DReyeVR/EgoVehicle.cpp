@@ -392,18 +392,18 @@ void AEgoVehicle::DrawSpectatorScreen()
     Player->GetViewportSize(ViewSize.X, ViewSize.Y);
     // Get eye tracker variables
     const FRotator WorldRot = GetCamera()->GetComponentRotation();
-    const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
+    const FVector LeftGazePosn = LeftOrigin + WorldRot.RotateVector(this->LeftGaze);
 
     /// TODO: draw other things on the spectator screen?
     if (bDrawSpectatorReticle)
     {
         /// NOTE: this is the better way to get the ViewportSize
         FVector2D ReticlePos;
-        UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
+        UGameplayStatics::ProjectWorldToScreen(Player, LeftGazePosn, ReticlePos, true);
         /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
         /// NOTE: to get the best drawing, the texture is offset slightly by this vector
-        const FVector2D ScreenOffset(ReticleSize * 0.5f, -ReticleSize);
-        ReticlePos += ScreenOffset; // move X right by Dim.X/2, move Y up by Dim.Y
+        // const FVector2D ScreenOffset(ReticleSize * 0.5f, -ReticleSize);
+        // ReticlePos += ScreenOffset; // move X right by Dim.X/2, move Y up by Dim.Y
         // define min and max bounds
         FVector2D TextureRectMin(FMath::Clamp(ReticlePos.X / ViewSize.X, 0.f, 1.f),
                                  FMath::Clamp(ReticlePos.Y / ViewSize.Y, 0.f, 1.f));
