@@ -55,13 +55,14 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("SteeringWheel", "InitRotation", InitWheelRotation);
     ReadConfigValue("SteeringWheel", "MaxSteerAngleDeg", MaxSteerAngleDeg);
     ReadConfigValue("SteeringWheel", "MaxSteerVelocity", MaxSteerVelocity);
-    ReadConfigValue("SteeringWheel", "SteeringScale", SteeringScale);
+    ReadConfigValue("SteeringWheel", "SteeringScale", SteeringAnimScale);
     // camera
     ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
     // other/cosmetic
     ReadConfigValue("EgoVehicle", "ActorRegistryID", EgoVehicleID);
     ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
     // HUD (Head's Up Display)
+    ReadConfigValue("EgoVehicleHUD", "HUDScaleVR", HUDScaleVR);
     ReadConfigValue("EgoVehicleHUD", "DrawFPSCounter", bDrawFPSCounter);
     ReadConfigValue("EgoVehicleHUD", "DrawFlatReticle", bDrawFlatReticle);
     ReadConfigValue("EgoVehicleHUD", "ReticleSize", ReticleSize);
@@ -193,7 +194,6 @@ void AEgoVehicle::ConstructCamera()
     // Spawn the RootComponent and Camera for the VR camera
     VRCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VRCameraRoot"));
     VRCameraRoot->SetupAttachment(GetRootComponent());      // The vehicle blueprint itself
-    VRCameraRoot->SetRelativeLocation(CameraLocnInVehicle); // Offset from center of camera
 
     // Create a camera and attach to root component
     FirstPersonCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCam"));
@@ -201,6 +201,8 @@ void AEgoVehicle::ConstructCamera()
     FirstPersonCam->bUsePawnControlRotation = false; // free for VR movement
     FirstPersonCam->bLockToHmd = true;               // lock orientation and position to HMD
     FirstPersonCam->FieldOfView = FieldOfView;       // editable
+
+    ResetCamera();
 }
 
 const UCameraComponent *AEgoVehicle::GetCamera() const
@@ -366,6 +368,8 @@ void AEgoVehicle::InitSpectator()
 
 void AEgoVehicle::InitReticleTexture()
 {
+    if (bIsHMDConnected)
+        ReticleSize *= HUDScaleVR;
 
     /// NOTE: need to create transient like this bc of a UE4 bug in release mode
     // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
@@ -399,24 +403,25 @@ void AEgoVehicle::DrawSpectatorScreen()
     Player->GetViewportSize(ViewSize.X, ViewSize.Y);
     // Get eye tracker variables
     const FRotator WorldRot = GetCamera()->GetComponentRotation();
-    const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
+    const FVector LeftGazePosn = LeftOrigin + WorldRot.RotateVector(this->LeftGaze);
 
     /// TODO: draw other things on the spectator screen?
     if (bDrawSpectatorReticle)
     {
         /// NOTE: this is the better way to get the ViewportSize
         FVector2D ReticlePos;
-        UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
+        UGameplayStatics::ProjectWorldToScreen(Player, LeftGazePosn, ReticlePos, true);
         /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
         /// NOTE: to get the best drawing, the texture is offset slightly by this vector
-        const FVector2D ScreenOffset(ReticleSize * 0.5f, -ReticleSize);
-        ReticlePos += ScreenOffset; // move X right by Dim.X/2, move Y up by Dim.Y
+        // const FVector2D ScreenOffset(ReticleSize * 0.5f, -ReticleSize);
+        // ReticlePos += ScreenOffset; // move X right by Dim.X/2, move Y up by Dim.Y
         // define min and max bounds
         FVector2D TextureRectMin(FMath::Clamp(ReticlePos.X / ViewSize.X, 0.f, 1.f),
                                  FMath::Clamp(ReticlePos.Y / ViewSize.Y, 0.f, 1.f));
-        // max needs to define the bottom right corner, so needs to be +Dim.X right, and +Dim.Y down
-        FVector2D TextureRectMax(FMath::Clamp((ReticlePos.X + ReticleSize) / ViewSize.X, 0.f, 1.f),
-                                 FMath::Clamp((ReticlePos.Y + ReticleSize) / ViewSize.Y, 0.f, 1.f));
+        // max needs to define the bottom right corner, so needs to be +Dim.X ri// max needs to define the bottom 
+        // right corner, so needs to be +Dim.X right, and +Dim.Y down
+        FVector2D TextureRectMax(FMath::Clamp((ReticlePos.X + ReticleSize) / ViewSize.X, TextureRectMin.X, 1.f),
+                                 FMath::Clamp((ReticlePos.Y + ReticleSize) / ViewSize.Y, TextureRectMin.Y, 1.f));
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
             FVector2D{0.f, 0.f}, // whole window (top left)
             FVector2D{1.f, 1.f}, // whole window (top ->*bottom? right)
@@ -613,17 +618,26 @@ void AEgoVehicle::ConstructSteeringWheel()
 void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
 {
     const FRotator CurrentRotation = SteeringWheel->GetRelativeRotation();
-    const float TargetAngle = GetVehicleInputs().Steering * SteeringScale;
-    float DeltaAngle = (TargetAngle - CurrentRotation.Roll);
+    const float RawSteering = GetVehicleInputs().Steering; // this is scaled in SetSteering
+    const float TargetAngle = (RawSteering / ScaleSteeringInput) * SteeringAnimScale;
+    FRotator NewRotation = CurrentRotation;
+    if (bIsLogiConnected)
+    {
+        NewRotation.Roll = TargetAngle;
+    }
+    else
+    {
+        float DeltaAngle = (TargetAngle - CurrentRotation.Roll);
 
-    // place a speed-limit on the steering wheel
-    DeltaAngle = FMath::Clamp(DeltaAngle, -MaxSteerVelocity, MaxSteerVelocity);
+        // place a speed-limit on the steering wheel
+        DeltaAngle = FMath::Clamp(DeltaAngle, -MaxSteerVelocity, MaxSteerVelocity);
 
-    // create the new rotation using the deltas
-    FRotator NewRotation = CurrentRotation + DeltaTime * FRotator(0.f, 0.f, DeltaAngle);
+        // create the new rotation using the deltas
+        NewRotation += DeltaTime * FRotator(0.f, 0.f, DeltaAngle);
 
-    // Clamp the roll amount so the wheel can't spin infinitely
-    NewRotation.Roll = FMath::Clamp(NewRotation.Roll, -MaxSteerAngleDeg, MaxSteerAngleDeg);
+        // Clamp the roll amount so the wheel can't spin infinitely
+        NewRotation.Roll = FMath::Clamp(NewRotation.Roll, -MaxSteerAngleDeg, MaxSteerAngleDeg);
+    }
     SteeringWheel->SetRelativeRotation(NewRotation);
 }
 
