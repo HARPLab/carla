@@ -1,19 +1,20 @@
 #pragma once
 
-#include "Camera/CameraComponent.h"            // UCameraComponent
-#include "Carla/Game/CarlaEpisode.h"           // CarlaEpisode
-#include "Carla/Sensor/DReyeVRData.h"          // DReyeVR namespace
-#include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
-#include "Components/AudioComponent.h"         // UAudioComponent
-#include "Components/InputComponent.h"         // InputComponent
-#include "Components/SceneComponent.h"         // USceneComponent
-#include "CoreMinimal.h"                       // Unreal functions
-#include "DReyeVRUtils.h"                      // ReadConfigValue
-#include "EgoSensor.h"                         // AEgoSensor
-#include "FlatHUD.h"                           // ADReyeVRHUD
-#include "ImageUtils.h"                        // CreateTexture2D
-#include "LevelScript.h"                       // ADReyeVRLevel
-#include "WheeledVehicle.h"                    // VehicleMovementComponent
+#include "Camera/CameraComponent.h"               // UCameraComponent
+#include "Carla/Game/CarlaEpisode.h"              // CarlaEpisode
+#include "Carla/Sensor/DReyeVRData.h"             // DReyeVR namespace
+#include "Carla/Vehicle/CarlaWheeledVehicle.h"    // ACarlaWheeledVehicle
+#include "Components/AudioComponent.h"            // UAudioComponent
+#include "Components/InputComponent.h"            // InputComponent
+#include "Components/PlanarReflectionComponent.h" // Planar Reflection
+#include "Components/SceneComponent.h"            // USceneComponent
+#include "CoreMinimal.h"                          // Unreal functions
+#include "DReyeVRUtils.h"                         // ReadConfigValue
+#include "EgoSensor.h"                            // AEgoSensor
+#include "FlatHUD.h"                              // ADReyeVRHUD
+#include "ImageUtils.h"                           // CreateTexture2D
+#include "LevelScript.h"                          // ADReyeVRLevel
+#include "WheeledVehicle.h"                       // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
 
@@ -94,6 +95,37 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     FVector CombinedGaze, CombinedOrigin;
     FVector LeftGaze, LeftOrigin;
     FVector RightGaze, RightOrigin;
+
+    ////////////////:MIRRORS:////////////////
+    void ConstructMirrors();
+    struct MirrorParams
+    {
+        bool Enabled;
+        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
+        FRotator MirrorRot, ReflectionRot;
+        float ScreenPercentage;
+        FString Name;
+        void Initialize(class UStaticMeshComponent *SM, class UPlanarReflectionComponent *Reflection,
+                        class USkeletalMeshComponent *VehicleMesh);
+    };
+    struct MirrorParams RearMirrorParams, LeftMirrorParams, RightMirrorParams;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RightMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *RightReflection;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *LeftMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *LeftReflection;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RearMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *RearReflection;
+    // rear mirror chassis (dynamic)
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RearMirrorChassisSM;
+    FVector RearMirrorChassisPos, RearMirrorChassisScale;
+    FRotator RearMirrorChassisRot;
 
     ////////////////:INPUTS:////////////////
     /// NOTE: since there are so many functions here, they are defined in EgoInputs.cpp
