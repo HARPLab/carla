@@ -375,6 +375,7 @@ void AEgoVehicle::ConstructMirrors()
         RearMirrorChassisSM->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         RearMirrorChassisSM->SetVisibility(true);
         RearMirrorSM->SetupAttachment(RearMirrorChassisSM);
+        RearReflection->HideComponent(RearMirrorChassisSM); // don't show this in the reflection
     }
     /// Left mirror
     if (LeftMirrorParams.Enabled)
