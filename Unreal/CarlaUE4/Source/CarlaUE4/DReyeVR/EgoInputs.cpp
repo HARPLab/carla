@@ -1,4 +1,7 @@
 #include "EgoVehicle.h"
+#include "Math/NumericLimits.h"                // TNumericLimits<float>::Max
+#include "HeadMountedDisplayFunctionLibrary.h" // SetTrackingOrigin, GetWorldToMetersScale
+#include "HeadMountedDisplayTypes.h"           // EOrientPositionSelector
 
 ////////////////:INPUTS:////////////////
 /// NOTE: Here we define all the Input functions for the EgoVehicle just to keep them
@@ -17,15 +20,20 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
 
     /// NOTE: an Action is a digital input, an Axis is an analog input
     // steering and throttle analog inputs (axes)
-    PlayerInputComponent->BindAxis("Steer_DReyeVR", this, &AEgoVehicle::SetSteering);
-    PlayerInputComponent->BindAxis("Throttle_DReyeVR", this, &AEgoVehicle::SetThrottle);
-    PlayerInputComponent->BindAxis("Brake_DReyeVR", this, &AEgoVehicle::SetBrake);
-    // reverse & handbrake actions
-    PlayerInputComponent->BindAction("ToggleReverse_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleReverse);
+    PlayerInputComponent->BindAxis("Steer_DReyeVR", this, &AEgoVehicle::SetSteeringKbd);
+    PlayerInputComponent->BindAxis("Throttle_DReyeVR", this, &AEgoVehicle::SetThrottleKbd);
+    PlayerInputComponent->BindAxis("Brake_DReyeVR", this, &AEgoVehicle::SetBrakeKbd);
+    // button actions (press & release)
+    PlayerInputComponent->BindAction("ToggleReverse_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressReverse);
+    PlayerInputComponent->BindAction("TurnSignalRight_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressTurnSignalR);
+    PlayerInputComponent->BindAction("TurnSignalLeft_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressTurnSignalL);
+    PlayerInputComponent->BindAction("ToggleReverse_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseReverse);
+    PlayerInputComponent->BindAction("TurnSignalRight_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseTurnSignalR);
+    PlayerInputComponent->BindAction("TurnSignalLeft_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseTurnSignalL);
     PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Pressed, this, &AEgoVehicle::HoldHandbrake);
     PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseHandbrake);
-    PlayerInputComponent->BindAction("TurnSignalRight_DReyeVR", IE_Pressed, this, &AEgoVehicle::TurnSignalRight);
-    PlayerInputComponent->BindAction("TurnSignalLeft_DReyeVR", IE_Pressed, this, &AEgoVehicle::TurnSignalLeft);
+    PlayerInputComponent->BindAction("ResetCamera_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressResetCamera);
+    PlayerInputComponent->BindAction("ResetCamera_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseResetCamera);
     /// Mouse X and Y input for looking up and turning
     PlayerInputComponent->BindAxis("MouseLookUp_DReyeVR", this, &AEgoVehicle::MouseLookUp);
     PlayerInputComponent->BindAxis("MouseTurn_DReyeVR", this, &AEgoVehicle::MouseTurn);
@@ -74,14 +82,55 @@ void AEgoVehicle::CameraPositionAdjust(const FVector &displacement)
     VRCameraRoot->SetRelativeLocation(CurrentRelLocation + displacement);
 }
 
-/// NOTE: the CarlaVehicle does not actually move the vehicle, only its state/animations
-// to actually move the vehicle we'll use GetVehicleMovementComponent() which is part of AWheeledVehicle
+void AEgoVehicle::PressResetCamera()
+{
+    if (!bCanResetCamera)
+        return;
+    bCanResetCamera = false;
+    ResetCamera();
+}
+
+void AEgoVehicle::ReleaseResetCamera()
+{
+    bCanResetCamera = true;
+}
+
+void AEgoVehicle::ResetCamera()
+{
+    // First, set the root of the camera to the driver's seat head pos
+    VRCameraRoot->SetRelativeLocation(CameraLocnInVehicle);
+    // Then set the actual camera to be at its origin (attached to VRCameraRoot)
+    FirstPersonCam->SetRelativeLocation(FVector::ZeroVector);
+    FirstPersonCam->SetRelativeRotation(FRotator::ZeroRotator);
+    if (bIsHMDConnected)
+    {
+        UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition(0, EOrientPositionSelector::OrientationAndPosition);
+        // reload world
+        UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()), false);
+    }
+}
+
+void AEgoVehicle::SetSteeringKbd(const float SteeringInput)
+{
+    if (SteeringInput == 0.f && bIsLogiConnected)
+        return;
+    SetSteering(SteeringInput);
+}
+
 void AEgoVehicle::SetSteering(const float SteeringInput)
 {
     float ScaledSteeringInput = this->ScaleSteeringInput * SteeringInput;
     this->GetVehicleMovementComponent()->SetSteeringInput(ScaledSteeringInput); // UE4 control
     // assign to input struct
+    /// TODO: ensure this doesn't conflict with LogitechWheel when both are connected
     VehicleInputs.Steering = ScaledSteeringInput;
+}
+
+void AEgoVehicle::SetThrottleKbd(const float ThrottleInput)
+{
+    if (ThrottleInput == 0.f && bIsLogiConnected)
+        return;
+    SetThrottle(ThrottleInput);
 }
 
 void AEgoVehicle::SetThrottle(const float ThrottleInput)
@@ -96,7 +145,15 @@ void AEgoVehicle::SetThrottle(const float ThrottleInput)
     this->SetVehicleLightState(Lights);
 
     // assign to input struct
+    /// TODO: ensure this doesn't conflict with LogitechWheel when both are connected
     VehicleInputs.Throttle = ScaledThrottleInput;
+}
+
+void AEgoVehicle::SetBrakeKbd(const float BrakeInput)
+{
+    if (BrakeInput == 0.f && bIsLogiConnected)
+        return;
+    SetBrake(BrakeInput);
 }
 
 void AEgoVehicle::SetBrake(const float BrakeInput)
@@ -111,11 +168,16 @@ void AEgoVehicle::SetBrake(const float BrakeInput)
     this->SetVehicleLightState(Lights);
 
     // assign to input struct
+    /// TODO: ensure this doesn't conflict with LogitechWheel when both are connected
     VehicleInputs.Brake = ScaledBrakeInput;
 }
 
-void AEgoVehicle::ToggleReverse()
+void AEgoVehicle::PressReverse()
 {
+    if (!bCanPressReverse)
+        return;
+    bCanPressReverse = false; // don't press again until release
+
     // negate to toggle bw + (forwards) and - (backwards)
     const int CurrentGear = this->GetVehicleMovementComponent()->GetTargetGear();
     const int NewGear = CurrentGear != 0 ? -1 * CurrentGear : -1; // set to -1 if parked, else -gear
@@ -134,8 +196,17 @@ void AEgoVehicle::ToggleReverse()
     this->PlayGearShiftSound();
 }
 
-void AEgoVehicle::TurnSignalRight()
+void AEgoVehicle::ReleaseReverse()
 {
+    VehicleInputs.ToggledReverse = false;
+    bCanPressReverse = true;
+}
+
+void AEgoVehicle::PressTurnSignalR()
+{
+    if (!bCanPressTurnSignalR)
+        return;
+    bCanPressTurnSignalR = false; // don't press again until release
     // store in local input container
     VehicleInputs.TurnSignalRight = true;
 
@@ -146,12 +217,24 @@ void AEgoVehicle::TurnSignalRight()
     this->SetVehicleLightState(Lights);
 
     this->PlayTurnSignalSound();
-    RightSignalTimeToDie = FPlatformTime::Seconds() + this->TurnSignalDuration; // reset counter
-    LeftSignalTimeToDie = 0.f;                                                  // immediately stop left signal
+    RightSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
+    LeftSignalTimeToDie = 0.f;                           // immediately stop left signal
 }
 
-void AEgoVehicle::TurnSignalLeft()
+void AEgoVehicle::ReleaseTurnSignalR()
 {
+    if (bCanPressTurnSignalR)
+        return;
+    VehicleInputs.TurnSignalRight = false;
+    RightSignalTimeToDie = FPlatformTime::Seconds() + this->TurnSignalDuration; // reset counter
+    bCanPressTurnSignalR = true;
+}
+
+void AEgoVehicle::PressTurnSignalL()
+{
+    if (!bCanPressTurnSignalL)
+        return;
+    bCanPressTurnSignalL = false; // don't press again until release
     // store in local input container
     VehicleInputs.TurnSignalLeft = true;
 
@@ -162,22 +245,35 @@ void AEgoVehicle::TurnSignalLeft()
     this->SetVehicleLightState(Lights);
 
     this->PlayTurnSignalSound();
-    RightSignalTimeToDie = 0.f;                                                // immediately stop right signal
-    LeftSignalTimeToDie = FPlatformTime::Seconds() + this->TurnSignalDuration; // reset counter
+    RightSignalTimeToDie = 0.f;                         // immediately stop right signal
+    LeftSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
 }
 
-void AEgoVehicle::HoldHandbrake()
+void AEgoVehicle::ReleaseTurnSignalL()
 {
-    this->GetVehicleMovementComponent()->SetHandbrakeInput(true); // UE4 control
+    if (bCanPressTurnSignalL)
+        return;
+    VehicleInputs.TurnSignalLeft = false;
+    LeftSignalTimeToDie = FPlatformTime::Seconds() + this->TurnSignalDuration; // reset counter
+    bCanPressTurnSignalL = true;
+}
+
+void AEgoVehicle::PressHandbrake()
+{
+    if (!bCanPressHandbrake)
+        return;
+    bCanPressHandbrake = false;                             // don't press again until release
+    GetVehicleMovementComponent()->SetHandbrakeInput(true); // UE4 control
     // assign to input struct
     VehicleInputs.HoldHandbrake = true;
 }
 
 void AEgoVehicle::ReleaseHandbrake()
 {
-    this->GetVehicleMovementComponent()->SetHandbrakeInput(false); // UE4 control
+    GetVehicleMovementComponent()->SetHandbrakeInput(false); // UE4 control
     // assign to input struct
     VehicleInputs.HoldHandbrake = false;
+    bCanPressHandbrake = true;
 }
 
 /// NOTE: in UE4 rotators are of the form: {Pitch, Yaw, Roll} (stored in degrees)
@@ -222,13 +318,19 @@ void AEgoVehicle::InitLogiWheel()
 #if USE_LOGITECH_PLUGIN
     LogiSteeringInitialize(false);
     bIsLogiConnected = LogiIsConnected(0); // get status of connected device
-    if (!bIsLogiConnected)
+    if (bIsLogiConnected)
     {
-        UE_LOG(LogTemp, Log, TEXT("WARNING: Could not find Logitech device connected on input 0"));
+        UE_LOG(LogTemp, Log, TEXT("Found a Logitech device connected on input 0"));
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("Found a Logitech device connected on input 0"));
+        const FString LogiError = "Could not find Logitech device connected on input 0";
+        const bool PrintToLog = false;
+        const bool PrintToScreen = true;
+        const float ScreenDurationSec = 20.f;
+        const FLinearColor MsgColour = FLinearColor(1, 0, 0, 1); // RED
+        UKismetSystemLibrary::PrintString(World, LogiError, PrintToScreen, PrintToLog, MsgColour, ScreenDurationSec);
+        UE_LOG(LogTemp, Error, TEXT("%s"), *LogiError); // Error is RED
     }
 #endif
 }
@@ -249,10 +351,16 @@ void AEgoVehicle::TickLogiWheel()
 
 #if USE_LOGITECH_PLUGIN
 
-const std::vector<FString> VarNames = {"rgdwPOV[0]", "rgdwPOV[1]", "rgdwPOV[2]", "rgdwPOV[3]"};
+// const std::vector<FString> VarNames = {"rgdwPOV[0]", "rgdwPOV[1]", "rgdwPOV[2]", "rgdwPOV[3]"};
+const std::vector<FString> VarNames = {                                                    // 34 values
+    "lX",           "lY",           "lZ",         "lRz",           "lRy",           "lRz", // variable names
+    "rglSlider[0]", "rglSlider[1]", "rgdwPOV[0]", "rgbButtons[0]", "lVX",           "lVY",           "lVZ",
+    "lVRx",         "lVRy",         "lVRz",       "rglVSlider[0]", "rglVSlider[1]", "lAX",           "lAY",
+    "lAZ",          "lARx",         "lARy",       "lARz",          "rglASlider[0]", "rglASlider[1]", "lFX",
+    "lFY",          "lFZ",          "lFRx",       "lFRy",          "lFRz",          "rglFSlider[0]", "rglFSlider[1]"};
 /// NOTE: this is a debug function used to dump all the information we can regarding
 // the Logitech wheel hardware we used since the exact buttons were not documented in
-// the repo: https://github.com/drb1992/LogitechWheelPlugin
+// the repo: https://github.com/HARPLab/LogitechWheelPlugin
 void AEgoVehicle::LogLogitechPluginStruct(const DIJOYSTATE2 *Now)
 {
     if (Old == nullptr)
@@ -261,12 +369,21 @@ void AEgoVehicle::LogLogitechPluginStruct(const DIJOYSTATE2 *Now)
         (*Old) = (*Now); // assign to the new (current) dijoystate struct
         return;          // initializing the Old struct ptr
     }
-    // Getting all (4) values from the current struct
-    const std::vector<int> NowVals = {int(Now->rgdwPOV[0]), int(Now->rgdwPOV[1]), int(Now->rgdwPOV[2]),
-                                      int(Now->rgdwPOV[3])};
-    // Getting the (4) values from the old struct
-    const std::vector<int> OldVals = {int(Old->rgdwPOV[0]), int(Old->rgdwPOV[1]), int(Old->rgdwPOV[2]),
-                                      int(Old->rgdwPOV[3])};
+    const std::vector<int> NowVals = {
+        Now->lX, Now->lY, Now->lZ, Now->lRx, Now->lRy, Now->lRz, Now->rglSlider[0], Now->rglSlider[1],
+        // Converting unsigned int & unsigned char to int
+        int(Now->rgdwPOV[0]), int(Now->rgbButtons[0]), Now->lVX, Now->lVY, Now->lVZ, Now->lVRx, Now->lVRy, Now->lVRz,
+        Now->rglVSlider[0], Now->rglVSlider[1], Now->lAX, Now->lAY, Now->lAZ, Now->lARx, Now->lARy, Now->lARz,
+        Now->rglASlider[0], Now->rglASlider[1], Now->lFX, Now->lFY, Now->lFZ, Now->lFRx, Now->lFRy, Now->lFRz,
+        Now->rglFSlider[0], Now->rglFSlider[1]}; // 32 elements
+    // Getting the (34) values from the old struct
+    const std::vector<int> OldVals = {
+        Old->lX, Old->lY, Old->lZ, Old->lRx, Old->lRy, Old->lRz, Old->rglSlider[0], Old->rglSlider[1],
+        // Converting unsigned int & unsigned char to int
+        int(Old->rgdwPOV[0]), int(Old->rgbButtons[0]), Old->lVX, Old->lVY, Old->lVZ, Old->lVRx, Old->lVRy, Old->lVRz,
+        Old->rglVSlider[0], Old->rglVSlider[1], Old->lAX, Old->lAY, Old->lAZ, Old->lARx, Old->lARy, Old->lARz,
+        Old->rglASlider[0], Old->rglASlider[1], Old->lFX, Old->lFY, Old->lFZ, Old->lFRx, Old->lFRy, Old->lFRz,
+        Old->rglFSlider[0], Old->rglFSlider[1]};
 
     check(NowVals.size() == OldVals.size() && NowVals.size() == VarNames.size());
 
@@ -309,7 +426,7 @@ void AEgoVehicle::LogitechWheelUpdate()
     // only execute this in Windows, the Logitech plugin is incompatible with Linux
     LogiUpdate(); // update the logitech wheel
     DIJOYSTATE2 *WheelState = LogiGetState(0);
-    LogLogitechPluginStruct(WheelState);
+    // LogLogitechPluginStruct(WheelState);
     /// NOTE: obtained these from LogitechWheelInputDevice.cpp:~111
     // -32768 to 32767. -32768 = all the way to the left. 32767 = all the way to the right.
     const float WheelRotation = FMath::Clamp(float(WheelState->lX), -32767.0f, 32767.0f) / 32767.0f; // (-1, 1)
@@ -320,34 +437,38 @@ void AEgoVehicle::LogitechWheelUpdate()
     // -1 = not pressed. 0 = Top. 0.25 = Right. 0.5 = Bottom. 0.75 = Left.
     const float Dpad = fabs(((WheelState->rgdwPOV[0] - 32767.0f) / (65535.0f)));
     // apply to DReyeVR inputs
-    SetSteering(WheelRotation);
-    SetThrottle(AccelerationPedal);
-    SetBrake(BrakePedal);
+    /// (NOTE: these function calls occur in the EgoVehicle::Tick, meaning other
+    // control calls could theoretically conflict/override them if called later. This is
+    // the case with the keyboard inputs which is why there are wrappers (suffixed with "Kbd")
+    // that always override logi inputs IF their values are nonzero
+    this->SetSteering(WheelRotation);
+    this->SetThrottle(AccelerationPedal);
+    this->SetBrake(BrakePedal);
 
     //    UE_LOG(LogTemp, Log, TEXT("Dpad value %f"), Dpad);
     //    if (WheelState->rgdwPOV[0] == 0) // should work now
-    if (WheelState->rgbButtons[0] || WheelState->rgbButtons[1] || WheelState->rgbButtons[2] ||
-        WheelState->rgbButtons[3]) // replace reverse with face buttons
-    {
-        if (isPressRisingEdgeRev == true) // only toggle reverse on rising edge of button press
-        {
-            isPressRisingEdgeRev = false; // not rising edge while the button is pressed
-            UE_LOG(LogTemp, Log, TEXT("Reversing: Dpad value %f"), Dpad);
-            ToggleReverse();
-        }
-    }
+
+    // Button presses (turn signals, reverse)
+    if (WheelState->rgbButtons[0] || WheelState->rgbButtons[1] || // Any of the 4 face pads
+        WheelState->rgbButtons[2] || WheelState->rgbButtons[3])
+        PressReverse();
     else
-    {
-        isPressRisingEdgeRev = true;
-    }
+        ReleaseReverse();
+
     if (WheelState->rgbButtons[4])
-    {
-        TurnSignalRight();
-    }
+        PressTurnSignalR();
+    else
+        ReleaseTurnSignalR();
+
     if (WheelState->rgbButtons[5])
-    {
-        TurnSignalLeft();
-    }
+        PressTurnSignalL();
+    else
+        ReleaseTurnSignalL();
+
+    if (WheelState->rgbButtons[23]) // big red button on right side of g923
+        PressResetCamera();
+    else
+        ReleaseResetCamera();
 
     // VRCamerRoot base position adjustment
     if (WheelState->rgdwPOV[0] == 0) // positive in X
@@ -380,7 +501,7 @@ void AEgoVehicle::ApplyForceFeedback() const
         LogiPlaySpringForce(WheelIndex, OffsetPercentage, SaturationPercentage, CoeffPercentage);
     }
     /// NOTE: there are other kinds of forces as described in the LogitechWheelPlugin API:
-    // https://github.com/drb1992/LogitechWheelPlugin/blob/master/LogitechWheelPlugin/Source/LogitechWheelPlugin/Private/LogitechBWheelInputDevice.cpp
+    // https://github.com/HARPLab/LogitechWheelPlugin/blob/master/LogitechWheelPlugin/Source/LogitechWheelPlugin/Private/LogitechBWheelInputDevice.cpp
     // For example:
     /*
         Force Types

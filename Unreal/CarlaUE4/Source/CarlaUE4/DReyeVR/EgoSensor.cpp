@@ -37,6 +37,8 @@ void AEgoSensor::ReadConfigVariables()
 {
     ReadConfigValue("EgoSensor", "ActorRegistryID", EgoSensorID);
     ReadConfigValue("EgoSensor", "StreamSensorData", bStreamData);
+    ReadConfigValue("EgoSensor", "MaxTraceLenM", MaxTraceLenM);
+    ReadConfigValue("EgoSensor", "DrawDebugFocusTrace", bDrawDebugFocusTrace);
     ReadConfigValue("EgoSensor", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("EgoSensor", "FrameWidth", FrameCapWidth);
     ReadConfigValue("EgoSensor", "FrameHeight", FrameCapHeight);
@@ -69,7 +71,7 @@ void AEgoSensor::BeginDestroy()
     Super::BeginDestroy();
 }
 
-void AEgoSensor::PrePhysTick(float DeltaSeconds)
+void AEgoSensor::ManualTick(float DeltaSeconds)
 {
     if (!bIsReplaying) // only update the sensor with local values if not replaying
     {
@@ -107,7 +109,7 @@ void AEgoSensor::InitEyeTracker()
     // no easily discernible difference between v1 and v2
     /// TODO: use the status output from StartFramework to determine if SRanipal loaded successfully
     int Status = SRanipalFramework->StartFramework(SupportedEyeVersion::version1);
-    if (Status == SRanipalEye_Framework::FrameworkStatus::ERROR_SRANIPAL ||
+    if (Status == SRanipalEye_Framework::FrameworkStatus::ERROR_SRANIPAL || // matches the patch_sranipal.sh script
         Status == SRanipalEye_Framework::FrameworkStatus::NOT_SUPPORT)
     {
         UE_LOG(LogTemp, Error, TEXT("Unable to start SRanipal framework!"));
@@ -116,8 +118,6 @@ void AEgoSensor::InitEyeTracker()
     // SRanipal->SetEyeParameter_() // can set the eye gaze jitter parameter
     // see SRanipal_Eyes_Enums.h
     // Get the reference timing to synchronize the SRanipal timer with Carla
-    SRanipal->GetEyeData_(EyeData);
-    DeviceTickStartTime = EyeData->timestamp;
     UE_LOG(LogTemp, Log, TEXT("Successfully started SRanipal framework"));
     bSRanipalEnabled = true;
 #else
@@ -150,10 +150,6 @@ void AEgoSensor::TickEyeTracker()
         /// NOTE: the GazeRay is the normalized direction vector of the actual gaze "ray"
         // Getting real eye tracker data
         check(SRanipal != nullptr);
-        // Get the "EyeData" which holds useful information such as the timestamp
-        SRanipal->GetEyeData_(EyeData);
-        EyeSensorData.TimestampDevice = EyeData->timestamp - DeviceTickStartTime;
-        EyeSensorData.FrameSequence = EyeData->frame_sequence;
         // Assigns EyeOrigin and Gaze direction (normalized) of combined gaze
         Combined->GazeValid = SRanipal->GetGazeRay(GazeIndex::COMBINE, Combined->GazeOrigin, Combined->GazeDir);
         // Assign Left/Right Gaze direction
@@ -175,9 +171,17 @@ void AEgoSensor::TickEyeTracker()
         // Assign Pupil positions
         Left->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::LEFT, Left->PupilPosition);
         Right->PupilPositionValid = SRanipal->GetPupilPosition(EyeIndex::RIGHT, Right->PupilPosition);
-        // Assign Pupil Diameters
-        Left->PupilDiameter = EyeData->verbose_data.left.pupil_diameter_mm;
-        Right->PupilDiameter = EyeData->verbose_data.right.pupil_diameter_mm;
+
+        // Get the "EyeData" which holds useful information such as the timestamp
+        int EyeDataStatus = SRanipal->GetEyeData_(&EyeData);
+        if (EyeDataStatus == ViveSR::Error::WORK)
+        {
+            EyeSensorData.TimestampDevice = EyeData.timestamp;
+            EyeSensorData.FrameSequence = EyeData.frame_sequence;
+            // Assign Pupil Diameters
+            Left->PupilDiameter = EyeData.verbose_data.left.pupil_diameter_mm;
+            Right->PupilDiameter = EyeData.verbose_data.right.pupil_diameter_mm;
+        }
     }
     else
     {
@@ -192,6 +196,8 @@ void AEgoSensor::TickEyeTracker()
 
 void AEgoSensor::ComputeDummyEyeData()
 {
+    // Function to make "dummy" eye data where the eye gaze just looks around in a CCW circle.
+    // Useful for when the eye data is unavailable (Plugin not initialized, on Linux, etc.)
     auto Combined = &(EyeSensorData.Combined);
     auto Left = &(EyeSensorData.Left);
     auto Right = &(EyeSensorData.Right);
@@ -221,12 +227,11 @@ void AEgoSensor::ComputeDummyEyeData()
 
 void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius)
 {
-    const float TraceLen = 100.f * 100.f; // 100m in world space
-    const FRotator &WorldRot = GetData()->GetCameraRotation();
-    const FVector &WorldPos = GetData()->GetCameraLocation();
-    const FVector GazeOrigin = WorldRot.RotateVector(GetData()->GetGazeOrigin()) + WorldPos;
-    const FVector GazeDir = WorldRot.RotateVector(TraceLen * GetData()->GetGazeDir());
-
+    const float TraceLen = MaxTraceLenM * 100.f; // convert to m from cm
+    const FRotator &WorldRot = GetData()->GetCameraRotationAbs();
+    const FVector &WorldPos = GetData()->GetCameraLocationAbs();
+    const FVector GazeOrigin = WorldPos + WorldRot.RotateVector(GetData()->GetGazeOrigin());
+    const FVector GazeRay = TraceLen * WorldRot.RotateVector(GetData()->GetGazeDir());
     // Create collision information container.
     FCollisionQueryParams TraceParam;
     TraceParam = FCollisionQueryParams(FName("TraceParam"), true);
@@ -241,29 +246,36 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
 
     if (TraceRadius == 0.f) // Single ray/line trace
     {
-        bDidHit = World->LineTraceSingleByChannel(Hit, GazeOrigin, GazeDir, TraceChannel, TraceParam);
+        bDidHit = World->LineTraceSingleByChannel(Hit, GazeOrigin, GazeOrigin + GazeRay, TraceChannel, TraceParam);
     }
     else // Sphear line trace
     {
         FCollisionShape Sphear = FCollisionShape();
         Sphear.SetSphere(TraceRadius);
-        bDidHit = World->SweepSingleByChannel(Hit, GazeOrigin, GazeDir, FQuat(0.f, 0.f, 0.f, 0.f), TraceChannel, Sphear,
-                                              TraceParam);
+        bDidHit = World->SweepSingleByChannel(Hit, GazeOrigin, GazeOrigin + GazeRay, FQuat(0.f, 0.f, 0.f, 0.f),
+                                              TraceChannel, Sphear, TraceParam);
     }
     // Update fields
     FString ActorName = "None";
     if (Hit.Actor != nullptr)
         Hit.Actor->GetName(ActorName);
-    // update internal data structure
+    // update internal data structure (see DReyeVRData::FocusInfo for default constructor)
     FocusInfoData = {
-        Hit.Actor,
-        Hit.Location,              // world location of hit point
-        Hit.Location - GazeOrigin, // relative location of hit point
-        Hit.Normal,
-        ActorName,
-        Hit.Distance,
-        bDidHit,
+        Hit.Actor,    // pointer to actor being hit (if any, else nullptr)
+        Hit.Location, // absolute (world) location of hit
+        Hit.Normal,   // normal of hit surface (if hit)
+        ActorName,    // name of the actor being hit (if any, else "None")
+        Hit.Distance, // distance from ray start
+        bDidHit,      // whether or not there was a hit
     };
+    if (bDrawDebugFocusTrace)
+    {
+        DrawDebugSphere(World, FocusInfoData.HitPoint, 8.0f, 30, FColor::Blue);
+        DrawDebugLine(World,
+                      GazeOrigin,           // start line
+                      GazeOrigin + GazeRay, // end line
+                      FColor::Purple, false, -1, 0, 1);
+    }
 }
 
 float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const
@@ -285,10 +297,13 @@ void AEgoSensor::SetEgoVehicle(class AEgoVehicle *NewEgoVehicle)
 
 void AEgoSensor::ComputeEgoVars()
 {
+    // See DReyeVRData::EgoVariables
     EgoVars.VehicleLocation = Vehicle->GetActorLocation();
     EgoVars.VehicleRotation = Vehicle->GetActorRotation();
     EgoVars.CameraLocation = Camera->GetRelativeLocation();
     EgoVars.CameraRotation = Camera->GetRelativeRotation();
+    EgoVars.CameraLocationAbs = Camera->GetComponentLocation();
+    EgoVars.CameraRotationAbs = Camera->GetComponentRotation();
     EgoVars.Velocity = Vehicle->GetVehicleForwardSpeed();
 }
 

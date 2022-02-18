@@ -20,11 +20,9 @@
 /// NOTE: Can only use SRanipal on Windows machines
 #include "SRanipalEye.h"      // SRanipal Module Framework
 #include "SRanipalEye_Core.h" // SRanipal Eye Tracker
-// for some reason the SRanipal code (v1.3.1.1) has an enum called "ERROR" in SRanipal/Public/SRanipal_Enums.h:28
-// which is used in SRanipal/Private/SRanipal_Enums.cpp:50 & 62. However, it appears that Carla has its own #define for
-// ERROR which then makes the compiler complain about multiple constants. The simplest *workaround* for this is to
-// rename the ERROR in the above files to something like SR_ERROR or anything but a commonly used #define
-#include "SRanipalEye_Framework.h"
+#include "ViveSR_Enums.h"     // ViveSR::Error::WORK
+// Make sure to patch sranipal before using it here!
+#include "SRanipalEye_Framework.h" // StartFramework
 #endif
 
 #include "EgoSensor.generated.h"
@@ -39,7 +37,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
   public:
     AEgoSensor(const FObjectInitializer &ObjectInitializer);
 
-    void PrePhysTick(float DeltaSeconds);
+    void ManualTick(float DeltaSeconds); // Tick called explicitly from DReyeVR EgoVehicle
 
     void SetEgoVehicle(class AEgoVehicle *EgoVehicle); // provide access to EgoVehicle (and by extension its camera)
 
@@ -59,16 +57,17 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void ComputeDummyEyeData(); // when no hardware sensor is present
     void TickEyeTracker();      // tick hardware sensor
     void ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius = 0.f);
+    float MaxTraceLenM = 100.f;        // maximum trace length in m
+    bool bDrawDebugFocusTrace = false; // draw the trace ray and hit point or not
     float ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const;
 #if USE_SRANIPAL_PLUGIN
     SRanipalEye_Core *SRanipal;               // SRanipalEye_Core.h
     SRanipalEye_Framework *SRanipalFramework; // SRanipalEye_Framework.h
-    ViveSR::anipal::Eye::EyeData *EyeData;    // SRanipal_Eyes_Enums.h
+    ViveSR::anipal::Eye::EyeData EyeData;     // SRanipal_Eyes_Enums.h
     bool bSRanipalEnabled;                    // Whether or not the framework has been loaded
 #endif
-    struct DReyeVR::EyeTracker EyeSensorData; // data from eye tracker
-    struct DReyeVR::FocusInfo FocusInfoData;  // data from the focus computed from eye gaze
-    int64_t DeviceTickStartTime;              // reference timestamp (ms) since the eye tracker started ticking
+    struct DReyeVR::EyeTracker EyeSensorData;                           // data from eye tracker
+    struct DReyeVR::FocusInfo FocusInfoData;                            // data from the focus computed from eye gaze
     std::chrono::time_point<std::chrono::system_clock> ChronoStartTime; // std::chrono time at BeginPlay
 
     ////////////////:EGOVARS:////////////////

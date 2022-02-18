@@ -1,19 +1,20 @@
 #pragma once
 
-#include "Camera/CameraComponent.h"            // UCameraComponent
-#include "Carla/Game/CarlaEpisode.h"           // CarlaEpisode
-#include "Carla/Sensor/DReyeVRData.h"          // DReyeVR namespace
-#include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
-#include "Components/AudioComponent.h"         // UAudioComponent
-#include "Components/InputComponent.h"         // InputComponent
-#include "Components/SceneComponent.h"         // USceneComponent
-#include "CoreMinimal.h"                       // Unreal functions
-#include "DReyeVRUtils.h"                      // ReadConfigValue
-#include "EgoSensor.h"                         // AEgoSensor
-#include "FlatHUD.h"                           // ADReyeVRHUD
-#include "ImageUtils.h"                        // CreateTexture2D
-#include "LevelScript.h"                       // ADReyeVRLevel
-#include "WheeledVehicle.h"                    // VehicleMovementComponent
+#include "Camera/CameraComponent.h"               // UCameraComponent
+#include "Carla/Game/CarlaEpisode.h"              // CarlaEpisode
+#include "Carla/Sensor/DReyeVRData.h"             // DReyeVR namespace
+#include "Carla/Vehicle/CarlaWheeledVehicle.h"    // ACarlaWheeledVehicle
+#include "Components/AudioComponent.h"            // UAudioComponent
+#include "Components/InputComponent.h"            // InputComponent
+#include "Components/PlanarReflectionComponent.h" // Planar Reflection
+#include "Components/SceneComponent.h"            // USceneComponent
+#include "CoreMinimal.h"                          // Unreal functions
+#include "DReyeVRUtils.h"                         // ReadConfigValue
+#include "EgoSensor.h"                            // AEgoSensor
+#include "FlatHUD.h"                              // ADReyeVRHUD
+#include "ImageUtils.h"                           // CreateTexture2D
+#include "LevelScript.h"                          // ADReyeVRLevel
+#include "WheeledVehicle.h"                       // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
 
@@ -74,15 +75,14 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class APlayerController *Player;
 
   private:
-    void Register();   // function to register the AEgoVehicle with Carla's ActorRegistry
-    void FinishTick(); // do all the things necessary at the end of a tick
+    void Register(); // function to register the AEgoVehicle with Carla's ActorRegistry
 
     ////////////////:CAMERA:////////////////
     void ConstructCamera(); // needs to be called in the constructor
     void InitSteamVR();     // Initialize the Head Mounted Display
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class USceneComponent *VRCameraRoot;
-    UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UCameraComponent *FirstPersonCam;
     FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // depends on vehicle mesh (units in cm)
     float FieldOfView = 90.f;                           // in degrees
@@ -96,6 +96,37 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     FVector LeftGaze, LeftOrigin;
     FVector RightGaze, RightOrigin;
 
+    ////////////////:MIRRORS:////////////////
+    void ConstructMirrors();
+    struct MirrorParams
+    {
+        bool Enabled;
+        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
+        FRotator MirrorRot, ReflectionRot;
+        float ScreenPercentage;
+        FString Name;
+        void Initialize(class UStaticMeshComponent *SM, class UPlanarReflectionComponent *Reflection,
+                        class USkeletalMeshComponent *VehicleMesh);
+    };
+    struct MirrorParams RearMirrorParams, LeftMirrorParams, RightMirrorParams;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RightMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *RightReflection;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *LeftMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *LeftReflection;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RearMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *RearReflection;
+    // rear mirror chassis (dynamic)
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RearMirrorChassisSM;
+    FVector RearMirrorChassisPos, RearMirrorChassisScale;
+    FRotator RearMirrorChassisRot;
+
     ////////////////:INPUTS:////////////////
     /// NOTE: since there are so many functions here, they are defined in EgoInputs.cpp
     struct DReyeVR::UserInputs VehicleInputs; // struct for user inputs
@@ -103,14 +134,33 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void SetSteering(const float SteeringInput);
     void SetThrottle(const float ThrottleInput);
     void SetBrake(const float BrakeInput);
+    // keyboard mechanisms to access Axis vehicle control (steering, throttle, brake)
+    void SetSteeringKbd(const float SteeringInput);
+    void SetThrottleKbd(const float ThrottleInput);
+    void SetBrakeKbd(const float BrakeInput);
     bool bReverse;
-    bool isPressRisingEdgeRev = true; // first press is a rising edge
-    void ToggleReverse();
-    float RightSignalTimeToDie, LeftSignalTimeToDie; // how long the blinkers last
-    void TurnSignalLeft();
-    void TurnSignalRight();
-    void HoldHandbrake();
+    // "button presses" should have both a "Press" and "Release" function
+    // And, if using the logitech plugin, should also have an "is rising edge" bool so they can only
+    // be pressed after being released (cant double press w/ no release)
+    // Reverse toggle
+    void PressReverse();
+    void ReleaseReverse();
+    bool bCanPressReverse = true;
+    // left turn signal
+    void PressTurnSignalL();
+    void ReleaseTurnSignalL();
+    float LeftSignalTimeToDie; // how long until the blinkers go out
+    bool bCanPressTurnSignalL = true;
+    // right turn signal
+    void PressTurnSignalR();
+    void ReleaseTurnSignalR();
+    float RightSignalTimeToDie; // how long until the blinkers go out
+    bool bCanPressTurnSignalR = true;
+    // handbrake
+    void PressHandbrake();
     void ReleaseHandbrake();
+    bool bCanPressHandbrake = true;
+    // mouse controls
     void MouseLookUp(const float mY_Input);
     void MouseTurn(const float mX_Input);
 
@@ -122,6 +172,11 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void CameraRight();
     void CameraUp();
     void CameraDown();
+
+    void PressResetCamera();
+    void ReleaseResetCamera();
+    void ResetCamera();
+    bool bCanResetCamera = true;
 
     // Vehicle parameters
     float ScaleSteeringInput;
@@ -156,6 +211,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void InitReticleTexture();  // initializes the spectator-reticle texture
     void DrawSpectatorScreen(); // called on every tick
     UTexture2D *ReticleTexture; // UE4 texture for eye reticle
+    float HUDScaleVR;           // How much to scale the HUD in VR
 
     ////////////////:FLATHUD:////////////////
     // (Flat) HUD (NOTE: ONLY FOR NON VR)
@@ -196,7 +252,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     FRotator InitWheelRotation;
     float MaxSteerAngleDeg;
     float MaxSteerVelocity;
-    float SteeringScale;
+    float SteeringAnimScale;
 
     ////////////////:OTHER:////////////////
 
