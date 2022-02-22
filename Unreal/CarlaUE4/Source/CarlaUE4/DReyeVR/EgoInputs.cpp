@@ -218,8 +218,8 @@ void AEgoVehicle::PressTurnSignalR()
     this->SetVehicleLightState(Lights);
 
     // this->PlayTurnSignalSound();
-    RightSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
-    LeftSignalTimeToDie = 0.f;                           // immediately stop left signal
+    // RightSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
+    // LeftSignalTimeToDie = 0.f;                           // immediately stop left signal
 }
 
 void AEgoVehicle::ReleaseTurnSignalR()
@@ -247,8 +247,8 @@ void AEgoVehicle::PressTurnSignalL()
     this->SetVehicleLightState(Lights);
 
     // this->PlayTurnSignalSound();
-    RightSignalTimeToDie = 0.f;                         // immediately stop right signal
-    LeftSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
+    // RightSignalTimeToDie = 0.f;                         // immediately stop right signal
+    // LeftSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
 }
 
 void AEgoVehicle::ReleaseTurnSignalL()
