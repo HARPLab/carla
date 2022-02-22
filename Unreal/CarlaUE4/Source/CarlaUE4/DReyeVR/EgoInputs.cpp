@@ -208,7 +208,7 @@ void AEgoVehicle::PressTurnSignalR()
         return;
     bCanPressTurnSignalR = false; // don't press again until release
     // store in local input container
-    VehicleInputs.TurnSignalRight = true;
+    // VehicleInputs.TurnSignalRight = true;
     VehicleInputs.ButtonPressed = true; // activate periph trigger
 
     // apply new light state
@@ -237,7 +237,7 @@ void AEgoVehicle::PressTurnSignalL()
         return;
     bCanPressTurnSignalL = false; // don't press again until release
     // store in local input container
-    VehicleInputs.TurnSignalLeft = true;
+    // VehicleInputs.TurnSignalLeft = true;
     VehicleInputs.ButtonPressed = true; // activate periph trigger
 
     // apply new light state

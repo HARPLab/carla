@@ -1,20 +1,21 @@
 #pragma once
 
-#include "Camera/CameraComponent.h"            // UCameraComponent
-#include "Carla/Game/CarlaEpisode.h"           // CarlaEpisode
-#include "Carla/Sensor/DReyeVRData.h"          // DReyeVR namespace
-#include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
-#include "Components/AudioComponent.h"         // UAudioComponent
-#include "Components/InputComponent.h"         // InputComponent
-#include "Components/SceneComponent.h"         // USceneComponent
-#include "CoreMinimal.h"                       // Unreal functions
-#include "DReyeVRUtils.h"                      // ReadConfigValue
-#include "EgoSensor.h"                         // AEgoSensor
-#include "FlatHUD.h"                           // ADReyeVRHUD
-#include "ImageUtils.h"                        // CreateTexture2D
-#include "LevelScript.h"                       // ADReyeVRLevel
-#include "LightBall.h"                         // ALightBall
-#include "WheeledVehicle.h"                    // VehicleMovementComponent
+#include "Camera/CameraComponent.h"               // UCameraComponent
+#include "Carla/Game/CarlaEpisode.h"              // CarlaEpisode
+#include "Carla/Sensor/DReyeVRData.h"             // DReyeVR namespace
+#include "Carla/Vehicle/CarlaWheeledVehicle.h"    // ACarlaWheeledVehicle
+#include "Components/AudioComponent.h"            // UAudioComponent
+#include "Components/InputComponent.h"            // InputComponent
+#include "Components/PlanarReflectionComponent.h" // Planar Reflection
+#include "Components/SceneComponent.h"            // USceneComponent
+#include "CoreMinimal.h"                          // Unreal functions
+#include "DReyeVRUtils.h"                         // ReadConfigValue
+#include "EgoSensor.h"                            // AEgoSensor
+#include "FlatHUD.h"                              // ADReyeVRHUD
+#include "ImageUtils.h"                           // CreateTexture2D
+#include "LevelScript.h"                          // ADReyeVRLevel
+#include "LightBall.h"                            // ALightBall
+#include "WheeledVehicle.h"                       // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
 
