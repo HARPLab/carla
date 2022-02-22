@@ -217,7 +217,7 @@ void AEgoVehicle::PressTurnSignalR()
     Lights.LeftBlinker = false;
     this->SetVehicleLightState(Lights);
 
-    this->PlayTurnSignalSound();
+    // this->PlayTurnSignalSound();
     RightSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
     LeftSignalTimeToDie = 0.f;                           // immediately stop left signal
 }
@@ -246,7 +246,7 @@ void AEgoVehicle::PressTurnSignalL()
     Lights.LeftBlinker = true;
     this->SetVehicleLightState(Lights);
 
-    this->PlayTurnSignalSound();
+    // this->PlayTurnSignalSound();
     RightSignalTimeToDie = 0.f;                         // immediately stop right signal
     LeftSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
 }
@@ -280,8 +280,8 @@ void AEgoVehicle::ReleaseHandbrake()
 
 /// NOTE: in UE4 rotators are of the form: {Pitch, Yaw, Roll} (stored in degrees)
 /// We are basing the limits off of "Cervical Spine Functional Anatomy ad the Biomechanics of Injury":
-// "The cervical spine's range of motion is approximately 80° to 90° of flexion, 70° of extension,
-// 20° to 45° of lateral flexion, and up to 90° of rotation to both sides."
+// "The cervical spine's range of motion is approximately 80 deg to 90 deg of flexion, 70 deg of extension,
+// 20 deg to 45 deg of lateral flexion, and up to 90 deg of rotation to both sides."
 // (www.ncbi.nlm.nih.gov/pmc/articles/PMC1250253/)
 /// NOTE: flexion = looking down to chest, extension = looking up , lateral = roll
 /// ALSO: These functions are only used in non-VR mode, in VR you can move freely

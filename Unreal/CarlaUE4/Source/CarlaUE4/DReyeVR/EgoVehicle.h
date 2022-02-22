@@ -82,7 +82,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void InitSteamVR();     // Initialize the Head Mounted Display
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class USceneComponent *VRCameraRoot;
-    UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UCameraComponent *FirstPersonCam;
     FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // depends on vehicle mesh (units in cm)
     float FieldOfView = 90.f;                           // in degrees
@@ -95,6 +95,37 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     FVector CombinedGaze, CombinedOrigin;
     FVector LeftGaze, LeftOrigin;
     FVector RightGaze, RightOrigin;
+
+    ////////////////:MIRRORS:////////////////
+    void ConstructMirrors();
+    struct MirrorParams
+    {
+        bool Enabled;
+        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
+        FRotator MirrorRot, ReflectionRot;
+        float ScreenPercentage;
+        FString Name;
+        void Initialize(class UStaticMeshComponent *SM, class UPlanarReflectionComponent *Reflection,
+                        class USkeletalMeshComponent *VehicleMesh);
+    };
+    struct MirrorParams RearMirrorParams, LeftMirrorParams, RightMirrorParams;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RightMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *RightReflection;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *LeftMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *LeftReflection;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RearMirrorSM;
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UPlanarReflectionComponent *RearReflection;
+    // rear mirror chassis (dynamic)
+    UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+    class UStaticMeshComponent *RearMirrorChassisSM;
+    FVector RearMirrorChassisPos, RearMirrorChassisScale;
+    FRotator RearMirrorChassisRot;
 
     ////////////////:INPUTS:////////////////
     /// NOTE: since there are so many functions here, they are defined in EgoInputs.cpp
