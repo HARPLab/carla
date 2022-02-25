@@ -691,12 +691,12 @@ void AEgoVehicle::UpdateDash()
 
     // Draw the signals
     float Now = FPlatformTime::Seconds();
-    if (Now < RightSignalTimeToDie)
-        TurnSignals->SetText(FText::FromString(">>>"));
-    else if (Now < LeftSignalTimeToDie)
-        TurnSignals->SetText(FText::FromString("<<<"));
-    else
-        TurnSignals->SetText(FText::FromString("")); // nothing
+    // if (Now < RightSignalTimeToDie)
+    //     TurnSignals->SetText(FText::FromString(">>>"));
+    // else if (Now < LeftSignalTimeToDie)
+    //     TurnSignals->SetText(FText::FromString("<<<"));
+    // else
+    TurnSignals->SetText(FText::FromString("")); // nothing
 
     // Draw the gear shifter
     if (bReverse)
