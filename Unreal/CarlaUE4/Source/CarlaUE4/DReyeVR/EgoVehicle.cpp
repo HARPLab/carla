@@ -98,6 +98,9 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("VehicleInputs", "InvertMouseY", InvertMouseY);
     ReadConfigValue("VehicleInputs", "ScaleMouseY", ScaleMouseY);
     ReadConfigValue("VehicleInputs", "ScaleMouseX", ScaleMouseX);
+    // wheel hardware
+    ReadConfigValue("Hardware", "DeviceIdx", WheelDeviceIdx);
+    ReadConfigValue("Hardware", "LogUpdates", bLogLogitechWheel);
 }
 
 void AEgoVehicle::BeginPlay()
@@ -136,11 +139,14 @@ void AEgoVehicle::BeginPlay()
 
 void AEgoVehicle::BeginDestroy()
 {
+    Super::BeginDestroy();
+
     // destroy all spawned entities
     if (EgoSensor)
         EgoSensor->Destroy();
 
-    Super::BeginDestroy();
+    if (bIsLogiConnected)
+        DestroyLogiWheel(false);
 }
 
 // Called every frame
