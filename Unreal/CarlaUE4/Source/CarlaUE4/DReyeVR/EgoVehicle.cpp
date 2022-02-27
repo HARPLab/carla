@@ -524,7 +524,7 @@ void AEgoVehicle::DrawSpectatorScreen()
         /// NOTE: to get the best drawing, the texture is offset slightly by this vector
         ReticlePos += FVector2D(0.f, -ReticleSize / 2.f); // move reticle up by size/2 (texture in quadrant 4)
         // define min and max bounds (where the texture is actually drawn on screen)
-        const FVector2D TextureRectMin = ReticlePos / ViewSize; // top left
+        const FVector2D TextureRectMin = ReticlePos / ViewSize;                 // top left
         const FVector2D TextureRectMax = (ReticlePos + ReticleSize) / ViewSize; // bottom right
         UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
             FVector2D{0.f, 0.f}, // whole window (top left)

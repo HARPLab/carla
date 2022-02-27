@@ -1,7 +1,7 @@
 #include "EgoVehicle.h"
-#include "Math/NumericLimits.h"                // TNumericLimits<float>::Max
 #include "HeadMountedDisplayFunctionLibrary.h" // SetTrackingOrigin, GetWorldToMetersScale
 #include "HeadMountedDisplayTypes.h"           // EOrientPositionSelector
+#include "Math/NumericLimits.h"                // TNumericLimits<float>::Max
 #include <string>                              // std::string, std::wstring
 
 ////////////////:INPUTS:////////////////
@@ -105,7 +105,8 @@ void AEgoVehicle::ResetCamera()
     FirstPersonCam->SetRelativeRotation(FRotator::ZeroRotator);
     if (bIsHMDConnected)
     {
-        UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition(0, EOrientPositionSelector::OrientationAndPosition);
+        UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition(
+            0, EOrientPositionSelector::OrientationAndPosition);
         // reload world
         UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()), false);
     }
@@ -322,7 +323,7 @@ void AEgoVehicle::InitLogiWheel()
     if (bIsLogiConnected)
     {
         const size_t n = 1000; // name shouldn't be more than 1000 chars right?
-        wchar_t *NameBuffer = (wchar_t *)malloc(n * sizeof(wchar_t)); 
+        wchar_t *NameBuffer = (wchar_t *)malloc(n * sizeof(wchar_t));
         if (LogiGetFriendlyProductName(WheelDeviceIdx, NameBuffer, n) == false)
         {
             UE_LOG(LogTemp, Warning, TEXT("Unable to get Logi friendly name!"));
