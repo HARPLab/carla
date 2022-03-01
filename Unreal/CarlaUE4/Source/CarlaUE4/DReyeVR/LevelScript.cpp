@@ -17,6 +17,9 @@ ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
     ReadConfigValue("Level", "EgoVolumePercent", EgoVolumePercent);
     ReadConfigValue("Level", "NonEgoVolumePercent", NonEgoVolumePercent);
     ReadConfigValue("Level", "AmbientVolumePercent", AmbientVolumePercent);
+
+    // Recorder/replayer
+    ReadConfigValue("Replayer", "RunSyncReplay", bReplaySync);
 }
 
 void ADReyeVRLevel::BeginPlay()
@@ -44,6 +47,9 @@ void ADReyeVRLevel::BeginPlay()
 
     // Initialize DReyeVR spectator
     SetupSpectator();
+
+    // Initialize recorder/replayer
+    SetupReplayer();
 
     // Initialize control mode
     /// TODO: read in initial control mode from .ini
@@ -270,6 +276,11 @@ void ADReyeVRLevel::IncrTimestep()
 void ADReyeVRLevel::DecrTimestep()
 {
     UCarlaStatics::GetRecorder(GetWorld())->IncrTimeFactor(-0.1);
+}
+
+void ADReyeVRLevel::SetupReplayer()
+{
+    UCarlaStatics::GetReplayer(GetWorld())->SetSyncMode(bReplaySync);
 }
 
 void ADReyeVRLevel::SetVolume()
