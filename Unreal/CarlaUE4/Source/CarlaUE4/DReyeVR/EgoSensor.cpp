@@ -2,6 +2,7 @@
 
 #include "Carla/Game/CarlaStatics.h"    // GetEpisode
 #include "DReyeVRUtils.h"               // ReadConfigValue, ComputeClosestToRayIntersection
+#include "Kismet/GameplayStatics.h"     // UGameplayStatics::ProjectWorldToScreen
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "Misc/DateTime.h"              // FDateTime
 #include "UObject/UObjectBaseUtility.h" // GetName
@@ -195,6 +196,14 @@ void AEgoSensor::TickEyeTracker()
     ComputeDummyEyeData();
 #endif
     Combined->Vergence = ComputeVergence(Left->GazeOrigin, Left->GazeDir, Right->GazeOrigin, Right->GazeDir);
+
+    // compute the projected coordinates from the left gaze direction to be tracked
+    if (Vehicle)
+    {
+        // using the left gaze bc thats what the spectator screen sees
+        EyeSensorData.ProjectedCoords = Vehicle->ProjectGazeToScreen(Left->GazeOrigin, Left->GazeDir);
+    }
+
     // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
 }
 

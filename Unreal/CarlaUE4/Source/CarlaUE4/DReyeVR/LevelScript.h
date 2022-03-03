@@ -68,5 +68,6 @@ class ADReyeVRLevel : public ALevelScriptActor
     float AmbientVolumePercent;
 
     // for recorder/replayer params
-    bool bReplaySync = false; // false allows for interpolation
+    bool bReplaySync = false;        // false allows for interpolation
+    bool bRecorderInitiated = false; // allows tick-wise checking for replayer/recorder
 };
