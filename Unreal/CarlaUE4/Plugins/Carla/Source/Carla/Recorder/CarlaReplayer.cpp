@@ -298,8 +298,6 @@ void CarlaReplayer::ProcessToTime(double Time, bool IsFirstTime)
   bool bExitAtNextFrame = false;
   bool bExitLoop = false;
 
-  UE_LOG(LogTemp, Log, TEXT("%.3f  |   %d   |  %.3f  |"), Time, Frame.Id, NewTime);
-
   // check if we are in the right frame
   if (NewTime >= Frame.Elapsed && NewTime < Frame.Elapsed + Frame.DurationThis)
   {
