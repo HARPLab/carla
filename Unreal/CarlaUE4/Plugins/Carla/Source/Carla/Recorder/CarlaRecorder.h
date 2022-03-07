@@ -29,6 +29,7 @@
 #include "CarlaRecorderPosition.h"
 #include "CarlaRecorderQuery.h"
 #include "CarlaRecorderState.h"
+#include "CarlaRecorderWeather.h"
 #include "CarlaReplayer.h"
 // DReyeVR packet
 #include "DReyeVRRecorder.h"
@@ -62,6 +63,7 @@ enum class CarlaRecorderPacketId : uint8_t
   PhysicsControl,
   TrafficLightTime,
   TriggerVolume,
+  Weather,
   // "We suggest to use id over 100 for user custom packets, because this list will keep growing in the future"
   DReyeVR = 139 // out custom DReyeVR packet
 };
@@ -125,6 +127,8 @@ public:
   void AddPhysicsControl(const ACarlaWheeledVehicle& Vehicle);
 
   void AddTrafficLightTime(const ATrafficLightBase& TrafficLight);
+
+  void AddWeather(const FWeatherParameters& WeatherParams);
 
   // set episode
   void SetEpisode(UCarlaEpisode *ThisEpisode)
@@ -199,6 +203,7 @@ private:
   CarlaRecorderPlatformTime PlatformTime;
   CarlaRecorderPhysicsControls PhysicsControls;
   CarlaRecorderTrafficLightTimes TrafficLightTimes;
+  CarlaRecorderWeathers Weathers;
   DReyeVRDataRecorders DReyeVRData;
 
 
@@ -209,6 +214,7 @@ private:
   CarlaRecorderQuery Query;
 
   void AddExistingActors(void);
+  void AddStartingWeather(void);
   void AddActorPosition(FCarlaActor *CarlaActor);
   void AddWalkerAnimation(FCarlaActor *CarlaActor);
   void AddVehicleAnimation(FCarlaActor *CarlaActor);
