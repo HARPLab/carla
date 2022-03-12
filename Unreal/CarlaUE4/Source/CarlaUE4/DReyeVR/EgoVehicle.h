@@ -290,7 +290,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     bool light_visible = false;
     float head2light_pitch = 0.f;
     float head2light_yaw = 0.f;
-
+    
     ////////////////:OTHER:////////////////
 
     // Actor registry
@@ -302,4 +302,9 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     bool bIsHMDConnected = false;  // checks for HMD connection on BeginPlay
     bool bIsLogiConnected = false; // check if Logi device is connected (on BeginPlay)
     bool bDrawDebugEditor = false;
+
+    // reticlePos output
+    void InitReticleOutFile();
+    FString ReticleOutFile;
+    bool bWriteReticlePos = false;
 };

@@ -284,7 +284,7 @@ struct EyeTracker
         Combined.Read(InFile);
         Left.Read(InFile);
         Right.Read(InFile);
-        ReadFVector2D(InFile, ProjectedCoords);
+        // ReadFVector2D(InFile, ProjectedCoords);
     }
     void Write(std::ofstream &OutFile) const
     {
@@ -293,7 +293,7 @@ struct EyeTracker
         Combined.Write(OutFile);
         Left.Write(OutFile);
         Right.Write(OutFile);
-        WriteFVector2D(OutFile, ProjectedCoords);
+        // WriteFVector2D(OutFile, ProjectedCoords);
     }
     FString ToString() const
     {

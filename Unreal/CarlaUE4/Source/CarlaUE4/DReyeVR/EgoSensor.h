@@ -44,6 +44,10 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     // function where replayer requests a screenshot
     void TakeScreenshot() override;
 
+    int64_t getTickCount(){
+      return TickCount;
+    }
+
   protected:
     void BeginPlay();
     void BeginDestroy();
