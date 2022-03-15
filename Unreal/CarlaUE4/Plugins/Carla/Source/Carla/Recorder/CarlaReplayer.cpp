@@ -397,6 +397,11 @@ void CarlaReplayer::ProcessToTime(double Time, bool IsFirstTime)
           SkipPacket();
         break;
 
+      // weather state
+      case static_cast<char>(CarlaRecorderPacketId::Weather):
+        ProcessWeather();
+        break;
+
       // DReyeVR eye logging data
       case static_cast<char>(CarlaRecorderPacketId::DReyeVR):
         if (bFrameFound)
@@ -624,6 +629,20 @@ void CarlaReplayer::ProcessLightScene(void)
   }
 }
 
+void CarlaReplayer::ProcessWeather(void)
+{
+  uint16_t Total;
+  CarlaRecorderWeather Weather;
+
+  // read Total light events
+  ReadValue<uint16_t>(File, Total);
+  for (uint16_t i = 0; i < Total; ++i)
+  {
+    Weather.Read(File);
+    Helper.ProcessReplayerWeather(Weather);
+  }
+}
+
 void CarlaReplayer::ProcessDReyeVRData()
 {
   uint16_t Total;
@@ -761,6 +780,38 @@ void CarlaReplayer::Tick(float Delta)
       ProcessToTime(Delta * TimeFactor, false);
     }
   }
+}
+
+void CarlaReplayer::ProcessFrameByFrame()
+{
+  // get the times to process if needed
+  if (FrameStartTimes.size() == 0)
+  {
+    GetFrameStartTimes();
+    ensure(FrameStartTimes.size() > 0);
+    for (auto &i : FrameStartTimes)
+    {
+      UE_LOG(LogTemp, Log, TEXT("%.3f"), i);
+    }
+  }
+
+  // process to those times
+  ensure(SyncCurrentFrameId < FrameStartTimes.size());
+  double LastTime = 0.f;
+  if (SyncCurrentFrameId > 0)
+    LastTime = FrameStartTimes[SyncCurrentFrameId - 1];
+  ProcessToTime(FrameStartTimes[SyncCurrentFrameId] - LastTime, (SyncCurrentFrameId == 0));
+  if (ADReyeVRSensor::GetDReyeVRSensor())
+    // have the vehicle camera take a screenshot to record the replay
+    ADReyeVRSensor::GetDReyeVRSensor()->TakeScreenshot();
+  else
+    UE_LOG(LogTemp, Error, TEXT("No DReyeVR sensor available!"));
+
+  // progress to the next frame
+  if (SyncCurrentFrameId < FrameStartTimes.size() - 1)
+    SyncCurrentFrameId++;
+  else
+    Stop();
 }
 
 void CarlaReplayer::ProcessFrameByFrame()

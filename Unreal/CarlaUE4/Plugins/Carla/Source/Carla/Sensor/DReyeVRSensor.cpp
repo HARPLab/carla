@@ -160,6 +160,14 @@ void ADReyeVRSensor::UpdateWithReplayData(const DReyeVR::AggregateData &Recorder
                                       RecorderData.GetCameraLocation(),          // new location
                                       RecorderData.GetCameraRotation(),          // new rotation
                                       Per, NewCameraLoc, NewCameraRot);
+            // interp Camera (absolute)
+            FVector NewCameraLocAbs;
+            FRotator NewCameraRotAbs;
+            InterpPositionAndRotation(ADReyeVRSensor::Data->GetCameraLocationAbs(), // old location
+                                      ADReyeVRSensor::Data->GetCameraRotationAbs(), // old rotation
+                                      RecorderData.GetCameraLocationAbs(),          // new location
+                                      RecorderData.GetCameraRotationAbs(),          // new rotation
+                                      Per, NewCameraLocAbs, NewCameraRotAbs);
             // interp vehicle
             FVector NewVehicleLoc;
             FRotator NewVehicleRot;
@@ -171,6 +179,7 @@ void ADReyeVRSensor::UpdateWithReplayData(const DReyeVR::AggregateData &Recorder
             (*ADReyeVRSensor::Data) = RecorderData;
             // update camera positions to the interpolated ones
             ADReyeVRSensor::Data->UpdateCamera(NewCameraLoc, NewCameraRot);
+            ADReyeVRSensor::Data->UpdateCameraAbs(NewCameraLocAbs, NewCameraRotAbs);
             ADReyeVRSensor::Data->UpdateVehicle(NewVehicleLoc, NewVehicleRot);
         }
         else
