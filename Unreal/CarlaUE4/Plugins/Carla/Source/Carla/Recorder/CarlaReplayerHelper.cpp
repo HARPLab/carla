@@ -22,6 +22,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Carla/Game/CarlaStatics.h"
 #include "Carla/MapGen/LargeMapManager.h"
+#include "Carla/Weather/Weather.h"
 
 // DReyeVR include
 #include "Carla/Sensor/DReyeVRSensor.h" // ADReyeVRSensor
@@ -418,6 +419,16 @@ void CarlaReplayerHelper::ProcessReplayerLightScene(CarlaRecorderLightScene Ligh
       CarlaLight->SetLightOn(LightScene.bOn);
       CarlaLight->SetLightType(static_cast<ELightType>(LightScene.Type));
     }
+  }
+}
+
+void CarlaReplayerHelper::ProcessReplayerWeather(const CarlaRecorderWeather &RecordedWeather)
+{
+  check(Episode != nullptr);
+  AWeather *Weather = AWeather::FindWeatherInstance(Episode->GetWorld());
+  if (Weather)
+  {
+    Weather->ApplyWeather(RecordedWeather.Params);
   }
 }
 

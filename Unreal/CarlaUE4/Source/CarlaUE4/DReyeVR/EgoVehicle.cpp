@@ -53,6 +53,7 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
     ReadConfigValue("EgoVehicle", "SpeedometerInMPH", bUseMPH);
     ReadConfigValue("EgoVehicle", "TurnSignalDuration", TurnSignalDuration);
+    ReadConfigValue("EgoVehicle", "CleanSlateRoomLocation", CleanSlateRoomLocation);
     // mirrors
     auto InitMirrorParams = [](const FString &Name, struct MirrorParams &Params) {
         Params.Name = Name;
@@ -169,6 +170,9 @@ void AEgoVehicle::Tick(float DeltaSeconds)
     // Draw the flat-screen HUD items like eye-reticle and FPS counter
     DrawFlatHUD(DeltaSeconds);
 
+    // Force "clean slate" eye calibration screen
+    ForceCleanSlateCalibration();
+
     // Update the steering wheel to be responsive to user input
     TickSteeringWheel(DeltaSeconds);
 
@@ -222,6 +226,50 @@ void AEgoVehicle::ConstructCamera()
     ResetCamera();
 }
 
+bool AEgoVehicle::EnableCleanSlateRoom()
+{
+    if (World)
+    {
+        // check town is Town04
+        const FString WorldName = World->GetMapName();
+        UE_LOG(LogTemp, Log, TEXT("Currently in world: \"%s\""), *WorldName);
+        if (WorldName.Contains("Town04"))
+        {
+            UE_LOG(LogTemp, Log, TEXT("Enabling clean slate calibration"));
+            bBlankSlateRoomActive = true;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Log, TEXT("Need to switch to Town04 to enable clean slate room"));
+        }
+    }
+    return bBlankSlateRoomActive; // true if sucessfull, false otherwise
+}
+
+void AEgoVehicle::DisableCleanSlateRoom()
+{
+    UE_LOG(LogTemp, Log, TEXT("Disabling clean slate calibration"));
+    bBlankSlateRoomActive = false;
+    // teleport camera back to original location (vehicle + initial offset)
+    const FTransform InitPosCamera(this->GetActorRotation() + FRotator::ZeroRotator, // FRotator (Rotation)
+                                   this->GetActorLocation() + CameraLocnInVehicle,   // FVector (Location)
+                                   FVector::OneVector);                              // FVector (Scale3D)
+    VRCameraRoot->SetWorldTransform(InitPosCamera, false, nullptr, ETeleportType::None);
+}
+
+void AEgoVehicle::ForceCleanSlateCalibration()
+{
+    if (bBlankSlateRoomActive)
+    {
+        // kinda hacky, just teleports camera to clean room and keeps the vehicle stationary
+        this->SetBrake(1);                                     // tries to make the vehicle not move
+        const FTransform InitPosCamera(FRotator::ZeroRotator,  // FRotator (Rotation)
+                                       CleanSlateRoomLocation, // FVector (Location)
+                                       FVector::OneVector);    // FVector (Scale3D)
+        VRCameraRoot->SetWorldTransform(InitPosCamera, false, nullptr, ETeleportType::None);
+    }
+}
+
 const UCameraComponent *AEgoVehicle::GetCamera() const
 {
     return FirstPersonCam;
@@ -232,7 +280,7 @@ UCameraComponent *AEgoVehicle::GetCamera()
 }
 FVector AEgoVehicle::GetCameraOffset() const
 {
-    return CameraLocnInVehicle;
+    return VRCameraRoot->GetComponentLocation();
 }
 FVector AEgoVehicle::GetCameraPosn() const
 {
@@ -280,9 +328,11 @@ void AEgoVehicle::ReplayTick()
                                          FVector::OneVector);          // FVector (Scale3D)
         SetActorTransform(ReplayTransform, false, nullptr, ETeleportType::None);
 
-        // assign first person camera orientation and location
-        FirstPersonCam->SetRelativeRotation(Replay->GetCameraRotation(), false, nullptr, ETeleportType::None);
-        FirstPersonCam->SetRelativeLocation(Replay->GetCameraLocation(), false, nullptr, ETeleportType::None);
+        // assign first person camera orientation and location (absolute)
+        const FTransform ReplayCameraTransAbs(Replay->GetCameraRotationAbs(), // FRotator (Rotation)
+                                              Replay->GetCameraLocationAbs(), // FVector (Location)
+                                              FVector::OneVector);            // FVector (Scale3D)
+        FirstPersonCam->SetWorldTransform(ReplayCameraTransAbs, false, nullptr, ETeleportType::None);
     }
 }
 

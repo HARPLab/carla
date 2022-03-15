@@ -62,6 +62,10 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     const DReyeVR::UserInputs &GetVehicleInputs() const;
     FVector2D ProjectGazeToScreen(const FVector &Origin, const FVector &Dir, bool bPlayerViewportRelative = true) const;
 
+    // "clean slate" camera room in a closed box in Town04 which removes the cognitive load of driving
+    bool EnableCleanSlateRoom();  // enable teleport to clean-slate room
+    void DisableCleanSlateRoom(); // return back to normal vehicle operations
+
     // Play sounds
     void PlayGearShiftSound(const float DelayBeforePlay = 0.f) const;
     void PlayTurnSignalSound(const float DelayBeforePlay = 0.f) const;
@@ -79,8 +83,12 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void Register(); // function to register the AEgoVehicle with Carla's ActorRegistry
 
     ////////////////:CAMERA:////////////////
-    void ConstructCamera(); // needs to be called in the constructor
-    void InitSteamVR();     // Initialize the Head Mounted Display
+    void ConstructCamera();            // needs to be called in the constructor
+    void InitSteamVR();                // Initialize the Head Mounted Display
+    void ToggleCleanRoomCalibration(); // Triggered by ToggleCleanRoom_DReyeVR input for enabling/disabling clean room
+    void ForceCleanSlateCalibration(); // teleport to empty box in Town04
+    bool bBlankSlateRoomActive = false;
+    FVector CleanSlateRoomLocation;
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class USceneComponent *VRCameraRoot;
     UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))

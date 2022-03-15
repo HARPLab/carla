@@ -467,6 +467,12 @@ class AggregateData // all DReyeVR sensor data is held here
         EgoVars.CameraRotation = NewCameraRot;
     }
 
+    void UpdateCameraAbs(const FVector &NewCameraLocAbs, const FRotator &NewCameraRotAbs)
+    {
+        EgoVars.CameraLocationAbs = NewCameraLocAbs;
+        EgoVars.CameraRotationAbs = NewCameraRotAbs;
+    }
+
     void UpdateVehicle(const FVector &NewVehicleLoc, const FRotator &NewVehicleRot)
     {
         EgoVars.VehicleLocation = NewVehicleLoc;
