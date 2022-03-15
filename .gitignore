@@ -8,6 +8,9 @@ Install
 Plugins
 !Unreal/CarlaUE4/Plugins
 Unreal/CarlaUE4/.ignore
+RecordingTxts/
+Unreal/CarlaUE4/Config/ReticleOuts/
+Unreal/CarlaUE4/FrameCap/
 
 /ExportedMaps
 /Import/*

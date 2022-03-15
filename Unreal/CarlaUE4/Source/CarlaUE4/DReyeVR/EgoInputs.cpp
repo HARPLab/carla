@@ -226,7 +226,8 @@ void AEgoVehicle::PressTurnSignalR()
         return;
     bCanPressTurnSignalR = false; // don't press again until release
     // store in local input container
-    VehicleInputs.TurnSignalRight = true;
+    // VehicleInputs.TurnSignalRight = true;
+    VehicleInputs.ButtonPressed = true; // activate periph trigger
 
     // apply new light state
     FVehicleLightState Lights = this->GetVehicleLightState();
@@ -234,7 +235,7 @@ void AEgoVehicle::PressTurnSignalR()
     Lights.LeftBlinker = false;
     this->SetVehicleLightState(Lights);
 
-    this->PlayTurnSignalSound();
+    // this->PlayTurnSignalSound();
     RightSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
     LeftSignalTimeToDie = 0.f;                           // immediately stop left signal
 }
@@ -244,6 +245,7 @@ void AEgoVehicle::ReleaseTurnSignalR()
     if (bCanPressTurnSignalR)
         return;
     VehicleInputs.TurnSignalRight = false;
+    VehicleInputs.ButtonPressed = false;
     RightSignalTimeToDie = FPlatformTime::Seconds() + this->TurnSignalDuration; // reset counter
     bCanPressTurnSignalR = true;
 }
@@ -254,7 +256,8 @@ void AEgoVehicle::PressTurnSignalL()
         return;
     bCanPressTurnSignalL = false; // don't press again until release
     // store in local input container
-    VehicleInputs.TurnSignalLeft = true;
+    // VehicleInputs.TurnSignalLeft = true;
+    VehicleInputs.ButtonPressed = true; // activate periph trigger
 
     // apply new light state
     FVehicleLightState Lights = this->GetVehicleLightState();
@@ -262,7 +265,7 @@ void AEgoVehicle::PressTurnSignalL()
     Lights.LeftBlinker = true;
     this->SetVehicleLightState(Lights);
 
-    this->PlayTurnSignalSound();
+    // this->PlayTurnSignalSound();
     RightSignalTimeToDie = 0.f;                         // immediately stop right signal
     LeftSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
 }
@@ -272,6 +275,7 @@ void AEgoVehicle::ReleaseTurnSignalL()
     if (bCanPressTurnSignalL)
         return;
     VehicleInputs.TurnSignalLeft = false;
+    VehicleInputs.ButtonPressed = false;
     LeftSignalTimeToDie = FPlatformTime::Seconds() + this->TurnSignalDuration; // reset counter
     bCanPressTurnSignalL = true;
 }

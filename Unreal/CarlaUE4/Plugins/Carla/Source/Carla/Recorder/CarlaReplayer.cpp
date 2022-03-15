@@ -298,6 +298,8 @@ void CarlaReplayer::ProcessToTime(double Time, bool IsFirstTime)
   bool bExitAtNextFrame = false;
   bool bExitLoop = false;
 
+  UE_LOG(LogTemp, Log, TEXT("%.3f  |   %d   |  %.3f  |"), Time, Frame.Id, NewTime);
+
   // check if we are in the right frame
   if (NewTime >= Frame.Elapsed && NewTime < Frame.Elapsed + Frame.DurationThis)
   {
@@ -778,6 +780,38 @@ void CarlaReplayer::Tick(float Delta)
       ProcessToTime(Delta * TimeFactor, false);
     }
   }
+}
+
+void CarlaReplayer::ProcessFrameByFrame()
+{
+  // get the times to process if needed
+  if (FrameStartTimes.size() == 0)
+  {
+    GetFrameStartTimes();
+    ensure(FrameStartTimes.size() > 0);
+    for (auto &i : FrameStartTimes)
+    {
+      UE_LOG(LogTemp, Log, TEXT("%.3f"), i);
+    }
+  }
+
+  // process to those times
+  ensure(SyncCurrentFrameId < FrameStartTimes.size());
+  double LastTime = 0.f;
+  if (SyncCurrentFrameId > 0)
+    LastTime = FrameStartTimes[SyncCurrentFrameId - 1];
+  ProcessToTime(FrameStartTimes[SyncCurrentFrameId] - LastTime, (SyncCurrentFrameId == 0));
+  if (ADReyeVRSensor::GetDReyeVRSensor())
+    // have the vehicle camera take a screenshot to record the replay
+    ADReyeVRSensor::GetDReyeVRSensor()->TakeScreenshot();
+  else
+    UE_LOG(LogTemp, Error, TEXT("No DReyeVR sensor available!"));
+
+  // progress to the next frame
+  if (SyncCurrentFrameId < FrameStartTimes.size() - 1)
+    SyncCurrentFrameId++;
+  else
+    Stop();
 }
 
 void CarlaReplayer::ProcessFrameByFrame()
