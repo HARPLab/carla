@@ -333,6 +333,9 @@ void AEgoVehicle::ReplayTick()
                                               Replay->GetCameraLocationAbs(), // FVector (Location)
                                               FVector::OneVector);            // FVector (Scale3D)
         FirstPersonCam->SetWorldTransform(ReplayCameraTransAbs, false, nullptr, ETeleportType::None);
+
+        // overwrite vehicle inputs to use the replay data
+        VehicleInputs = Replay->GetUserInputs();
     }
 }
 

@@ -349,6 +349,13 @@ void AEgoSensor::ConstructFrameCapture()
         FrameCap->bAlwaysPersistRenderingState = true;
         FrameCap->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
+        // apply postprocessing effects
+        FPostProcessSettings Effects;
+        Effects.bOverride_ColorGamma = true;
+        const float TargetGamma = 1.2f; /// TODO: parametrize?
+        Effects.ColorGamma = TargetGamma * FVector4(1.f, 1.f, 1.f, 1.f);
+        FrameCap->PostProcessSettings = Effects;
+
         FrameCap->Deactivate();
         FrameCap->TextureTarget = CaptureRenderTarget;
         FrameCap->UpdateContent();
