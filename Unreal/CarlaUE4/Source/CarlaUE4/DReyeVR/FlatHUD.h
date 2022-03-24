@@ -93,7 +93,7 @@ UCLASS() class ADReyeVRHUD : public ACarlaHUD
     void DrawDynamicRect(const FVector2D &TopLeft, const FVector2D &BottomRight, const FColor &Colour,
                          const float Thickness = 0); // 0 thickness is default
 
-    // drawing crosshair for reticle
+    // drawing crosshair for reticule
     void DrawDynamicCrosshair(const FVector &Center, const float Diameter, const FColor &Colour, const bool InnerT,
                               const float Thickness = 0);
     void DrawDynamicCrosshair(const FVector2D &Center, const float Diameter, const FColor &Colour, const bool InnerT,

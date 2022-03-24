@@ -1,6 +1,7 @@
 #include "EgoSensor.h"
 
 #include "Carla/Game/CarlaStatics.h"    // GetEpisode
+#include "CustomActors.h"               // CustomActors (ABall, etc.)
 #include "DReyeVRUtils.h"               // ReadConfigValue, ComputeClosestToRayIntersection
 #include "Kismet/GameplayStatics.h"     // UGameplayStatics::ProjectWorldToScreen
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
@@ -50,6 +51,11 @@ void AEgoSensor::ReadConfigVariables()
     ReadConfigValue("Replayer", "FrameHeight", FrameCapHeight);
     ReadConfigValue("Replayer", "FrameDir", FrameCapLocation);
     ReadConfigValue("Replayer", "FrameName", FrameCapFilename);
+
+    // legacy code for periph recording support
+    ReadConfigValue("Replayer", "UsingLegacyPeriph", bUsingLegacyPeriphFile);
+    check(GetData() != nullptr);
+    GetData()->bUsingLegacyPeriphFile = bUsingLegacyPeriphFile;
 }
 
 void AEgoSensor::BeginPlay()
@@ -196,13 +202,6 @@ void AEgoSensor::TickEyeTracker()
     ComputeDummyEyeData();
 #endif
     Combined->Vergence = ComputeVergence(Left->GazeOrigin, Left->GazeDir, Right->GazeOrigin, Right->GazeDir);
-
-    // compute the projected coordinates from the left gaze direction to be tracked
-    if (Vehicle)
-    {
-        // using the left gaze bc thats what the spectator screen sees
-        EyeSensorData.ProjectedCoords = Vehicle->ProjectGazeToScreen(Left->GazeOrigin, Left->GazeDir);
-    }
 
     // FPlatformProcess::Sleep(0.00833f); // use in async thread to get 120hz
 }
@@ -402,6 +401,61 @@ void AEgoSensor::TakeScreenshot()
         SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix),
                         bFileFormatJPG);
     }
+}
+
+/// ========================================== ///
+/// ----------------:REPLAY:------------------ ///
+/// ========================================== ///
+
+void AEgoSensor::UpdateData(const DReyeVR::AggregateData &RecorderData, const double Per)
+{
+    if (bUsingLegacyPeriphFile)
+    {
+        const DReyeVR::LegacyPeriphDataStruct &LegacyData = RecorderData.GetLegacyPeriphData();
+        // treat the periph ball target as a CustomActor
+        // visibility triggers spawning/destroying the actor
+        if (LegacyData.Visible)
+        {
+            DReyeVR::CustomActorData PeriphBall;
+            PeriphBall.Name = "Legacy_PeriphBall";
+            PeriphBall.Location = LegacyData.WorldPos;
+            PeriphBall.Scale3D = 0.05f * FVector::OneVector;
+            PeriphBall.TypeId = static_cast<char>(DReyeVR::CustomActorData::Types::SPHERE);
+            UpdateData(PeriphBall, Per);
+        }
+    }
+    // call the parent function
+    ADReyeVRSensor::UpdateData(RecorderData, Per);
+}
+
+void AEgoSensor::UpdateData(const DReyeVR::CustomActorData &RecorderData, const double Per)
+{
+    // first spawn the actor if not currently active
+    const std::string ActorName = TCHAR_TO_UTF8(*RecorderData.Name);
+    ADReyeVRCustomActor *A = nullptr;
+    if (ADReyeVRCustomActor::ActiveCustomActors.find(ActorName) == ADReyeVRCustomActor::ActiveCustomActors.end())
+    {
+        switch (RecorderData.TypeId)
+        {
+        case static_cast<char>(DReyeVR::CustomActorData::Types::SPHERE):
+            A = ABall::RequestNewActor(GetWorld(), RecorderData.Name);
+            break;
+        case static_cast<char>(DReyeVR::CustomActorData::Types::CROSS):
+            A = ACross::RequestNewActor(GetWorld(), RecorderData.Name);
+            break;
+        /// TODO: generalize for other types (templates?? :eyes:)
+        default:
+            break; // ignore unknown actors
+        }
+    }
+    else
+    {
+        A = ADReyeVRCustomActor::ActiveCustomActors[ActorName];
+    }
+    // ensure the actor is currently active (spawned)
+    // now that we know this actor exists, update its internals
+    if (A != nullptr)
+        A->SetInternals(RecorderData);
 }
 
 /// ========================================== ///

@@ -9,9 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-
-/// NOTE: all functions here are inline to avoid nasty linker errors. Though this can
-// probably be refactored to have a proper associated .cpp file
+#include <unordered_map>
 
 namespace DReyeVR
 {
@@ -20,47 +18,17 @@ struct EyeData
     FVector GazeDir = FVector::ZeroVector;
     FVector GazeOrigin = FVector::ZeroVector;
     bool GazeValid = false;
-    void Read(std::ifstream &InFile)
-    {
-        ReadFVector(InFile, GazeDir);
-        ReadFVector(InFile, GazeOrigin);
-        ReadValue<bool>(InFile, GazeValid);
-    }
-    void Write(std::ofstream &OutFile) const
-    {
-        WriteFVector(OutFile, GazeDir);
-        WriteFVector(OutFile, GazeOrigin);
-        WriteValue<bool>(OutFile, GazeValid);
-    }
-    FString ToString() const
-    {
-        FString Print;
-        Print += FString::Printf(TEXT("GazeDir:%s,"), *GazeDir.ToString());
-        Print += FString::Printf(TEXT("GazeOrigin:%s,"), *GazeOrigin.ToString());
-        Print += FString::Printf(TEXT("GazeValid:%d,"), GazeValid);
-        return Print;
-    }
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
 };
 
 struct CombinedEyeData : EyeData
 {
     float Vergence = 0.f; // in cm (default UE4 units)
-    void Read(std::ifstream &InFile)
-    {
-        EyeData::Read(InFile);
-        ReadValue<float>(InFile, Vergence);
-    }
-    void Write(std::ofstream &OutFile) const
-    {
-        EyeData::Write(OutFile);
-        WriteValue<float>(OutFile, Vergence);
-    }
-    FString ToString() const
-    {
-        FString Print = EyeData::ToString();
-        Print += FString::Printf(TEXT("GazeVergence:%.4f,"), Vergence);
-        return Print;
-    }
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
 };
 
 struct SingleEyeData : EyeData
@@ -71,34 +39,9 @@ struct SingleEyeData : EyeData
     FVector2D PupilPosition = FVector2D::ZeroVector;
     bool PupilPositionValid = false;
 
-    void Read(std::ifstream &InFile)
-    {
-        EyeData::Read(InFile);
-        ReadValue<float>(InFile, EyeOpenness);
-        ReadValue<bool>(InFile, EyeOpennessValid);
-        ReadValue<float>(InFile, PupilDiameter);
-        ReadFVector2D(InFile, PupilPosition);
-        ReadValue<bool>(InFile, PupilPositionValid);
-    }
-    void Write(std::ofstream &OutFile) const
-    {
-        EyeData::Write(OutFile);
-        WriteValue<float>(OutFile, EyeOpenness);
-        WriteValue<bool>(OutFile, EyeOpennessValid);
-        WriteValue<float>(OutFile, PupilDiameter);
-        WriteFVector2D(OutFile, PupilPosition);
-        WriteValue<bool>(OutFile, PupilPositionValid);
-    }
-    FString ToString() const
-    {
-        FString Print = EyeData::ToString();
-        Print += FString::Printf(TEXT("EyeOpenness:%.4f,"), EyeOpenness);
-        Print += FString::Printf(TEXT("EyeOpennessValid:%d,"), EyeOpennessValid);
-        Print += FString::Printf(TEXT("PupilDiameter:%.4f,"), PupilDiameter);
-        Print += FString::Printf(TEXT("PupilPosition:%s,"), *PupilPosition.ToString());
-        Print += FString::Printf(TEXT("PupilPositionValid:%d,"), PupilPositionValid);
-        return Print;
-    }
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
 };
 
 struct EgoVariables
@@ -114,38 +57,9 @@ struct EgoVariables
     FRotator CameraRotationAbs = FRotator::ZeroRotator;
     // Ego variables
     float Velocity = 0.f; // note this is in cm/s (default UE4 units)
-    void Read(std::ifstream &InFile)
-    {
-        ReadFVector(InFile, CameraLocation);
-        ReadFRotator(InFile, CameraRotation);
-        ReadFVector(InFile, CameraLocationAbs);
-        ReadFRotator(InFile, CameraRotationAbs);
-        ReadFVector(InFile, VehicleLocation);
-        ReadFRotator(InFile, VehicleRotation);
-        ReadValue<float>(InFile, Velocity);
-    }
-    void Write(std::ofstream &OutFile) const
-    {
-        WriteFVector(OutFile, CameraLocation);
-        WriteFRotator(OutFile, CameraRotation);
-        WriteFVector(OutFile, CameraLocationAbs);
-        WriteFRotator(OutFile, CameraRotationAbs);
-        WriteFVector(OutFile, VehicleLocation);
-        WriteFRotator(OutFile, VehicleRotation);
-        WriteValue<float>(OutFile, Velocity);
-    }
-    FString ToString() const
-    {
-        FString Print;
-        Print += FString::Printf(TEXT("VehicleLoc:%s,"), *VehicleLocation.ToString());
-        Print += FString::Printf(TEXT("VehicleRot:%s,"), *VehicleRotation.ToString());
-        Print += FString::Printf(TEXT("VehicleVel:%.4f,"), Velocity);
-        Print += FString::Printf(TEXT("CameraLoc:%s,"), *CameraLocation.ToString());
-        Print += FString::Printf(TEXT("CameraRot:%s,"), *CameraRotation.ToString());
-        Print += FString::Printf(TEXT("CameraLocAbs:%s,"), *CameraLocationAbs.ToString());
-        Print += FString::Printf(TEXT("CameraRotAbs:%s,"), *CameraRotationAbs.ToString());
-        return Print;
-    }
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
 };
 
 struct UserInputs
@@ -158,77 +72,11 @@ struct UserInputs
     bool TurnSignalLeft = false;
     bool TurnSignalRight = false;
     bool HoldHandbrake = false;
-    // periph variables
-    FVector WorldPos = FVector::ZeroVector;
-    FRotator WorldRot = FRotator::ZeroRotator;
-    FVector CombinedOrigin = FVector::ZeroVector; // Absolute Eye Origin
-    float gaze2target_pitch = 0.f;
-    float gaze2target_yaw = 0.f;
-    float head2target_pitch = 0.f;
-    float head2target_yaw = 0.f;
-    bool LightOn = false;
-    bool ButtonPressed = false;
     // Add more inputs here!
 
-    void Read(std::ifstream &InFile)
-    {
-        ReadValue<float>(InFile, Throttle);
-        ReadValue<float>(InFile, Steering);
-        ReadValue<float>(InFile, Brake);
-        ReadValue<bool>(InFile, ToggledReverse);
-        ReadValue<bool>(InFile, TurnSignalLeft);
-        ReadValue<bool>(InFile, TurnSignalRight);
-        ReadValue<bool>(InFile, HoldHandbrake);
-        ReadFVector(InFile, WorldPos);
-        ReadFRotator(InFile, WorldRot);
-        ReadFVector(InFile, CombinedOrigin);
-        ReadValue<float>(InFile, gaze2target_pitch);
-        ReadValue<float>(InFile, gaze2target_yaw);
-        ReadValue<float>(InFile, head2target_pitch);
-        ReadValue<float>(InFile, head2target_yaw);
-        ReadValue<bool>(InFile, LightOn);
-        ReadValue<bool>(InFile, ButtonPressed);
-    }
-    void Write(std::ofstream &OutFile) const
-    {
-        WriteValue<float>(OutFile, Throttle);
-        WriteValue<float>(OutFile, Steering);
-        WriteValue<float>(OutFile, Brake);
-        WriteValue<bool>(OutFile, ToggledReverse);
-        WriteValue<bool>(OutFile, TurnSignalLeft);
-        WriteValue<bool>(OutFile, TurnSignalRight);
-        WriteValue<bool>(OutFile, HoldHandbrake);
-        WriteFVector(OutFile, WorldPos);
-        WriteFRotator(OutFile, WorldRot);
-        WriteFVector(OutFile, CombinedOrigin);
-        WriteValue<float>(OutFile, gaze2target_pitch);
-        WriteValue<float>(OutFile, gaze2target_yaw);
-        WriteValue<float>(OutFile, head2target_pitch);
-        WriteValue<float>(OutFile, head2target_yaw);
-        WriteValue<bool>(OutFile, LightOn);
-        WriteValue<bool>(OutFile, ButtonPressed);
-    }
-    FString ToString() const
-    {
-        FString Print;
-        Print += FString::Printf(TEXT("Throttle:%.4f,"), Throttle);
-        Print += FString::Printf(TEXT("Steering:%.4f,"), Steering);
-        Print += FString::Printf(TEXT("Brake:%.4f,"), Brake);
-        Print += FString::Printf(TEXT("ToggledReverse:%d,"), ToggledReverse);
-        Print += FString::Printf(TEXT("TurnSignalLeft:%d,"), TurnSignalLeft);
-        Print += FString::Printf(TEXT("TurnSignalRight:%d,"), TurnSignalRight);
-        Print += FString::Printf(TEXT("HoldHandbrake:%d,"), HoldHandbrake);
-        Print += FString::Printf(TEXT("WorldPos:%s,"), *WorldPos.ToString());
-        Print += FString::Printf(TEXT("WorldRot:%s,"), *WorldRot.ToString());
-        Print += FString::Printf(TEXT("CombinedOrigin:%s,"), *CombinedOrigin.ToString());
-        Print += FString::Printf(TEXT("gaze2target_pitch:%.4f,"), gaze2target_pitch);
-        Print += FString::Printf(TEXT("gaze2target_yaw:%.4f,"), gaze2target_yaw);
-        Print += FString::Printf(TEXT("head2target_pitch:%.4f,"), head2target_pitch);
-        Print += FString::Printf(TEXT("head2target_yaw:%.4f,"), head2target_yaw);
-        Print += FString::Printf(TEXT("LightOn:%d,"), LightOn);
-        Print += FString::Printf(TEXT("ButtonPressed:%d,"), ButtonPressed);
-        return Print;
-    }
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
 };
 
 struct FocusInfo
@@ -241,32 +89,9 @@ struct FocusInfo
     float Distance;
     bool bDidHit;
 
-    void Read(std::ifstream &InFile)
-    {
-        ReadFString(InFile, ActorNameTag);
-        ReadValue<bool>(InFile, bDidHit);
-        ReadFVector(InFile, HitPoint);
-        ReadFVector(InFile, Normal);
-        ReadValue<float>(InFile, Distance);
-    }
-    void Write(std::ofstream &OutFile) const
-    {
-        WriteFString(OutFile, ActorNameTag);
-        WriteValue<bool>(OutFile, bDidHit);
-        WriteFVector(OutFile, HitPoint);
-        WriteFVector(OutFile, Normal);
-        WriteValue<float>(OutFile, Distance);
-    }
-    FString ToString() const
-    {
-        FString Print;
-        Print += FString::Printf(TEXT("Hit:%d,"), bDidHit);
-        Print += FString::Printf(TEXT("Distance:%.4f,"), Distance);
-        Print += FString::Printf(TEXT("HitPoint:%s,"), *HitPoint.ToString());
-        Print += FString::Printf(TEXT("HitNormal:%s,"), *Normal.ToString());
-        Print += FString::Printf(TEXT("ActorName:%s,"), *ActorNameTag);
-        return Print;
-    }
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
 };
 
 struct EyeTracker
@@ -276,36 +101,26 @@ struct EyeTracker
     CombinedEyeData Combined;
     SingleEyeData Left;
     SingleEyeData Right;
-    FVector2D ProjectedCoords;
-    void Read(std::ifstream &InFile)
-    {
-        ReadValue<int64_t>(InFile, TimestampDevice);
-        ReadValue<int64_t>(InFile, FrameSequence);
-        Combined.Read(InFile);
-        Left.Read(InFile);
-        Right.Read(InFile);
-        // ReadFVector2D(InFile, ProjectedCoords);
-    }
-    void Write(std::ofstream &OutFile) const
-    {
-        WriteValue<int64_t>(OutFile, TimestampDevice);
-        WriteValue<int64_t>(OutFile, FrameSequence);
-        Combined.Write(OutFile);
-        Left.Write(OutFile);
-        Right.Write(OutFile);
-        // WriteFVector2D(OutFile, ProjectedCoords);
-    }
-    FString ToString() const
-    {
-        FString Print;
-        Print += FString::Printf(TEXT("TimestampDevice:%ld,"), long(TimestampDevice));
-        Print += FString::Printf(TEXT("FrameSequence:%ld,"), long(FrameSequence));
-        Print += FString::Printf(TEXT("COMBINED:{%s},"), *Combined.ToString());
-        Print += FString::Printf(TEXT("LEFT:{%s},"), *Left.ToString());
-        Print += FString::Printf(TEXT("RIGHT:{%s},"), *Right.ToString());
-        Print += FString::Printf(TEXT("ReticleCoords:%s,"), *ProjectedCoords.ToString());
-        return Print;
-    }
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
+};
+
+struct LegacyPeriphDataStruct
+{
+    // don't use this unless you are using a legacy periph file
+    // (if you don't know what that means, don't use it!)
+    FVector WorldPos;
+    FRotator WorldRot;
+    FVector CombinedOrigin;
+    float gaze2target_pitch;
+    float gaze2target_yaw;
+    float head2target_pitch;
+    float head2target_yaw;
+    bool Visible;
+    bool TriggerPressed;
+    void Read(std::ifstream &InFile);
+    FString ToString() const;
 };
 
 enum class Gaze
@@ -327,236 +142,52 @@ class AggregateData // all DReyeVR sensor data is held here
     AggregateData() = default;
     /////////////////////////:GETTERS://////////////////////////////
 
-    int64_t GetTimestampCarla() const
-    {
-        return TimestampCarlaUE4;
-    }
-    int64_t GetTimestampDevice() const
-    {
-        return EyeTrackerData.TimestampDevice;
-    }
-    int64_t GetFrameSequence() const
-    {
-        return EyeTrackerData.FrameSequence;
-    }
-    float GetGazeVergence() const
-    {
-        return EyeTrackerData.Combined.Vergence; // in cm (default UE4 units)
-    }
-    const FVector &GetGazeDir(DReyeVR::Gaze Index = DReyeVR::Gaze::COMBINED) const
-    {
-        switch (Index)
-        {
-        case DReyeVR::Gaze::LEFT:
-            return EyeTrackerData.Left.GazeDir;
-        case DReyeVR::Gaze::RIGHT:
-            return EyeTrackerData.Right.GazeDir;
-        case DReyeVR::Gaze::COMBINED:
-            return EyeTrackerData.Combined.GazeDir;
-        default: // need a default case for MSVC >:(
-            return EyeTrackerData.Combined.GazeDir;
-        }
-    }
-    const FVector &GetGazeOrigin(DReyeVR::Gaze Index = DReyeVR::Gaze::COMBINED) const
-    {
-        switch (Index)
-        {
-        case DReyeVR::Gaze::LEFT:
-            return EyeTrackerData.Left.GazeOrigin;
-        case DReyeVR::Gaze::RIGHT:
-            return EyeTrackerData.Right.GazeOrigin;
-        case DReyeVR::Gaze::COMBINED:
-            return EyeTrackerData.Combined.GazeOrigin;
-        default: // need a default case for MSVC >:(
-            return EyeTrackerData.Combined.GazeOrigin;
-        }
-    }
-    bool GetGazeValidity(DReyeVR::Gaze Index = DReyeVR::Gaze::COMBINED) const
-    {
-        switch (Index)
-        {
-        case DReyeVR::Gaze::LEFT:
-            return EyeTrackerData.Left.GazeValid;
-        case DReyeVR::Gaze::RIGHT:
-            return EyeTrackerData.Right.GazeValid;
-        case DReyeVR::Gaze::COMBINED:
-            return EyeTrackerData.Combined.GazeValid;
-        default: // need a default case for MSVC >:(
-            return EyeTrackerData.Combined.GazeValid;
-        }
-    }
-    float GetEyeOpenness(DReyeVR::Eye Index) const // returns eye openness as a percentage [0,1]
-    {
-        switch (Index)
-        {
-        case DReyeVR::Eye::LEFT:
-            return EyeTrackerData.Left.EyeOpenness;
-        case DReyeVR::Eye::RIGHT:
-            return EyeTrackerData.Right.EyeOpenness;
-        default: // need a default case for MSVC >:(
-            return EyeTrackerData.Right.EyeOpenness;
-        }
-    }
-    bool GetEyeOpennessValidity(DReyeVR::Eye Index) const
-    {
-        switch (Index)
-        {
-        case DReyeVR::Eye::LEFT:
-            return EyeTrackerData.Left.EyeOpennessValid;
-        case DReyeVR::Eye::RIGHT:
-            return EyeTrackerData.Right.EyeOpennessValid;
-        default: // need a default case for MSVC >:(
-            return EyeTrackerData.Right.EyeOpennessValid;
-        }
-    }
-    float GetPupilDiameter(DReyeVR::Eye Index) const // returns diameter in mm
-    {
-        switch (Index)
-        {
-        case DReyeVR::Eye::LEFT:
-            return EyeTrackerData.Left.PupilDiameter;
-        case DReyeVR::Eye::RIGHT:
-            return EyeTrackerData.Right.PupilDiameter;
-        default: // need a default case for MSVC >:(
-            return EyeTrackerData.Right.PupilDiameter;
-        }
-    }
-    const FVector2D &GetPupilPosition(DReyeVR::Eye Index) const
-    {
-        switch (Index)
-        {
-        case DReyeVR::Eye::LEFT:
-            return EyeTrackerData.Left.PupilPosition;
-        case DReyeVR::Eye::RIGHT:
-            return EyeTrackerData.Right.PupilPosition;
-        default: // need a default case for MSVC >:(
-            return EyeTrackerData.Right.PupilPosition;
-        }
-    }
-    bool GetPupilPositionValidity(DReyeVR::Eye Index) const
-    {
-        switch (Index)
-        {
-        case DReyeVR::Eye::LEFT:
-            return EyeTrackerData.Left.PupilPositionValid;
-        case DReyeVR::Eye::RIGHT:
-            return EyeTrackerData.Right.PupilPositionValid;
-        default: // need a default case for MSVC >:(
-            return EyeTrackerData.Right.PupilPositionValid;
-        }
-    }
-    const FVector2D &GetProjectedReticleCoords() const
-    {
-        return EyeTrackerData.ProjectedCoords;
-    }
+    int64_t GetTimestampCarla() const;
+    int64_t GetTimestampDevice() const;
+    int64_t GetFrameSequence() const;
+    float GetGazeVergence() const;
+    const FVector &GetGazeDir(DReyeVR::Gaze Index = DReyeVR::Gaze::COMBINED) const;
+    const FVector &GetGazeOrigin(DReyeVR::Gaze Index = DReyeVR::Gaze::COMBINED) const;
+    bool GetGazeValidity(DReyeVR::Gaze Index = DReyeVR::Gaze::COMBINED) const;
+    float GetEyeOpenness(DReyeVR::Eye Index) const; // returns eye openness as a percentage [0,1]
+    bool GetEyeOpennessValidity(DReyeVR::Eye Index) const;
+    float GetPupilDiameter(DReyeVR::Eye Index) const; // returns diameter in mm
+    const FVector2D &GetPupilPosition(DReyeVR::Eye Index) const;
+    bool GetPupilPositionValidity(DReyeVR::Eye Index) const;
 
     // from EgoVars
-    const FVector &GetCameraLocation() const
-    {
-        return EgoVars.CameraLocation;
-    }
-    const FRotator &GetCameraRotation() const
-    {
-        return EgoVars.CameraRotation;
-    }
-    const FVector &GetCameraLocationAbs() const
-    {
-        return EgoVars.CameraLocationAbs;
-    }
-    const FRotator &GetCameraRotationAbs() const
-    {
-        return EgoVars.CameraRotationAbs;
-    }
-    float GetVehicleVelocity() const
-    {
-        return EgoVars.Velocity; // returns ego velocity in cm/s
-    }
-    const FVector &GetVehicleLocation() const
-    {
-        return EgoVars.VehicleLocation;
-    }
-    const FRotator &GetVehicleRotation() const
-    {
-        return EgoVars.VehicleRotation;
-    }
+    const FVector &GetCameraLocation() const;
+    const FRotator &GetCameraRotation() const;
+    const FVector &GetCameraLocationAbs() const;
+    const FRotator &GetCameraRotationAbs() const;
+    float GetVehicleVelocity() const;
+    const FVector &GetVehicleLocation() const;
+    const FRotator &GetVehicleRotation() const;
+    std::string GetUniqueName() const;
+
     // focus
-    const FString &GetFocusActorName() const
-    {
-        return FocusData.ActorNameTag;
-    }
-    const FVector &GetFocusActorPoint() const
-    {
-        return FocusData.HitPoint;
-    }
-    float GetFocusActorDistance() const
-    {
-        return FocusData.Distance;
-    }
-    const DReyeVR::UserInputs &GetUserInputs() const
-    {
-        return Inputs;
-    }
+    const FString &GetFocusActorName() const;
+    const FVector &GetFocusActorPoint() const;
+    float GetFocusActorDistance() const;
+    const DReyeVR::UserInputs &GetUserInputs() const;
+
     ////////////////////:SETTERS://////////////////////
-
-    void UpdateCamera(const FVector &NewCameraLoc, const FRotator &NewCameraRot)
-    {
-        EgoVars.CameraLocation = NewCameraLoc;
-        EgoVars.CameraRotation = NewCameraRot;
-    }
-
-    void UpdateCameraAbs(const FVector &NewCameraLocAbs, const FRotator &NewCameraRotAbs)
-    {
-        EgoVars.CameraLocationAbs = NewCameraLocAbs;
-        EgoVars.CameraRotationAbs = NewCameraRotAbs;
-    }
-
-    void UpdateVehicle(const FVector &NewVehicleLoc, const FRotator &NewVehicleRot)
-    {
-        EgoVars.VehicleLocation = NewVehicleLoc;
-        EgoVars.VehicleRotation = NewVehicleRot;
-    }
-
+    void UpdateCamera(const FVector &NewCameraLoc, const FRotator &NewCameraRot);
+    void UpdateCameraAbs(const FVector &NewCameraLocAbs, const FRotator &NewCameraRotAbs);
+    void UpdateVehicle(const FVector &NewVehicleLoc, const FRotator &NewVehicleRot);
     void Update(int64_t NewTimestamp, const struct EyeTracker &NewEyeData, const struct EgoVariables &NewEgoVars,
-                const struct FocusInfo &NewFocus, const struct UserInputs &NewInputs)
-    {
-        TimestampCarlaUE4 = NewTimestamp;
-        EyeTrackerData = NewEyeData;
-        EgoVars = NewEgoVars;
-        FocusData = NewFocus;
-        Inputs = NewInputs;
-    }
+                const struct FocusInfo &NewFocus, const struct UserInputs &NewInputs);
 
     ////////////////////:SERIALIZATION://////////////////////
-    void Read(std::ifstream &InFile)
-    {
-        /// CAUTION: make sure the order of writes/reads is the same
-        ReadValue<int64_t>(InFile, TimestampCarlaUE4);
-        EgoVars.Read(InFile);
-        EyeTrackerData.Read(InFile);
-        FocusData.Read(InFile);
-        Inputs.Read(InFile);
-    }
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
 
-    void Write(std::ofstream &OutFile) const
-    {
-        /// CAUTION: make sure the order of writes/reads is the same
-        WriteValue<int64_t>(OutFile, GetTimestampCarla());
-        EgoVars.Write(OutFile);
-        EyeTrackerData.Write(OutFile);
-        FocusData.Write(OutFile);
-        Inputs.Write(OutFile);
-    }
-
-    FString ToString() const
-    {
-        FString print;
-        print += FString::Printf(TEXT("[DReyeVR]TimestampCarla:%ld,\n"), long(TimestampCarlaUE4));
-        print += FString::Printf(TEXT("[DReyeVR]EyeTracker:%s,\n"), *EyeTrackerData.ToString());
-        print += FString::Printf(TEXT("[DReyeVR]FocusInfo:%s,\n"), *FocusData.ToString());
-        print += FString::Printf(TEXT("[DReyeVR]EgoVariables:%s,\n"), *EgoVars.ToString());
-        print += FString::Printf(TEXT("[DReyeVR]UserInputs:%s,\n"), *Inputs.ToString());
-        return print;
-    }
+    ////////////////////:LEGACY:////////////////////////
+    // don't use this unless you are using a legacy periph file
+    // (if you don't know what that means, don't use it!)
+    bool bUsingLegacyPeriphFile = false;
+    const LegacyPeriphDataStruct &GetLegacyPeriphData() const;
 
   private:
     int64_t TimestampCarlaUE4; // Carla Timestamp (EgoSensor Tick() event) in milliseconds
@@ -564,7 +195,35 @@ class AggregateData // all DReyeVR sensor data is held here
     struct EgoVariables EgoVars;
     struct FocusInfo FocusData;
     struct UserInputs Inputs;
+    struct LegacyPeriphDataStruct LegacyPeriphData;
 };
+
+class CustomActorData
+{
+  public:
+    FString Name; // unique actor name of this actor
+    FVector Location;
+    FRotator Rotation;
+    FVector Scale3D;
+    FString Other; // any other data deemed necessary to record
+    char TypeId;
+    enum class Types : uint8_t
+    {
+        SPHERE = 0,
+        CROSS
+    };
+
+    CustomActorData() = default;
+
+    void Read(std::ifstream &InFile);
+    void Write(std::ofstream &OutFile) const;
+    FString ToString() const;
+    std::string GetUniqueName() const;
+};
+
 }; // namespace DReyeVR
+
+// implementation file(s)
+#include "Carla/Sensor/DReyeVRData.inl" // AggregateData functions
 
 #endif
