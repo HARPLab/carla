@@ -102,6 +102,9 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     class ABall *PeriphBall = nullptr;
     // void  ();
 
+    ///////////////:PERIPH:////////////////
+    FVector GenerateRotVecGivenAngles(const FVector &UnitGazeVec, float yaw, float pitch) const;
+
     ////////////////:OTHER:////////////////
     int EgoSensorID;
     void Register();

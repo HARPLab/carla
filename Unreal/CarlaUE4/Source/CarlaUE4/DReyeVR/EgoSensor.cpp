@@ -414,14 +414,23 @@ void AEgoSensor::UpdateData(const DReyeVR::AggregateData &RecorderData, const do
         const DReyeVR::LegacyPeriphDataStruct &LegacyData = RecorderData.GetLegacyPeriphData();
         // treat the periph ball target as a CustomActor
         // visibility triggers spawning/destroying the actor
+        const std::string Name = "Legacy_PeriphBall";
         if (LegacyData.Visible)
         {
             DReyeVR::CustomActorData PeriphBall;
-            PeriphBall.Name = "Legacy_PeriphBall";
-            PeriphBall.Location = LegacyData.WorldPos;
+            PeriphBall.Name = FString(UTF8_TO_TCHAR(Name.c_str()));
+            FVector RotVecDirection = GenerateRotVecGivenAngles(RecorderData.GetCameraRotationAbs().Vector(), //
+                                                                LegacyData.head2target_yaw,                   //
+                                                                LegacyData.head2target_pitch);
+            PeriphBall.Location = LegacyData.WorldPos + RotVecDirection * 3.f * 100.f;
             PeriphBall.Scale3D = 0.05f * FVector::OneVector;
             PeriphBall.TypeId = static_cast<char>(DReyeVR::CustomActorData::Types::SPHERE);
             UpdateData(PeriphBall, Per);
+        }
+        else
+        {
+            if (ADReyeVRCustomActor::ActiveCustomActors.find(Name) != ADReyeVRCustomActor::ActiveCustomActors.end())
+                ADReyeVRCustomActor::ActiveCustomActors[Name]->RequestDestroy();
         }
     }
     // call the parent function
