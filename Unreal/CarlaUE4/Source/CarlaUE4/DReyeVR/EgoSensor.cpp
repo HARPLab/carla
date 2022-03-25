@@ -8,7 +8,7 @@
 #include "Misc/DateTime.h"              // FDateTime
 #include "UObject/UObjectBaseUtility.h" // GetName
 
-#ifdef USE_FOVEATED_RENDER
+#if USE_FOVEATED_RENDER
 #include "EyeTrackerTypes.h"             // FEyeTrackerStereoGazeData
 #include "VRSBlueprintFunctionLibrary.h" // VRS
 #endif
@@ -59,7 +59,7 @@ void AEgoSensor::ReadConfigVariables()
 
     // foveated rendering variables
     ReadConfigValue("FoveatedRender", "Enabled", bEnableFovRender);
-#ifdef USE_FOVEATED_RENDER
+#if USE_FOVEATED_RENDER
     // Initialize VRS plugin (using our VRS fork!)
     UVariableRateShadingFunctionLibrary::EnableVRS(bEnableFovRender);
     UVariableRateShadingFunctionLibrary::EnableEyeTracking(bEnableFovRender);
@@ -438,7 +438,7 @@ void AEgoSensor::ConvertToEyeTrackerSpace(FVector &inVec) const
 
 void AEgoSensor::TickFoveatedRender()
 {
-#ifdef USE_FOVEATED_RENDER
+#if USE_FOVEATED_RENDER
     FEyeTrackerStereoGazeData F;
     F.LeftEyeOrigin = GetData()->GetGazeOrigin(DReyeVR::Gaze::LEFT);
     F.LeftEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::LEFT);
