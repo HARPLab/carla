@@ -95,6 +95,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 
     ////////////////:FOVEATEDRENDER:////////////////
     void TickFoveatedRender();
+    void ConvertToEyeTrackerSpace(FVector &inVec) const;
     bool bEnableFovRender = false;
 
     ////////////////:OTHER:////////////////

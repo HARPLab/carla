@@ -422,13 +422,23 @@ void AEgoSensor::TakeScreenshot()
 /// ------------:FOVEATEDRENDER:-------------- ///
 /// ========================================== ///
 
+void AEgoSensor::ConvertToEyeTrackerSpace(FVector &inVec) const
+{
+    FVector temp = inVec;
+    inVec.X = -1 * temp.Y;
+    inVec.Y = temp.Z;
+    inVec.Z = temp.X;
+}
+
 void AEgoSensor::TickFoveatedRender()
 {
 #ifdef USE_FOVEATED_RENDER
     FEyeTrackerStereoGazeData F;
     F.LeftEyeOrigin = GetData()->GetGazeOrigin(DReyeVR::Gaze::LEFT);
     F.LeftEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::LEFT);
+    ConvertToEyeTrackerSpace(F.LeftEyeDirection);
     F.RightEyeOrigin = GetData()->GetGazeOrigin(DReyeVR::Gaze::RIGHT);
+    ConvertToEyeTrackerSpace(F.RightEyeDirection);
     F.RightEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::RIGHT);
     F.FixationPoint = GetData()->GetFocusActorPoint();
     F.ConfidenceValue = 0.99f;
