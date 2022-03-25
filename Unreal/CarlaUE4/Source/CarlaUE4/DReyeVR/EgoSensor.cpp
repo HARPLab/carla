@@ -8,6 +8,11 @@
 #include "Misc/DateTime.h"              // FDateTime
 #include "UObject/UObjectBaseUtility.h" // GetName
 
+#ifdef USE_FOVEATED_RENDER
+#include "EyeTrackerTypes.h"             // FEyeTrackerStereoGazeData
+#include "VRSBlueprintFunctionLibrary.h" // VRS
+#endif
+
 #ifdef _WIN32
 #include <windows.h> // required for file IO in Windows
 #endif
@@ -51,6 +56,14 @@ void AEgoSensor::ReadConfigVariables()
     ReadConfigValue("Replayer", "FrameHeight", FrameCapHeight);
     ReadConfigValue("Replayer", "FrameDir", FrameCapLocation);
     ReadConfigValue("Replayer", "FrameName", FrameCapFilename);
+
+    // foveated rendering variables
+    ReadConfigValue("FoveatedRender", "Enabled", bEnableFovRender);
+#ifdef USE_FOVEATED_RENDER
+    // Initialize VRS plugin (using our VRS fork!)
+    UVariableRateShadingFunctionLibrary::EnableVRS(bEnableFovRender);
+    UVariableRateShadingFunctionLibrary::EnableEyeTracking(bEnableFovRender);
+#endif
 
     // legacy code for periph recording support
     ReadConfigValue("Replayer", "UsingLegacyPeriph", bUsingLegacyPeriphFile);
@@ -100,6 +113,7 @@ void AEgoSensor::ManualTick(float DeltaSeconds)
                           FocusInfoData,              // FocusData
                           Vehicle->GetVehicleInputs() // User inputs
         );
+        TickFoveatedRender();
     }
     TickCount++;
 }
@@ -383,12 +397,12 @@ void AEgoSensor::InitFrameCapture()
         IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
         if (!PlatformFile.DirectoryExists(*FrameCapLocation))
         {
-#ifndef _WIN32
-            // this only seems to work on Unix systems, else CreateDirectoryW is not linked?
-            PlatformFile.CreateDirectory(*FrameCapLocation);
-#else
+#ifdef CreateDirectory
             // using Windows system calls
             CreateDirectory(*FrameCapLocation, NULL);
+#else
+            // this only seems to work on Unix systems, else CreateDirectoryW is not linked?
+            PlatformFile.CreateDirectory(*FrameCapLocation);
 #endif
         }
     }
@@ -408,6 +422,34 @@ void AEgoSensor::TakeScreenshot()
         SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix),
                         bFileFormatJPG);
     }
+}
+
+/// ========================================== ///
+/// ------------:FOVEATEDRENDER:-------------- ///
+/// ========================================== ///
+
+void AEgoSensor::ConvertToEyeTrackerSpace(FVector &inVec) const
+{
+    FVector temp = inVec;
+    inVec.X = -1 * temp.Y;
+    inVec.Y = temp.Z;
+    inVec.Z = temp.X;
+}
+
+void AEgoSensor::TickFoveatedRender()
+{
+#ifdef USE_FOVEATED_RENDER
+    FEyeTrackerStereoGazeData F;
+    F.LeftEyeOrigin = GetData()->GetGazeOrigin(DReyeVR::Gaze::LEFT);
+    F.LeftEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::LEFT);
+    ConvertToEyeTrackerSpace(F.LeftEyeDirection);
+    F.RightEyeOrigin = GetData()->GetGazeOrigin(DReyeVR::Gaze::RIGHT);
+    ConvertToEyeTrackerSpace(F.RightEyeDirection);
+    F.RightEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::RIGHT);
+    F.FixationPoint = GetData()->GetFocusActorPoint();
+    F.ConfidenceValue = 0.99f;
+    UVariableRateShadingFunctionLibrary::UpdateStereoGazeDataToFoveatedRendering(F);
+#endif
 }
 
 /// ========================================== ///

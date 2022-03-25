@@ -97,6 +97,11 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     bool bFileFormatJPG = true;
     bool bFrameCapForceLinearGamma = true;
 
+    ////////////////:FOVEATEDRENDER:////////////////
+    void TickFoveatedRender();
+    void ConvertToEyeTrackerSpace(FVector &inVec) const;
+    bool bEnableFovRender = false;
+
     ////////////////:REPLAY:////////////////
     bool bUsingLegacyPeriphFile = false;
     class ABall *PeriphBall = nullptr;
