@@ -93,6 +93,10 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     bool bFileFormatJPG = true;
     bool bFrameCapForceLinearGamma = true;
 
+    ////////////////:FOVEATEDRENDER:////////////////
+    void TickFoveatedRender();
+    bool bEnableFovRender = false;
+
     ////////////////:OTHER:////////////////
     int EgoSensorID;
     void Register();

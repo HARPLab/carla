@@ -515,9 +515,8 @@ void AEgoVehicle::InitSpectator()
         {
             InitReticleTexture(); // generate array of pixel values
             check(ReticleTexture);
-            // UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::SingleEye);
             UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
-            // UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
+            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
         }
         else
         {
