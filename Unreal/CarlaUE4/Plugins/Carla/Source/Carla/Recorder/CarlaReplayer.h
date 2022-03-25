@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <functional>
@@ -165,7 +166,8 @@ private:
   void ProcessWeather(void);
 
   // DReyeVR recordings
-  void ProcessDReyeVRData(void);
+  template <typename T> void ProcessDReyeVRData(double Per, double DeltaTime, bool bShouldBeOnlyOne);
+  std::unordered_set<std::string> Visited = {};
 
   // For restarting the recording with the same params
   struct LastReplayStruct
@@ -176,10 +178,6 @@ private:
     uint32_t ThisFollowId = 0;
   };
   LastReplayStruct LastReplay;
-
-  // DReyeVR sensor data
-  DReyeVRDataRecorder DReyeVRDataInstance;
-  void UpdateDReyeVRSensor(double Per, double DeltaTime);
 
   bool bReplaySync = false;
   std::vector<double> FrameStartTimes;

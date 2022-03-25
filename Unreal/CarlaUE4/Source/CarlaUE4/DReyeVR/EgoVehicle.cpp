@@ -333,6 +333,9 @@ void AEgoVehicle::ReplayTick()
                                               Replay->GetCameraLocationAbs(), // FVector (Location)
                                               FVector::OneVector);            // FVector (Scale3D)
         FirstPersonCam->SetWorldTransform(ReplayCameraTransAbs, false, nullptr, ETeleportType::None);
+
+        // overwrite vehicle inputs to use the replay data
+        VehicleInputs = Replay->GetUserInputs();
     }
 }
 
@@ -589,7 +592,8 @@ void AEgoVehicle::DrawSpectatorScreen()
     /// TODO: draw other things on the spectator screen?
     if (bDrawSpectatorReticle)
     {
-        const FVector2D &ReticlePos = EgoSensor->GetData()->GetProjectedReticleCoords();
+        const FVector2D ReticlePos = ProjectGazeToScreen(EgoSensor->GetData()->GetGazeOrigin(DReyeVR::Gaze::LEFT),
+                                                         EgoSensor->GetData()->GetGazeDir(DReyeVR::Gaze::LEFT));
         /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
         // define min and max bounds (where the texture is actually drawn on screen)
         const FVector2D TextureRectMin = ReticlePos / ViewSize;                 // top left
@@ -636,6 +640,7 @@ void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
     // Get eye tracker variables
     const FRotator WorldRot = GetCamera()->GetComponentRotation();
     const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
+
     // Draw elements of the HUD
     if (bDrawFlatReticle) // Draw reticle on flat-screen HUD
     {

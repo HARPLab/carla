@@ -3,6 +3,7 @@
 #include "Carla/Sensor/DReyeVRData.h"           // DReyeVR namespace
 #include "Carla/Sensor/DReyeVRSensor.h"         // ADReyeVRSensor
 #include "Components/SceneCaptureComponent2D.h" // USceneCaptureComponent2D
+#include "CustomActors.h"                       // ABall (DReyeVR custom actors)
 #include "EgoVehicle.h"                         // AEgoVehicle;
 #include <chrono>                               // timing threads
 #include <cstdint>
@@ -40,6 +41,9 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void ManualTick(float DeltaSeconds); // Tick called explicitly from DReyeVR EgoVehicle
 
     void SetEgoVehicle(class AEgoVehicle *EgoVehicle); // provide access to EgoVehicle (and by extension its camera)
+
+    void UpdateData(const DReyeVR::AggregateData &RecorderData, const double Per) override;
+    void UpdateData(const DReyeVR::CustomActorData &RecorderData, const double Per) override;
 
     // function where replayer requests a screenshot
     void TakeScreenshot() override;
@@ -97,6 +101,14 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void TickFoveatedRender();
     void ConvertToEyeTrackerSpace(FVector &inVec) const;
     bool bEnableFovRender = false;
+
+    ////////////////:REPLAY:////////////////
+    bool bUsingLegacyPeriphFile = false;
+    class ABall *PeriphBall = nullptr;
+    // void  ();
+
+    ///////////////:PERIPH:////////////////
+    FVector GenerateRotVecGivenAngles(const FVector &UnitGazeVec, float yaw, float pitch) const;
 
     ////////////////:OTHER:////////////////
     int EgoSensorID;

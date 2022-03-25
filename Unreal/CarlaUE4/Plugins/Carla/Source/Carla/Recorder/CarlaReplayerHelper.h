@@ -15,6 +15,9 @@
 #include "CarlaRecorderLightScene.h"
 #include "CarlaRecorderWeather.h"
 
+// DReyeVR includes
+#include "DReyeVRRecorder.h"
+
 #include <unordered_map>
 
 class UCarlaEpisode;
@@ -71,8 +74,8 @@ public:
   // replay finish
   bool ProcessReplayerFinish(bool bApplyAutopilot, bool bIgnoreHero, std::unordered_map<uint32_t, bool> &IsHero);
 
-  // update the DReyeVR ego sensor
-  void ProcessReplayerDReyeVRData(const DReyeVRDataRecorder &DReyeVRDataInstance, const double Per);
+  // update the DReyeVR ego sensor and custom types
+  template <typename T> void ProcessReplayerDReyeVRData(const T &DReyeVRDataInstance, const double Per);
 
   // set the camera position to follow an actor
   bool SetCameraPosition(uint32_t Id, FVector Offset, FQuat Rotation);

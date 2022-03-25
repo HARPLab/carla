@@ -70,7 +70,8 @@ private:
   CarlaRecorderTrafficLightTime TrafficLightTime;
   CarlaRecorderWeather Weather;
   // custom DReyeVR packets
-  DReyeVRDataRecorder DReyeVRDataInstance;
+  DReyeVRDataRecorder<DReyeVR::AggregateData> DReyeVRAggDataInstance;
+  DReyeVRDataRecorder<DReyeVR::CustomActorData> DReyeVRCustomActorDataInstance;
 
   // read next header packet
   bool ReadHeader(void);

@@ -18,7 +18,11 @@
 #include "CarlaReplayerHelper.h"
 
 // DReyeVR include
+#include "Carla/Actor/DReyeVRCustomActor.h"
+#include "Carla/Game/CarlaStatics.h"
+#include "Carla/Lights/CarlaLightSubsystem.h"
 #include "Carla/Sensor/DReyeVRSensor.h"
+#include "DReyeVRRecorder.h"
 
 #include <ctime>
 #include <sstream>
@@ -274,7 +278,18 @@ void ACarlaRecorder::AddActorBoundingBox(FCarlaActor *CarlaActor)
 void ACarlaRecorder::AddDReyeVRData()
 {
   // Add the latest instance of the DReyeVR snapshot to our data
-  DReyeVRData.Add(DReyeVRDataRecorder(ADReyeVRSensor::Data));
+  DReyeVRAggData.Add(DReyeVRDataRecorder<DReyeVR::AggregateData>(ADReyeVRSensor::Data));
+
+  TArray<AActor *> FoundActors;
+  if (Episode != nullptr && Episode->GetWorld() != nullptr)
+  {
+      UGameplayStatics::GetAllActorsOfClass(Episode->GetWorld(), ADReyeVRCustomActor::StaticClass(), FoundActors);
+  }
+  for (AActor *A : FoundActors)
+  {
+    ADReyeVRCustomActor *CustomActor = CastChecked<ADReyeVRCustomActor>(A);
+    DReyeVRCustomActorData.Add(DReyeVRDataRecorder<DReyeVR::CustomActorData>(&(CustomActor->GetInternals())));
+  }
 }
 
 void ACarlaRecorder::AddTriggerVolume(const ATrafficSignBase &TrafficSign)
@@ -407,7 +422,8 @@ void ACarlaRecorder::Clear(void)
   TriggerVolumes.Clear();
   PhysicsControls.Clear();
   TrafficLightTimes.Clear();
-  DReyeVRData.Clear();
+  DReyeVRAggData.Clear();
+  DReyeVRCustomActorData.Clear();
   Weathers.Clear();
 }
 
@@ -446,7 +462,10 @@ void ACarlaRecorder::Write(double DeltaSeconds)
     TrafficLightTimes.Write(File);
   }
   // custom DReyeVR data
-  DReyeVRData.Write(File);
+  DReyeVRAggData.Write(File);
+
+  // custom DReyeVR Actor data write
+  DReyeVRCustomActorData.Write(File);
 
   // weather state
   Weathers.Write(File);
