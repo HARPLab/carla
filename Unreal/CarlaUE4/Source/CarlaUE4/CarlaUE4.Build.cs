@@ -26,7 +26,7 @@ public class CarlaUE4 : ModuleRules
 		}
 
 		// Add module for SteamVR support with UE4
-		PublicDependencyModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
+		PublicDependencyModuleNames.AddRange(new string[] { "HeadMountedDisplay", "EyeTracker", "VRSPlugin" });
 
 		if (IsWindows(Target))
 		{ 

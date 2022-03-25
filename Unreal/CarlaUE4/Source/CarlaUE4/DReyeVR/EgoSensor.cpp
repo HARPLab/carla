@@ -7,6 +7,9 @@
 #include "Misc/DateTime.h"              // FDateTime
 #include "UObject/UObjectBaseUtility.h" // GetName
 
+#include "VRSBlueprintFunctionLibrary.h" // VRS
+#include "EyeTrackerTypes.h"             // FEyeTrackerStereoGazeData
+
 #ifdef _WIN32
 #include <windows.h> // required for file IO in Windows
 #endif
@@ -33,6 +36,10 @@ AEgoSensor::AEgoSensor(const FObjectInitializer &ObjectInitializer) : Super(Obje
 
     // Initialize the frame capture (constructor call to create USceneCaptureComponent2D)
     ConstructFrameCapture();
+
+    // Initialize VRS plugin (using our VRS fork!)
+    UVariableRateShadingFunctionLibrary::EnableVRS(true);
+    UVariableRateShadingFunctionLibrary::EnableEyeTracking(true);
 }
 
 void AEgoSensor::ReadConfigVariables()
@@ -94,6 +101,15 @@ void AEgoSensor::ManualTick(float DeltaSeconds)
                           FocusInfoData,              // FocusData
                           Vehicle->GetVehicleInputs() // User inputs
         );
+
+        FEyeTrackerStereoGazeData F;
+        F.LeftEyeOrigin = GetData()->GetGazeOrigin(DReyeVR::Gaze::LEFT);
+        F.LeftEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::LEFT);
+        F.RightEyeOrigin = GetData()->GetGazeOrigin(DReyeVR::Gaze::RIGHT);
+        F.RightEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::RIGHT);
+        F.FixationPoint = GetData()->GetFocusActorPoint();
+        F.ConfidenceValue = 0.99f;
+        UVariableRateShadingFunctionLibrary::UpdateStereoGazeDataToFoveatedRendering(F);
     }
     TickCount++;
 }
@@ -377,13 +393,13 @@ void AEgoSensor::InitFrameCapture()
         IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
         if (!PlatformFile.DirectoryExists(*FrameCapLocation))
         {
-#ifndef _WIN32
+// #ifndef _WIN32
             // this only seems to work on Unix systems, else CreateDirectoryW is not linked?
             PlatformFile.CreateDirectory(*FrameCapLocation);
-#else
-            // using Windows system calls
-            CreateDirectory(*FrameCapLocation, NULL);
-#endif
+// #else
+//             // using Windows system calls
+//             CreateDirectory(*FrameCapLocation, NULL);
+// #endif
         }
     }
 }
