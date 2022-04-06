@@ -10,7 +10,7 @@ class PeriphSystem
     void ReadConfigVariables();
 
     class APeriphTarget *PeriphTarget = nullptr;
-    class ACross *Crosshair = nullptr;
+    class ACross *Cross = nullptr;
 
     void Initialize(class UWorld *World);
     void Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExperiment, const UCameraComponent *Camera);
@@ -31,7 +31,7 @@ class PeriphSystem
     float TimeSinceLastFlash = 0.f;
     float NextPeriphTrigger = 0.f;
     bool bUsePeriphTarget = false;
-    bool bUseFixedCrosshair = false;
-    const FString PeriphName = "PeriphTarget";
-    const FString PeriphFixationName = "PeriphCrosshair";
+    bool bUseFixedCross = false;
+    const FString PeriphTargetName = "PeriphTarget";
+    const FString PeriphFixationName = "PeriphCross";
 };

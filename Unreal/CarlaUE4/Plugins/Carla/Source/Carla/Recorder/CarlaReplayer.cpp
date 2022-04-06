@@ -675,11 +675,11 @@ template <typename T> void CarlaReplayer::ProcessDReyeVRData(double Per, double 
   {
     for (auto It = ADReyeVRCustomActor::ActiveCustomActors.begin(); It != ADReyeVRCustomActor::ActiveCustomActors.end();){
       auto &ActiveActorName = It->first;
-      if (Visited.find(ActiveActorName) == Visited.end()) // currently alive actor who was not visited... time to delete
+      if (Visited.find(ActiveActorName) == Visited.end()) // currently alive actor who was not visited... time to disable
       {
         // now this has to be garbage collected
         auto Next = std::next(It, 1); // iterator following the last removed element
-        It->second->RequestDestroy();
+        It->second->Disable();
         It = Next;
       }
       else

@@ -321,7 +321,7 @@ void ADReyeVRLevel::LegacyReplayPeriph(const DReyeVR::AggregateData &RecorderDat
     else
     {
         if (ADReyeVRCustomActor::ActiveCustomActors.find(Name) != ADReyeVRCustomActor::ActiveCustomActors.end())
-            ADReyeVRCustomActor::ActiveCustomActors[Name]->RequestDestroy();
+            ADReyeVRCustomActor::ActiveCustomActors[Name]->Disable();
     }
 }
 
@@ -355,7 +355,10 @@ void ADReyeVRLevel::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderDa
     // ensure the actor is currently active (spawned)
     // now that we know this actor exists, update its internals
     if (A != nullptr)
+    {
         A->SetInternals(RecorderData);
+        A->Enable();
+    }
 }
 
 void ADReyeVRLevel::SetVolume()

@@ -18,7 +18,12 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
     virtual void Tick(float DeltaSeconds) override;
 
     static ADReyeVRCustomActor *RequestNewActor(UWorld *World, const FString &Name);
-    void RequestDestroy();
+    void Enable();
+    void Disable();
+    bool IsEnabled() const
+    {
+        return bIsEnabled;
+    }
 
     void Initialize(const FString &Name);
 
@@ -27,11 +32,11 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
     const DReyeVR::CustomActorData &GetInternals() const;
 
     static std::unordered_map<std::string, class ADReyeVRCustomActor *> ActiveCustomActors;
-    static bool RequestDestroy(ADReyeVRCustomActor *Actor);
 
   protected:
     void BeginPlay();
     void BeginDestroy();
+    bool bIsEnabled = false; // initially disabled
 
     void AssignSM(const FString &Path);
     void AssignMat(const int MatIdx, const FString &Path);

@@ -59,23 +59,26 @@ void ADReyeVRCustomActor::BeginDestroy()
     Super::BeginDestroy();
 }
 
-void ADReyeVRCustomActor::RequestDestroy()
+void ADReyeVRCustomActor::Disable()
 {
     const std::string s = TCHAR_TO_UTF8(*Internals.Name);
-    UE_LOG(LogTemp, Log, TEXT("Destroying custom actor: %s"), *Internals.Name);
+    // UE_LOG(LogTemp, Log, TEXT("Disabling custom actor: %s"), *Internals.Name);
     if (ADReyeVRCustomActor::ActiveCustomActors.find(s) != ADReyeVRCustomActor::ActiveCustomActors.end())
     {
         ADReyeVRCustomActor::ActiveCustomActors.erase(s);
     }
-    this->Destroy();
+    this->SetActorHiddenInGame(true);
+    this->SetActorTickEnabled(false);
+    this->bIsEnabled = false;
 }
 
-bool ADReyeVRCustomActor::RequestDestroy(ADReyeVRCustomActor *ToDie)
+void ADReyeVRCustomActor::Enable()
 {
-    if (ToDie)
-        ToDie->RequestDestroy();
-    ToDie = nullptr; // set to null immediately
-    return (ToDie == nullptr);
+    // UE_LOG(LogTemp, Log, TEXT("Enabling custom actor: %s"), *Internals.Name);
+    ADReyeVRCustomActor::ActiveCustomActors[TCHAR_TO_UTF8(*Internals.Name)] = this;
+    this->SetActorHiddenInGame(false);
+    this->SetActorTickEnabled(true);
+    this->bIsEnabled = true;
 }
 
 void ADReyeVRCustomActor::Tick(float DeltaSeconds)

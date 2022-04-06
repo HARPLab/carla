@@ -18,13 +18,25 @@ void PeriphSystem::ReadConfigVariables()
     ReadConfigValue("PeripheralTarget", "FlashDurationSec", FlashDuration);
     ReadConfigValue("PeripheralTarget", "TargetRadius", PeriphTargetRadius);
     ReadConfigValue("PeripheralTarget", "TargetRenderDistanceM", TargetRenderDistance);
-    ReadConfigValue("PeripheralTarget", "EnableFixedCrosshair", bUseFixedCrosshair);
+    ReadConfigValue("PeripheralTarget", "EnableFixedCross", bUseFixedCross);
 }
 
 void PeriphSystem::Initialize(class UWorld *WorldIn)
 {
     World = WorldIn;
     check(World != nullptr);
+    if (bUseFixedCross)
+    {
+        Cross = ACross::RequestNewActor(World, PeriphFixationName);
+        Cross->SetActorScale3D(0.1f * FVector::OneVector);
+        check(Cross != nullptr);
+    }
+    if (bUsePeriphTarget)
+    {
+        PeriphTarget = APeriphTarget::RequestNewActor(World, PeriphTargetName);
+        PeriphTarget->SetActorScale3D(PeriphTargetRadius * FVector::OneVector);
+        check(PeriphTarget != nullptr);
+    }
 }
 
 void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExperiment, const UCameraComponent *Camera)
@@ -34,74 +46,71 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
     {
         // replay of legacy periph target is handled in UpdateData
         if (PeriphTarget != nullptr)
-            ADReyeVRCustomActor::RequestDestroy(PeriphTarget);
-        if (Crosshair != nullptr)
-            ADReyeVRCustomActor::RequestDestroy(Crosshair);
+            PeriphTarget->Disable();
+        if (Cross != nullptr)
+            Cross->Disable();
         return;
     }
 
     const FVector &CameraLoc = Camera->GetComponentLocation();
     const FRotator &CameraRot = Camera->GetComponentRotation();
-    if (bUseFixedCrosshair)
+    if (bUseFixedCross)
     {
         if (bInCleanRoomExperiment)
         {
-            if (Crosshair == nullptr)
-                Crosshair = ACross::RequestNewActor(World, PeriphFixationName);
-            const FVector CrosshairVector = CameraRot.RotateVector(FVector::ForwardVector);
-            Crosshair->SetActorLocation(CameraLoc + CrosshairVector * TargetRenderDistance * 100.f);
-            Crosshair->SetActorRotation(CameraRot);
-            Crosshair->SetActorScale3D(0.1f * FVector::OneVector);
+            const FVector CrossVector = CameraRot.RotateVector(FVector::ForwardVector);
+            Cross->SetActorLocation(CameraLoc + CrossVector * TargetRenderDistance * 100.f);
+            Cross->SetActorRotation(CameraRot);
+            Cross->Enable();
         }
         else
         {
-            if (Crosshair != nullptr)
-                ADReyeVRCustomActor::RequestDestroy(Crosshair);
+            Cross->Disable();
         }
     }
 
-    if (!bUsePeriphTarget)
-        return;
-
-    // generate stimuli every TimeBetweenFlash second chunks, and log that time
-    /// TODO: all these magic numbers need to be parameterized
-    if (TimeSinceLastFlash < MaxTimeBetweenFlash + FlashDuration)
+    if (bUsePeriphTarget)
     {
-        if (TimeSinceLastFlash == 0.f)
+        // generate stimuli every TimeBetweenFlash second chunks, and log that time
+        if (TimeSinceLastFlash < MaxTimeBetweenFlash + FlashDuration)
         {
-            // update time for the next periph trigger
-            NextPeriphTrigger = FMath::RandRange(MinTimeBetweenFlash, MaxTimeBetweenFlash);
+            if (TimeSinceLastFlash == 0.f)
+            {
+                // update time for the next periph trigger
+                NextPeriphTrigger = FMath::RandRange(MinTimeBetweenFlash, MaxTimeBetweenFlash);
 
-            // generate random position for the next periph target
-            float RandYaw = FMath::RandRange(PeriphYawBounds.X, PeriphYawBounds.Y);
-            float RandPitch = FMath::RandRange(PeriphPitchBounds.X, PeriphPitchBounds.Y);
-            float Roll = 0.f;
-            PeriphRotator = FRotator(RandPitch, RandYaw, Roll);
+                // generate random position for the next periph target
+                float RandYaw = FMath::RandRange(PeriphYawBounds.X, PeriphYawBounds.Y);
+                float RandPitch = FMath::RandRange(PeriphPitchBounds.X, PeriphPitchBounds.Y);
+                float Roll = 0.f;
+                PeriphRotator = FRotator(RandPitch, RandYaw, Roll);
+            }
+            else if (LastPeriphTick <= NextPeriphTrigger && TimeSinceLastFlash > NextPeriphTrigger)
+            {
+                // turn on periph target
+                PeriphTarget->Enable();
+                UE_LOG(LogTemp, Log, TEXT("Periph Target On @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+            }
+            else if (LastPeriphTick <= NextPeriphTrigger + FlashDuration &&
+                     TimeSinceLastFlash > NextPeriphTrigger + FlashDuration)
+            {
+                // turn off periph target
+                PeriphTarget->Disable();
+                UE_LOG(LogTemp, Log, TEXT("Periph Target Off @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+            }
+            LastPeriphTick = TimeSinceLastFlash;
+            TimeSinceLastFlash += DeltaTime;
         }
-        else if (LastPeriphTick <= NextPeriphTrigger && TimeSinceLastFlash > NextPeriphTrigger)
+        else
         {
-            // turn on periph target
-            if (PeriphTarget != nullptr)
-                ADReyeVRCustomActor::RequestDestroy(PeriphTarget);
-            PeriphTarget = APeriphTarget::RequestNewActor(World, PeriphName);
-            UE_LOG(LogTemp, Log, TEXT("Periph Target On @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+            // reset the periph flashing
+            TimeSinceLastFlash = 0.f;
         }
-        else if (LastPeriphTick <= NextPeriphTrigger + FlashDuration &&
-                 TimeSinceLastFlash > NextPeriphTrigger + FlashDuration)
+        if (PeriphTarget->IsEnabled())
         {
-            // turn off periph target
-            if (PeriphTarget == nullptr)
-                PeriphTarget = APeriphTarget::RequestNewActor(World, PeriphName);
-            ADReyeVRCustomActor::RequestDestroy(PeriphTarget);
-            UE_LOG(LogTemp, Log, TEXT("Periph Target Off @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+            const FVector PeriphFinal = CameraRot.RotateVector((PeriphRotationOffset + PeriphRotator).Vector());
+            PeriphTarget->SetActorLocation(CameraLoc + PeriphFinal * TargetRenderDistance * 100.f);
         }
-        LastPeriphTick = TimeSinceLastFlash;
-        TimeSinceLastFlash += DeltaTime;
-    }
-    else
-    {
-        // reset the periph flashing
-        TimeSinceLastFlash = 0.f;
     }
 
 // Draw debug border markers
@@ -119,11 +128,4 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
     DrawDebugSphere(World, CameraLoc + BotLeft * TargetRenderDistance * 100.f, 4.0f, 12, FColor::Blue);
     DrawDebugSphere(World, CameraLoc + BotRight * TargetRenderDistance * 100.f, 4.0f, 12, FColor::Blue);
 #endif
-
-    if (PeriphTarget != nullptr)
-    {
-        const FVector PeriphFinal = CameraRot.RotateVector((PeriphRotationOffset + PeriphRotator).Vector());
-        PeriphTarget->SetActorLocation(CameraLoc + PeriphFinal * TargetRenderDistance * 100.f);
-        PeriphTarget->SetActorScale3D(PeriphTargetRadius * FVector::OneVector);
-    }
 }
