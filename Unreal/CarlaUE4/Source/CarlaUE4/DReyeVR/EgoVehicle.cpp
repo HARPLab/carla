@@ -53,7 +53,7 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
     ReadConfigValue("EgoVehicle", "SpeedometerInMPH", bUseMPH);
     ReadConfigValue("EgoVehicle", "TurnSignalDuration", TurnSignalDuration);
-    ReadConfigValue("EgoVehicle", "CleanSlateRoomLocation", CleanSlateRoomLocation);
+    ReadConfigValue("EgoVehicle", "CleanRoomCameraLocation", CleanRoomCameraLocation);
     // mirrors
     auto InitMirrorParams = [](const FString &Name, struct MirrorParams &Params) {
         Params.Name = Name;
@@ -170,8 +170,8 @@ void AEgoVehicle::Tick(float DeltaSeconds)
     // Draw the flat-screen HUD items like eye-reticle and FPS counter
     DrawFlatHUD(DeltaSeconds);
 
-    // Force "clean slate" eye calibration screen
-    ForceCleanSlateCalibration();
+    // Tick clean/empty room (only applies in Map4 currently, need to press "N")
+    TickCleanRoom();
 
     // Update the steering wheel to be responsive to user input
     TickSteeringWheel(DeltaSeconds);
@@ -226,7 +226,7 @@ void AEgoVehicle::ConstructCamera()
     ResetCamera();
 }
 
-bool AEgoVehicle::EnableCleanSlateRoom()
+bool AEgoVehicle::EnableCleanRoom()
 {
     if (World)
     {
@@ -235,21 +235,22 @@ bool AEgoVehicle::EnableCleanSlateRoom()
         UE_LOG(LogTemp, Log, TEXT("Currently in world: \"%s\""), *WorldName);
         if (WorldName.Contains("Town04"))
         {
-            UE_LOG(LogTemp, Log, TEXT("Enabling clean slate calibration"));
-            bBlankSlateRoomActive = true;
+            UE_LOG(LogTemp, Log, TEXT("Enabling clean room mode"));
+            bCleanRoomActive = true;
         }
         else
         {
-            UE_LOG(LogTemp, Log, TEXT("Need to switch to Town04 to enable clean slate room"));
+            UE_LOG(LogTemp, Log, TEXT("Need to switch to Town04 to enable clean room mode"));
+            bCleanRoomActive = false;
         }
     }
-    return bBlankSlateRoomActive; // true if sucessfull, false otherwise
+    return bCleanRoomActive; // true if sucessfull, false otherwise
 }
 
-void AEgoVehicle::DisableCleanSlateRoom()
+void AEgoVehicle::DisableCleanRoom()
 {
     UE_LOG(LogTemp, Log, TEXT("Disabling clean slate calibration"));
-    bBlankSlateRoomActive = false;
+    bCleanRoomActive = false;
     // teleport camera back to original location (vehicle + initial offset)
     const FTransform InitPosCamera(this->GetActorRotation() + FRotator::ZeroRotator, // FRotator (Rotation)
                                    this->GetActorLocation() + CameraLocnInVehicle,   // FVector (Location)
@@ -257,15 +258,20 @@ void AEgoVehicle::DisableCleanSlateRoom()
     VRCameraRoot->SetWorldTransform(InitPosCamera, false, nullptr, ETeleportType::None);
 }
 
-void AEgoVehicle::ForceCleanSlateCalibration()
+bool AEgoVehicle::IsInCleanRoom() const
 {
-    if (bBlankSlateRoomActive)
+    return bCleanRoomActive;
+}
+
+void AEgoVehicle::TickCleanRoom()
+{
+    if (bCleanRoomActive)
     {
         // kinda hacky, just teleports camera to clean room and keeps the vehicle stationary
-        this->SetBrake(1);                                     // tries to make the vehicle not move
-        const FTransform InitPosCamera(FRotator::ZeroRotator,  // FRotator (Rotation)
-                                       CleanSlateRoomLocation, // FVector (Location)
-                                       FVector::OneVector);    // FVector (Scale3D)
+        this->SetBrake(1);                                      // tries to make the vehicle not move
+        const FTransform InitPosCamera(FRotator::ZeroRotator,   // FRotator (Rotation)
+                                       CleanRoomCameraLocation, // FVector (Location)
+                                       FVector::OneVector);     // FVector (Scale3D)
         VRCameraRoot->SetWorldTransform(InitPosCamera, false, nullptr, ETeleportType::None);
     }
 }
@@ -311,6 +317,8 @@ void AEgoVehicle::InitSensor()
     // Attach the EgoSensor as a child to the EgoVehicle
     EgoSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
     EgoSensor->SetEgoVehicle(this);
+    if (DReyeVRLevel)
+        EgoSensor->SetLevel(DReyeVRLevel);
 }
 
 void AEgoVehicle::ReplayTick()
@@ -825,6 +833,7 @@ void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
 void AEgoVehicle::SetLevel(ADReyeVRLevel *Level)
 {
     this->DReyeVRLevel = Level;
+    check(DReyeVRLevel != nullptr);
 }
 
 void AEgoVehicle::TickLevel(float DeltaSeconds)

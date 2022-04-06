@@ -518,11 +518,11 @@ inline void AggregateData::Write(std::ofstream &OutFile) const
 inline FString AggregateData::ToString() const
 {
     FString print;
-    print += FString::Printf(TEXT("[DReyeVR]TimestampCarla:%ld,\n"), long(TimestampCarlaUE4));
-    print += FString::Printf(TEXT("[DReyeVR]EyeTracker:%s,\n"), *EyeTrackerData.ToString());
-    print += FString::Printf(TEXT("[DReyeVR]FocusInfo:%s,\n"), *FocusData.ToString());
-    print += FString::Printf(TEXT("[DReyeVR]EgoVariables:%s,\n"), *EgoVars.ToString());
-    print += FString::Printf(TEXT("[DReyeVR]UserInputs:%s,"), *Inputs.ToString());
+    print += FString::Printf(TEXT("  [DReyeVR]TimestampCarla:%ld,\n"), long(TimestampCarlaUE4));
+    print += FString::Printf(TEXT("  [DReyeVR]EyeTracker:%s,\n"), *EyeTrackerData.ToString());
+    print += FString::Printf(TEXT("  [DReyeVR]FocusInfo:%s,\n"), *FocusData.ToString());
+    print += FString::Printf(TEXT("  [DReyeVR]EgoVariables:%s,\n"), *EgoVars.ToString());
+    print += FString::Printf(TEXT("  [DReyeVR]UserInputs:%s,"), *Inputs.ToString());
     if (bUsingLegacyPeriphFile)
         print += LegacyPeriphData.ToString();
     print += "\n";
@@ -560,7 +560,7 @@ inline void CustomActorData::Write(std::ofstream &OutFile) const
 
 inline FString CustomActorData::ToString() const
 {
-    FString Print = "";
+    FString Print = "  [DReyeVR_CA]";
     Print += FString::Printf(TEXT("Type:%d,"), int(TypeId));
     Print += FString::Printf(TEXT("Name:%s,"), *Name);
     Print += FString::Printf(TEXT("Location:%s,"), *Location.ToString());

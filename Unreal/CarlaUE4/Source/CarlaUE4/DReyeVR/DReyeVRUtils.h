@@ -118,6 +118,21 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FVe
     else
         UE_LOG(LogTemp, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
 }
+static void ReadConfigValue(const FString &Section, const FString &Variable, FVector2D &Value)
+{
+    EnsureConfigsUpdated();
+    std::string VariableName = CreateVariableName(Section, Variable);
+    if (Params.find(VariableName) != Params.end())
+    {
+        if (Value.InitFromString(Params[VariableName]) == false)
+        {
+            UE_LOG(LogTemp, Error, TEXT("Unable to construct FVector2D for %s from %s"), *FString(VariableName.c_str()),
+                   *(Params[VariableName]));
+        }
+    }
+    else
+        UE_LOG(LogTemp, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+}
 static void ReadConfigValue(const FString &Section, const FString &Variable, FRotator &Value)
 {
     EnsureConfigsUpdated();

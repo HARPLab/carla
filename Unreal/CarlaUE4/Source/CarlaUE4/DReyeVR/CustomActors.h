@@ -4,23 +4,44 @@
 
 #include "CustomActors.generated.h"
 
-/// TODO: template partial specialization metaprogramming
+/// NOTE: include this as part of your custom actor instance class!
+#define CREATE_REQUEST_FACTORY_FN(T)                                                                                   \
+    static T *RequestNewActor(UWorld *World, const FString &Name)                                                      \
+    {                                                                                                                  \
+        check(World != nullptr);                                                                                       \
+        FActorSpawnParameters SpawnInfo;                                                                               \
+        SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;                    \
+        T *Actor = World->SpawnActor<T>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);                        \
+        Actor->Initialize(Name);                                                                                       \
+        return Actor;                                                                                                  \
+    }
+
 UCLASS()
-class CARLA_API ABall : public ADReyeVRCustomActor
+class ABall : public ADReyeVRCustomActor
 {
     GENERATED_BODY()
   public:
     ABall(const FObjectInitializer &ObjectInitializer);
 
-    static ABall *RequestNewActor(UWorld *World, const FString &Name);
+    CREATE_REQUEST_FACTORY_FN(ABall);
 };
 
 UCLASS()
-class CARLA_API ACross : public ADReyeVRCustomActor
+class ACross : public ADReyeVRCustomActor
 {
     GENERATED_BODY()
   public:
     ACross(const FObjectInitializer &ObjectInitializer);
 
-    static ACross *RequestNewActor(UWorld *World, const FString &Name);
+    CREATE_REQUEST_FACTORY_FN(ACross);
+};
+
+UCLASS()
+class APeriphTarget : public ADReyeVRCustomActor
+{
+    GENERATED_BODY()
+  public:
+    APeriphTarget(const FObjectInitializer &ObjectInitializer);
+
+    CREATE_REQUEST_FACTORY_FN(APeriphTarget);
 };

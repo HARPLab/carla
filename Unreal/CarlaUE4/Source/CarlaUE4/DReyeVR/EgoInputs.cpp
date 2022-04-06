@@ -35,9 +35,8 @@ void AEgoVehicle::SetupPlayerInputComponent(UInputComponent *PlayerInputComponen
     PlayerInputComponent->BindAction("HoldHandbrake_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseHandbrake);
     PlayerInputComponent->BindAction("ResetCamera_DReyeVR", IE_Pressed, this, &AEgoVehicle::PressResetCamera);
     PlayerInputComponent->BindAction("ResetCamera_DReyeVR", IE_Released, this, &AEgoVehicle::ReleaseResetCamera);
-    // clean slate room experiment
-    PlayerInputComponent->BindAction("ToggleCleanRoom_DReyeVR", IE_Pressed, this,
-                                     &AEgoVehicle::ToggleCleanRoomCalibration);
+    // clean/empty room experiment
+    PlayerInputComponent->BindAction("ToggleCleanRoom_DReyeVR", IE_Pressed, this, &AEgoVehicle::ToggleCleanRoom);
     /// Mouse X and Y input for looking up and turning
     PlayerInputComponent->BindAxis("MouseLookUp_DReyeVR", this, &AEgoVehicle::MouseLookUp);
     PlayerInputComponent->BindAxis("MouseTurn_DReyeVR", this, &AEgoVehicle::MouseTurn);
@@ -115,16 +114,16 @@ void AEgoVehicle::ResetCamera()
     }
 }
 
-void AEgoVehicle::ToggleCleanRoomCalibration()
+void AEgoVehicle::ToggleCleanRoom()
 {
-    // for the experimenter to toggle the clean-slate room experiment built into DReyeVR
-    if (!bBlankSlateRoomActive)
+    // for the experimenter to toggle the clean room experiment built into DReyeVR
+    if (!bCleanRoomActive)
     {
-        EnableCleanSlateRoom();
+        EnableCleanRoom();
     }
     else
     {
-        DisableCleanSlateRoom();
+        DisableCleanRoom();
     }
 }
 

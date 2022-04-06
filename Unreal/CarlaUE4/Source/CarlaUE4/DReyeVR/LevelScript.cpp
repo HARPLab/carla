@@ -6,6 +6,7 @@
 #include "EgoVehicle.h"                        // AEgoVehicle
 #include "HeadMountedDisplayFunctionLibrary.h" // IsHeadMountedDisplayAvailable
 #include "Kismet/GameplayStatics.h"            // GetPlayerController
+#include "Periph.h"                            // PeriphSystem
 #include "UObject/UObjectIterator.h"           // TObjectInterator
 
 ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
@@ -17,6 +18,7 @@ ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
     ReadConfigValue("Level", "EgoVolumePercent", EgoVolumePercent);
     ReadConfigValue("Level", "NonEgoVolumePercent", NonEgoVolumePercent);
     ReadConfigValue("Level", "AmbientVolumePercent", AmbientVolumePercent);
+    ReadConfigValue("PeripheralTarget", "RotationOffset", PeriphRotationOffset);
 
     // Recorder/replayer
     ReadConfigValue("Replayer", "RunSyncReplay", bReplaySync);
@@ -47,6 +49,9 @@ void ADReyeVRLevel::BeginPlay()
 
     // Initialize DReyeVR spectator
     SetupSpectator();
+
+    // Initialize periph stimuli system
+    PS.Initialize(GetWorld());
 
     // Initialize control mode
     /// TODO: read in initial control mode from .ini
@@ -165,6 +170,7 @@ void ADReyeVRLevel::Tick(float DeltaSeconds)
             const FVector &NewVehiclePosn = EgoVehiclePtr->GetCameraPosn(); // for post-physics tick
             SpectatorPtr->SetActorLocationAndRotation(NewVehiclePosn, EgoVehiclePtr->GetCameraRot());
         }
+        PS.Tick(DeltaSeconds, ADReyeVRSensor::bIsReplaying, EgoVehiclePtr->IsInCleanRoom(), EgoVehiclePtr->GetCamera());
     }
 }
 
@@ -292,6 +298,64 @@ void ADReyeVRLevel::SetupReplayer()
         UCarlaStatics::GetRecorder(GetWorld())->GetReplayer()->SetSyncMode(bReplaySync);
         bRecorderInitiated = true;
     }
+}
+
+void ADReyeVRLevel::LegacyReplayPeriph(const DReyeVR::AggregateData &RecorderData, const double Per)
+{
+    // treat the periph ball target as a CustomActor
+    // visibility triggers spawning/destroying the actor
+    const DReyeVR::LegacyPeriphDataStruct &LegacyData = RecorderData.GetLegacyPeriphData();
+    const std::string Name = "Legacy_PeriphBall";
+    if (LegacyData.Visible)
+    {
+        DReyeVR::CustomActorData PeriphBall;
+        PeriphBall.Name = FString(UTF8_TO_TCHAR(Name.c_str()));
+        const FRotator PeriphRotation{LegacyData.head2target_pitch, LegacyData.head2target_yaw, 0.f};
+        const FVector RotVecDirection =
+            RecorderData.GetCameraRotationAbs().RotateVector((PeriphRotationOffset + PeriphRotation).Vector());
+        PeriphBall.Location = LegacyData.WorldPos + RotVecDirection * 3.f * 100.f;
+        PeriphBall.Scale3D = 0.05f * FVector::OneVector;
+        PeriphBall.TypeId = static_cast<char>(DReyeVR::CustomActorData::Types::PERIPH_TARGET);
+        this->ReplayCustomActor(PeriphBall, Per);
+    }
+    else
+    {
+        if (ADReyeVRCustomActor::ActiveCustomActors.find(Name) != ADReyeVRCustomActor::ActiveCustomActors.end())
+            ADReyeVRCustomActor::ActiveCustomActors[Name]->RequestDestroy();
+    }
+}
+
+void ADReyeVRLevel::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderData, const double Per)
+{
+    // first spawn the actor if not currently active
+    const std::string ActorName = TCHAR_TO_UTF8(*RecorderData.Name);
+    ADReyeVRCustomActor *A = nullptr;
+    if (ADReyeVRCustomActor::ActiveCustomActors.find(ActorName) == ADReyeVRCustomActor::ActiveCustomActors.end())
+    {
+        switch (RecorderData.TypeId)
+        {
+        case static_cast<char>(DReyeVR::CustomActorData::Types::SPHERE):
+            A = ABall::RequestNewActor(GetWorld(), RecorderData.Name);
+            break;
+        case static_cast<char>(DReyeVR::CustomActorData::Types::CROSS):
+            A = ACross::RequestNewActor(GetWorld(), RecorderData.Name);
+            break;
+        case static_cast<char>(DReyeVR::CustomActorData::Types::PERIPH_TARGET):
+            A = APeriphTarget::RequestNewActor(GetWorld(), RecorderData.Name);
+            break;
+        /// TODO: generalize for other types (templates?? :eyes:)
+        default:
+            break; // ignore unknown actors
+        }
+    }
+    else
+    {
+        A = ADReyeVRCustomActor::ActiveCustomActors[ActorName];
+    }
+    // ensure the actor is currently active (spawned)
+    // now that we know this actor exists, update its internals
+    if (A != nullptr)
+        A->SetInternals(RecorderData);
 }
 
 void ADReyeVRLevel::SetVolume()

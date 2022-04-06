@@ -27,6 +27,7 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
     const DReyeVR::CustomActorData &GetInternals() const;
 
     static std::unordered_map<std::string, class ADReyeVRCustomActor *> ActiveCustomActors;
+    static bool RequestDestroy(ADReyeVRCustomActor *Actor);
 
   protected:
     void BeginPlay();

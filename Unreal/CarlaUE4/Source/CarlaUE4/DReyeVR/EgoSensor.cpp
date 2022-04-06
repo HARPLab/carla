@@ -59,11 +59,6 @@ void AEgoSensor::ReadConfigVariables()
 
     // foveated rendering variables
     ReadConfigValue("FoveatedRender", "Enabled", bEnableFovRender);
-#if USE_FOVEATED_RENDER
-    // Initialize VRS plugin (using our VRS fork!)
-    UVariableRateShadingFunctionLibrary::EnableVRS(bEnableFovRender);
-    UVariableRateShadingFunctionLibrary::EnableEyeTracking(bEnableFovRender);
-#endif
 
     // legacy code for periph recording support
     ReadConfigValue("Replayer", "UsingLegacyPeriph", bUsingLegacyPeriphFile);
@@ -86,6 +81,12 @@ void AEgoSensor::BeginPlay()
 
     // Register EgoSensor with the CarlaActorRegistry
     Register();
+
+#if USE_FOVEATED_RENDER
+    // Initialize VRS plugin (using our VRS fork!)
+    UVariableRateShadingFunctionLibrary::EnableVRS(bEnableFovRender);
+    UVariableRateShadingFunctionLibrary::EnableEyeTracking(bEnableFovRender);
+#endif
 
     UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoSensor"));
 }
@@ -321,6 +322,12 @@ void AEgoSensor::SetEgoVehicle(class AEgoVehicle *NewEgoVehicle)
     check(Vehicle);
 }
 
+void AEgoSensor::SetLevel(class ADReyeVRLevel *LevelIn)
+{
+    DReyeVRLevel = LevelIn;
+    check(DReyeVRLevel);
+}
+
 void AEgoSensor::ComputeEgoVars()
 {
     // See DReyeVRData::EgoVariables
@@ -460,27 +467,8 @@ void AEgoSensor::UpdateData(const DReyeVR::AggregateData &RecorderData, const do
 {
     if (bUsingLegacyPeriphFile)
     {
-        const DReyeVR::LegacyPeriphDataStruct &LegacyData = RecorderData.GetLegacyPeriphData();
-        // treat the periph ball target as a CustomActor
-        // visibility triggers spawning/destroying the actor
-        const std::string Name = "Legacy_PeriphBall";
-        if (LegacyData.Visible)
-        {
-            DReyeVR::CustomActorData PeriphBall;
-            PeriphBall.Name = FString(UTF8_TO_TCHAR(Name.c_str()));
-            FVector RotVecDirection = GenerateRotVecGivenAngles(RecorderData.GetCameraRotationAbs().Vector(), //
-                                                                LegacyData.head2target_yaw,                   //
-                                                                LegacyData.head2target_pitch);
-            PeriphBall.Location = LegacyData.WorldPos + RotVecDirection * 3.f * 100.f;
-            PeriphBall.Scale3D = 0.05f * FVector::OneVector;
-            PeriphBall.TypeId = static_cast<char>(DReyeVR::CustomActorData::Types::SPHERE);
-            UpdateData(PeriphBall, Per);
-        }
-        else
-        {
-            if (ADReyeVRCustomActor::ActiveCustomActors.find(Name) != ADReyeVRCustomActor::ActiveCustomActors.end())
-                ADReyeVRCustomActor::ActiveCustomActors[Name]->RequestDestroy();
-        }
+        if (DReyeVRLevel)
+            DReyeVRLevel->LegacyReplayPeriph(RecorderData, Per);
     }
     // call the parent function
     ADReyeVRSensor::UpdateData(RecorderData, Per);
@@ -488,32 +476,8 @@ void AEgoSensor::UpdateData(const DReyeVR::AggregateData &RecorderData, const do
 
 void AEgoSensor::UpdateData(const DReyeVR::CustomActorData &RecorderData, const double Per)
 {
-    // first spawn the actor if not currently active
-    const std::string ActorName = TCHAR_TO_UTF8(*RecorderData.Name);
-    ADReyeVRCustomActor *A = nullptr;
-    if (ADReyeVRCustomActor::ActiveCustomActors.find(ActorName) == ADReyeVRCustomActor::ActiveCustomActors.end())
-    {
-        switch (RecorderData.TypeId)
-        {
-        case static_cast<char>(DReyeVR::CustomActorData::Types::SPHERE):
-            A = ABall::RequestNewActor(GetWorld(), RecorderData.Name);
-            break;
-        case static_cast<char>(DReyeVR::CustomActorData::Types::CROSS):
-            A = ACross::RequestNewActor(GetWorld(), RecorderData.Name);
-            break;
-        /// TODO: generalize for other types (templates?? :eyes:)
-        default:
-            break; // ignore unknown actors
-        }
-    }
-    else
-    {
-        A = ADReyeVRCustomActor::ActiveCustomActors[ActorName];
-    }
-    // ensure the actor is currently active (spawned)
-    // now that we know this actor exists, update its internals
-    if (A != nullptr)
-        A->SetInternals(RecorderData);
+    if (DReyeVRLevel)
+        DReyeVRLevel->ReplayCustomActor(RecorderData, Per);
 }
 
 /// ========================================== ///

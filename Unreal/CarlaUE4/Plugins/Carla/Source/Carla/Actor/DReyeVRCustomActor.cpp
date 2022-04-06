@@ -36,7 +36,7 @@ void ADReyeVRCustomActor::AssignSM(const FString &Path)
 void ADReyeVRCustomActor::AssignMat(const int MatIdx, const FString &Path)
 {
     ConstructorHelpers::FObjectFinder<UMaterialInstance> MaterialAsset(*Path);
-    if (MaterialAsset.Succeeded())
+    if (MaterialAsset.Succeeded() && ActorMesh != nullptr)
         ActorMesh->SetMaterial(MatIdx, CastChecked<UMaterialInterface>(MaterialAsset.Object));
     else
         UE_LOG(LogTemp, Error, TEXT("Unable to access material asset: %s"), *Path)
@@ -68,6 +68,14 @@ void ADReyeVRCustomActor::RequestDestroy()
         ADReyeVRCustomActor::ActiveCustomActors.erase(s);
     }
     this->Destroy();
+}
+
+bool ADReyeVRCustomActor::RequestDestroy(ADReyeVRCustomActor *ToDie)
+{
+    if (ToDie)
+        ToDie->RequestDestroy();
+    ToDie = nullptr; // set to null immediately
+    return (ToDie == nullptr);
 }
 
 void ADReyeVRCustomActor::Tick(float DeltaSeconds)

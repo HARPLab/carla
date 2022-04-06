@@ -210,7 +210,10 @@ class CustomActorData
     enum class Types : uint8_t
     {
         SPHERE = 0,
-        CROSS
+        CROSS,
+        PERIPH_TARGET,
+        ARROW, /// TODO
+        BBOX   /// TODO
     };
 
     CustomActorData() = default;

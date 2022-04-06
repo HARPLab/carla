@@ -815,10 +815,6 @@ void CarlaReplayer::ProcessFrameByFrame()
   {
     GetFrameStartTimes();
     ensure(FrameStartTimes.size() > 0);
-    for (auto &i : FrameStartTimes)
-    {
-      UE_LOG(LogTemp, Log, TEXT("%.3f"), i);
-    }
   }
 
   // process to those times
