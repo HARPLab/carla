@@ -70,4 +70,5 @@ class CARLA_API ADReyeVRSensor : public ASensor
     static void InterpPositionAndRotation(const FVector &Pos1, const FRotator &Rot1, const FVector &Pos2,
                                           const FRotator &Rot2, const double Per, FVector &Location,
                                           FRotator &Rotation);
+    static bool bUsingLegacyPeriphFile;
 };

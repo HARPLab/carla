@@ -75,7 +75,11 @@ void ADReyeVRCustomActor::Disable()
 void ADReyeVRCustomActor::Enable()
 {
     // UE_LOG(LogTemp, Log, TEXT("Enabling custom actor: %s"), *Internals.Name);
-    ADReyeVRCustomActor::ActiveCustomActors[TCHAR_TO_UTF8(*Internals.Name)] = this;
+    const std::string s = TCHAR_TO_UTF8(*Internals.Name);
+    if (ADReyeVRCustomActor::ActiveCustomActors.find(s) == ADReyeVRCustomActor::ActiveCustomActors.end())
+        ADReyeVRCustomActor::ActiveCustomActors[s] = this;
+    else
+        ensure(ADReyeVRCustomActor::ActiveCustomActors[s] == this);
     this->SetActorHiddenInGame(false);
     this->SetActorTickEnabled(true);
     this->bIsEnabled = true;

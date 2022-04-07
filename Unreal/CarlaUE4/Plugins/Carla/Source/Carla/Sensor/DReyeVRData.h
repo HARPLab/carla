@@ -186,8 +186,8 @@ class AggregateData // all DReyeVR sensor data is held here
     ////////////////////:LEGACY:////////////////////////
     // don't use this unless you are using a legacy periph file
     // (if you don't know what that means, don't use it!)
-    bool bUsingLegacyPeriphFile = false;
     const LegacyPeriphDataStruct &GetLegacyPeriphData() const;
+    static bool bUsingLegacyPeriphFile;
 
   private:
     int64_t TimestampCarlaUE4; // Carla Timestamp (EgoSensor Tick() event) in milliseconds

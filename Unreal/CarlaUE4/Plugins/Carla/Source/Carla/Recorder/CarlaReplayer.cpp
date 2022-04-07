@@ -674,7 +674,7 @@ template <typename T> void CarlaReplayer::ProcessDReyeVRData(double Per, double 
   else
   {
     for (auto It = ADReyeVRCustomActor::ActiveCustomActors.begin(); It != ADReyeVRCustomActor::ActiveCustomActors.end();){
-      auto &ActiveActorName = It->first;
+      const std::string &ActiveActorName = It->first;
       if (Visited.find(ActiveActorName) == Visited.end()) // currently alive actor who was not visited... time to disable
       {
         // now this has to be garbage collected

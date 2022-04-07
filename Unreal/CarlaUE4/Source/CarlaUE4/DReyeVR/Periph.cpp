@@ -45,9 +45,9 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
     if (bIsReplaying || World == nullptr)
     {
         // replay of legacy periph target is handled in UpdateData
-        if (PeriphTarget != nullptr)
+        if (PeriphTarget != nullptr && PeriphTarget->IsEnabled())
             PeriphTarget->Disable();
-        if (Cross != nullptr)
+        if (Cross != nullptr && Cross->IsEnabled())
             Cross->Disable();
         return;
     }
@@ -63,7 +63,7 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
             Cross->SetActorRotation(CameraRot);
             Cross->Enable();
         }
-        else
+        else if (Cross->IsEnabled())
         {
             Cross->Disable();
         }

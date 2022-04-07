@@ -61,9 +61,7 @@ void AEgoSensor::ReadConfigVariables()
     ReadConfigValue("FoveatedRender", "Enabled", bEnableFovRender);
 
     // legacy code for periph recording support
-    ReadConfigValue("Replayer", "UsingLegacyPeriph", bUsingLegacyPeriphFile);
-    check(GetData() != nullptr);
-    GetData()->bUsingLegacyPeriphFile = bUsingLegacyPeriphFile;
+    ReadConfigValue("Replayer", "UsingLegacyPeriph", ADReyeVRSensor::bUsingLegacyPeriphFile);
 }
 
 void AEgoSensor::BeginPlay()
