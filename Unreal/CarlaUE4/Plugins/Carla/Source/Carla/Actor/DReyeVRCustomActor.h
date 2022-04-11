@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"      // AActor
 
 #include <unordered_map> // std::unordered_map
+#include <utility>       // std::pair
+#include <vector>        // std::vector
 
 #include "DReyeVRCustomActor.generated.h"
 
@@ -33,9 +35,14 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
 
     static std::unordered_map<std::string, class ADReyeVRCustomActor *> ActiveCustomActors;
 
+    // function to dynamically change the material params of the object at runtime
+    void ApplyMaterialParams(const std::vector<std::pair<FName, float>> &ScalarParamsIn,
+                             const std::vector<std::pair<FName, FLinearColor>> &VectorParamIn,
+                             const int MaterialIdx = 0);
+
   protected:
-    void BeginPlay();
-    void BeginDestroy();
+    void BeginPlay() override;
+    void BeginDestroy() override;
     bool bIsEnabled = false; // initially disabled
 
     void AssignSM(const FString &Path);
@@ -46,4 +53,8 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
     UPROPERTY(EditAnywhere, Category = "Mesh")
     class UStaticMeshComponent *ActorMesh = nullptr;
     static int AllMeshCount;
+
+    // for dynamic (parametrized) material
+    std::vector<std::pair<FName, float>> ScalarParams;
+    std::vector<std::pair<FName, FLinearColor>> VectorParams;
 };

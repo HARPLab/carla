@@ -25,7 +25,7 @@ class PeriphSystem
     float MaxTimeBetweenFlash;
     float MinTimeBetweenFlash;
     float FlashDuration;
-    float PeriphTargetRadius;
+    float PeriphTargetSize, FixationCrossSize;
     float TargetRenderDistance;
     float LastPeriphTick = 0.f;
     float TimeSinceLastFlash = 0.f;

@@ -1,8 +1,9 @@
 #include "DReyeVRCustomActor.h"
-#include "Carla/Game/CarlaStatics.h"    // GetEpisode
-#include "Carla/Sensor/DReyeVRSensor.h" // ADReyeVRSensor::bIsReplaying
-#include "Materials/MaterialInstance.h" // UMaterialInstance
-#include "UObject/ConstructorHelpers.h" // ConstructorHelpers
+#include "Carla/Game/CarlaStatics.h"           // GetEpisode
+#include "Carla/Sensor/DReyeVRSensor.h"        // ADReyeVRSensor::bIsReplaying
+#include "Materials/MaterialInstance.h"        // UMaterialInstance
+#include "Materials/MaterialInstanceDynamic.h" // UMaterialInstanceDynamic
+#include "UObject/ConstructorHelpers.h"        // ConstructorHelpers
 
 #include <string>
 
@@ -52,6 +53,9 @@ void ADReyeVRCustomActor::Initialize(const FString &Name)
 void ADReyeVRCustomActor::BeginPlay()
 {
     Super::BeginPlay();
+
+    // apply these dynamic params if there are any
+    ApplyMaterialParams(ScalarParams, VectorParams);
 }
 
 void ADReyeVRCustomActor::BeginDestroy()
@@ -83,6 +87,49 @@ void ADReyeVRCustomActor::Enable()
     this->SetActorHiddenInGame(false);
     this->SetActorTickEnabled(true);
     this->bIsEnabled = true;
+}
+
+void ADReyeVRCustomActor::ApplyMaterialParams(const std::vector<std::pair<FName, float>> &ScalarParamsIn,
+                                              const std::vector<std::pair<FName, FLinearColor>> &VectorParamsIn,
+                                              const int MaterialIdx)
+{
+    /// SCALAR:
+    // "Metallic" -> controls how metal-like your surface looks like
+    // "Specular" -> used to scale the current amount of specularity on non-metallic surfaces. Bw [0, 1], default 0.5
+    // "Roughness" -> Controls how rough the material is. [0 (smooth/mirror), 1(rough/diffuse)], default 0.5
+    // "Anisotropy" -> Determines the extent the specular highlight is stretched along the tangent. Bw [0, 1], default 0
+
+    /// VECTOR:
+    // "BaseColor" -> defines the overall colour of the material (each channel is clamped to [0, 1])
+    // "Emissive" -> controls which parts of the material appear to glow
+
+    if (ActorMesh != nullptr && (ScalarParamsIn.size() > 0 || VectorParamsIn.size() > 0))
+    {
+        class UMaterialInstanceDynamic *DynamicMat = UMaterialInstanceDynamic::Create(ActorMesh->GetMaterial(0), this);
+        for (const std::pair<FName, float> &ScalarParam : ScalarParamsIn)
+        {
+            DynamicMat->SetScalarParameterValue(ScalarParam.first, ScalarParam.second);
+            UE_LOG(LogTemp, Log, TEXT("Apply %s at %.3f"), *(ScalarParam.first.ToString()), ScalarParam.second);
+        }
+        for (const std::pair<FName, FLinearColor> &VectorParam : VectorParamsIn)
+        {
+            DynamicMat->SetVectorParameterValue(VectorParam.first, VectorParam.second);
+            UE_LOG(LogTemp, Log, TEXT("Apply %s at %s"), *(VectorParam.first.ToString()),
+                   *VectorParam.second.ToString());
+        }
+        if (MaterialIdx == -1)
+        {
+            // loop through all materials
+            for (int i = 0; i < ActorMesh->GetNumMaterials(); i++)
+                ActorMesh->SetMaterial(MaterialIdx, DynamicMat);
+        }
+        else
+            ActorMesh->SetMaterial(MaterialIdx, DynamicMat);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Unable to create dynamic material: ActorMesh is null!"));
+    }
 }
 
 void ADReyeVRCustomActor::Tick(float DeltaSeconds)

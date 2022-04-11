@@ -227,13 +227,16 @@ void AEgoVehicle::PressTurnSignalR()
     // store in local input container
     VehicleInputs.TurnSignalRight = true;
 
-    // apply new light state
-    FVehicleLightState Lights = this->GetVehicleLightState();
-    Lights.RightBlinker = true;
-    Lights.LeftBlinker = false;
-    this->SetVehicleLightState(Lights);
-
-    this->PlayTurnSignalSound();
+    if (bEnableTurnSignalAction)
+    {
+        // apply new light state
+        FVehicleLightState Lights = this->GetVehicleLightState();
+        Lights.RightBlinker = true;
+        Lights.LeftBlinker = false;
+        this->SetVehicleLightState(Lights);
+        // play sound
+        this->PlayTurnSignalSound();
+    }
     RightSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
     LeftSignalTimeToDie = 0.f;                           // immediately stop left signal
 }
@@ -255,13 +258,16 @@ void AEgoVehicle::PressTurnSignalL()
     // store in local input container
     VehicleInputs.TurnSignalLeft = true;
 
-    // apply new light state
-    FVehicleLightState Lights = this->GetVehicleLightState();
-    Lights.RightBlinker = false;
-    Lights.LeftBlinker = true;
-    this->SetVehicleLightState(Lights);
-
-    this->PlayTurnSignalSound();
+    if (bEnableTurnSignalAction)
+    {
+        // apply new light state
+        FVehicleLightState Lights = this->GetVehicleLightState();
+        Lights.RightBlinker = false;
+        Lights.LeftBlinker = true;
+        this->SetVehicleLightState(Lights);
+        // play sound
+        this->PlayTurnSignalSound();
+    }
     RightSignalTimeToDie = 0.f;                         // immediately stop right signal
     LeftSignalTimeToDie = TNumericLimits<float>::Max(); // wait until button released (+inf until then)
 }

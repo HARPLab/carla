@@ -52,6 +52,7 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "CameraInit", CameraLocnInVehicle);
     ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
     ReadConfigValue("EgoVehicle", "SpeedometerInMPH", bUseMPH);
+    ReadConfigValue("EgoVehicle", "EnableTurnSignalAction", bEnableTurnSignalAction);
     ReadConfigValue("EgoVehicle", "TurnSignalDuration", TurnSignalDuration);
     ReadConfigValue("EgoVehicle", "CleanRoomCameraLocation", CleanRoomCameraLocation);
     // mirrors
@@ -746,15 +747,20 @@ void AEgoVehicle::UpdateDash()
             bReverse = !bReverse;
             PlayGearShiftSound();
         }
-        if (Replay->GetUserInputs().TurnSignalLeft)
+        if (bEnableTurnSignalAction)
         {
-            LeftSignalTimeToDie = FPlatformTime::Seconds() + TurnSignalDuration;
-            PlayTurnSignalSound();
-        }
-        if (Replay->GetUserInputs().TurnSignalRight)
-        {
-            RightSignalTimeToDie = FPlatformTime::Seconds() + TurnSignalDuration;
-            PlayTurnSignalSound();
+            if (Replay->GetUserInputs().TurnSignalLeft)
+            {
+                LeftSignalTimeToDie = FPlatformTime::Seconds() + TurnSignalDuration;
+                RightSignalTimeToDie = 0.f;
+                PlayTurnSignalSound();
+            }
+            if (Replay->GetUserInputs().TurnSignalRight)
+            {
+                RightSignalTimeToDie = FPlatformTime::Seconds() + TurnSignalDuration;
+                LeftSignalTimeToDie = 0.f;
+                PlayTurnSignalSound();
+            }
         }
     }
     else
@@ -765,14 +771,17 @@ void AEgoVehicle::UpdateDash()
     const FString Data = FString::FromInt(int(FMath::RoundHalfFromZero(XPH)));
     Speedometer->SetText(FText::FromString(Data));
 
-    // Draw the signals
-    float Now = FPlatformTime::Seconds();
-    if (Now < RightSignalTimeToDie)
-        TurnSignals->SetText(FText::FromString(">>>"));
-    else if (Now < LeftSignalTimeToDie)
-        TurnSignals->SetText(FText::FromString("<<<"));
-    else
-        TurnSignals->SetText(FText::FromString("")); // nothing
+    if (bEnableTurnSignalAction)
+    {
+        // Draw the signals
+        float Now = FPlatformTime::Seconds();
+        if (Now < RightSignalTimeToDie)
+            TurnSignals->SetText(FText::FromString(">>>"));
+        else if (Now < LeftSignalTimeToDie)
+            TurnSignals->SetText(FText::FromString("<<<"));
+        else
+            TurnSignals->SetText(FText::FromString("")); // nothing
+    }
 
     // Draw the gear shifter
     if (bReverse)

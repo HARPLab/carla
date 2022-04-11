@@ -1,4 +1,5 @@
 #include "CustomActors.h"
+#include "DReyeVRUtils.h" // ReadConfigValue
 
 ABall::ABall(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -21,8 +22,30 @@ ACross::ACross(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitia
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickGroup = TG_PrePhysics;
 
-    // material color and lighting is defined in: Material'/Game/DReyeVR/Custom/Periph/EmissiveRed.EmissiveRed'
-    AssignSM("StaticMesh'/Game/DReyeVR/Custom/Periph/SMFixationCross.SMFixationCross'");
+    // parametric material color and lighting is defined in:
+    // Material'/Game/DReyeVR/Custom/ParamMaterial.ParamMaterial'
+    // and already applied to this static mesh
+    AssignSM("StaticMesh'/Game/DReyeVR/Custom/Periph/SM_FixationCross.SM_FixationCross'");
+
+    float EmissionFactor = 0.f;
+    ReadConfigValue("PeripheralTarget", "EmissionFactor", EmissionFactor);
+
+    // then you can set the specific parameter values as follows
+    // (for more details, see ADReyeVRCustomActor:ApplyMaterialParams)
+    ScalarParams = {
+        {"Metallic", 1.f},
+        {"Specular", 0.f},
+        {"Roughness", 1.f},
+        {"Anisotropy", 1.f},
+    };
+    VectorParams = {
+        {"BaseColor", FLinearColor::Red},
+        {"Emissive", EmissionFactor * FLinearColor::Red},
+    };
+
+    // or, you could optionally change the material to something basic such as:
+    // AssignMat(0, "MaterialInstanceConstant'/Game/Carla/Static/Vehicles/GeneralMaterials/BrightRed.BrightRed'");
+    // AssignMat(1, "MaterialInstanceConstant'/Game/Carla/Static/Vehicles/GeneralMaterials/BrightRed.BrightRed'");
 
     // finalizing construction
     this->SetActorEnableCollision(false);
@@ -36,9 +59,35 @@ APeriphTarget::APeriphTarget(const FObjectInitializer &ObjectInitializer) : Supe
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickGroup = TG_PrePhysics;
 
-    // material color and lighting is defined in: Material'/Game/DReyeVR/Custom/Periph/EmissiveRed.EmissiveRed'
-    AssignSM("StaticMesh'/Game/DReyeVR/Custom/Periph/SMPeriphTarget.SMPeriphTarget'");
+    float EmissionFactor = 0.f;
+    ReadConfigValue("PeripheralTarget", "EmissionFactor", EmissionFactor);
+    bool bUseLegacyPeriphColour = false;
+    ReadConfigValue("PeripheralTarget", "UseLegacyPeriphColour", bUseLegacyPeriphColour);
 
+    // parametric material color and lighting is defined in:
+    // Material'/Game/DReyeVR/Custom/ParamMaterial.ParamMaterial'
+    // and already applied to this static mesh
+    AssignSM("StaticMesh'/Game/DReyeVR/Custom/Periph/SM_PeriphTarget.SM_PeriphTarget'");
+    // (for more details, see ADReyeVRCustomActor:ApplyMaterialParams)
+    if (bUseLegacyPeriphColour)
+    {
+        // retains anisotropy and specular highlights
+        ScalarParams = {};
+    }
+    else
+    {
+        // isotropic with no specular highlights
+        ScalarParams = {
+            {"Metallic", 1.f},
+            {"Specular", 0.f},
+            {"Roughness", 1.f},
+            {"Anisotropy", 1.f},
+        };
+    }
+    VectorParams = {
+        {"BaseColor", FLinearColor::Red},
+        {"Emissive", EmissionFactor * FLinearColor::Red},
+    };
     // finalizing construction
     this->SetActorEnableCollision(false);
 

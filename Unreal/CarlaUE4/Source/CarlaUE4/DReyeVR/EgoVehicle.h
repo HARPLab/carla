@@ -156,6 +156,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void PressReverse();
     void ReleaseReverse();
     bool bCanPressReverse = true;
+    // turn signals
+    bool bEnableTurnSignalAction = true; // tune with "EnableTurnSignalAction" in config
     // left turn signal
     void PressTurnSignalL();
     void ReleaseTurnSignalL();

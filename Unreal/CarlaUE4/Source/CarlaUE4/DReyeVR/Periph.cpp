@@ -16,9 +16,12 @@ void PeriphSystem::ReadConfigVariables()
     ReadConfigValue("PeripheralTarget", "MaxTimeBetweenFlashSec", MaxTimeBetweenFlash);
     ReadConfigValue("PeripheralTarget", "MinTimeBetweenFlashSec", MinTimeBetweenFlash);
     ReadConfigValue("PeripheralTarget", "FlashDurationSec", FlashDuration);
-    ReadConfigValue("PeripheralTarget", "TargetRadius", PeriphTargetRadius);
-    ReadConfigValue("PeripheralTarget", "TargetRenderDistanceM", TargetRenderDistance);
+    ReadConfigValue("PeripheralTarget", "PeriphTargetSize", PeriphTargetSize);
+    // fixation cross params
     ReadConfigValue("PeripheralTarget", "EnableFixedCross", bUseFixedCross);
+    ReadConfigValue("PeripheralTarget", "FixationCrossSize", FixationCrossSize);
+    // general
+    ReadConfigValue("PeripheralTarget", "TargetRenderDistanceM", TargetRenderDistance);
 }
 
 void PeriphSystem::Initialize(class UWorld *WorldIn)
@@ -28,13 +31,13 @@ void PeriphSystem::Initialize(class UWorld *WorldIn)
     if (bUseFixedCross)
     {
         Cross = ACross::RequestNewActor(World, PeriphFixationName);
-        Cross->SetActorScale3D(0.1f * FVector::OneVector);
+        Cross->SetActorScale3D(FixationCrossSize * FVector::OneVector);
         check(Cross != nullptr);
     }
     if (bUsePeriphTarget)
     {
         PeriphTarget = APeriphTarget::RequestNewActor(World, PeriphTargetName);
-        PeriphTarget->SetActorScale3D(PeriphTargetRadius * FVector::OneVector);
+        PeriphTarget->SetActorScale3D(PeriphTargetSize * FVector::OneVector);
         check(PeriphTarget != nullptr);
     }
 }
@@ -89,14 +92,14 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
             {
                 // turn on periph target
                 PeriphTarget->Enable();
-                UE_LOG(LogTemp, Log, TEXT("Periph Target On @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+                UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
             }
             else if (LastPeriphTick <= NextPeriphTrigger + FlashDuration &&
                      TimeSinceLastFlash > NextPeriphTrigger + FlashDuration)
             {
                 // turn off periph target
                 PeriphTarget->Disable();
-                UE_LOG(LogTemp, Log, TEXT("Periph Target Off @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+                UE_LOG(LogTemp, Log, TEXT("Periph Target Off \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
             }
             LastPeriphTick = TimeSinceLastFlash;
             TimeSinceLastFlash += DeltaTime;
