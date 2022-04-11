@@ -129,7 +129,7 @@ void AEgoVehicle::ToggleCleanRoom()
 
 void AEgoVehicle::SetSteeringKbd(const float SteeringInput)
 {
-    if (SteeringInput == 0.f && bIsLogiConnected)
+    if (SteeringInput == 0.f && bIsLogiConnected && !bPedalsDefaulting)
         return;
     SetSteering(SteeringInput);
 }
@@ -145,7 +145,7 @@ void AEgoVehicle::SetSteering(const float SteeringInput)
 
 void AEgoVehicle::SetThrottleKbd(const float ThrottleInput)
 {
-    if (ThrottleInput == 0.f && bIsLogiConnected)
+    if (ThrottleInput == 0.f && bIsLogiConnected && !bPedalsDefaulting)
         return;
     SetThrottle(ThrottleInput);
 }
@@ -168,7 +168,7 @@ void AEgoVehicle::SetThrottle(const float ThrottleInput)
 
 void AEgoVehicle::SetBrakeKbd(const float BrakeInput)
 {
-    if (BrakeInput == 0.f && bIsLogiConnected)
+    if (BrakeInput == 0.f && bIsLogiConnected && !bPedalsDefaulting)
         return;
     SetBrake(BrakeInput);
 }
@@ -490,14 +490,26 @@ void AEgoVehicle::LogitechWheelUpdate()
     const float BrakePedal = fabs(((WheelState->lRz - 32767.0f) / (65535.0f))); // (0, 1)
     // -1 = not pressed. 0 = Top. 0.25 = Right. 0.5 = Bottom. 0.75 = Left.
     const float Dpad = fabs(((WheelState->rgdwPOV[0] - 32767.0f) / (65535.0f)));
-    // apply to DReyeVR inputs
-    /// (NOTE: these function calls occur in the EgoVehicle::Tick, meaning other
-    // control calls could theoretically conflict/override them if called later. This is
-    // the case with the keyboard inputs which is why there are wrappers (suffixed with "Kbd")
-    // that always override logi inputs IF their values are nonzero
-    this->SetSteering(WheelRotation);
-    this->SetThrottle(AccelerationPedal);
-    this->SetBrake(BrakePedal);
+    
+    // weird behaviour: "Pedals will output a value of 0.5 until the wheel/pedals receive any kind of input"
+    // as per https://github.com/HARPLab/LogitechWheelPlugin
+    if (bPedalsDefaulting)
+    {
+        if (!(FMath::IsNearlyEqual(WheelRotation, 0.f, 0.01f) && FMath::IsNearlyEqual(AccelerationPedal, 0.5f, 0.01f) && FMath::IsNearlyEqual(BrakePedal, 0.5f, 0.01f)))
+        {
+            bPedalsDefaulting = false;
+        }
+    }
+    else
+    {
+        /// (NOTE: these function calls occur in the EgoVehicle::Tick, meaning other
+        // control calls could theoretically conflict/override them if called later. This is
+        // the case with the keyboard inputs which is why there are wrappers (suffixed with "Kbd")
+        // that always override logi inputs IF their values are nonzero
+        this->SetSteering(WheelRotation);
+        this->SetThrottle(AccelerationPedal);
+        this->SetBrake(BrakePedal);
+    }
 
     //    UE_LOG(LogTemp, Log, TEXT("Dpad value %f"), Dpad);
     //    if (WheelState->rgdwPOV[0] == 0) // should work now

@@ -198,6 +198,11 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float ScaleMouseY;
     float ScaleMouseX;
 
+    // default logi plugin behaviour is to set things to 0.5 for some reason
+    // "Pedals will output a value of 0.5 until the wheel/pedals receive any kind of input."
+    // https://github.com/HARPLab/LogitechWheelPlugin
+    bool bPedalsDefaulting = true;
+
     void InitLogiWheel();
     void TickLogiWheel();
     void DestroyLogiWheel(bool DestroyModule);
