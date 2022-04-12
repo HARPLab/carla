@@ -266,6 +266,8 @@ bool AEgoVehicle::IsInCleanRoom() const
 
 void AEgoVehicle::TickCleanRoom()
 {
+    if (GetMesh())
+        GetMesh()->SetSimulatePhysics(!bCleanRoomActive); // disable physics when in clean-room
     if (bCleanRoomActive)
     {
         // kinda hacky, just teleports camera to clean room and keeps the vehicle stationary
@@ -329,6 +331,9 @@ void AEgoVehicle::ReplayTick()
     class USkeletalMeshComponent *VehicleMesh = GetMesh();
     if (VehicleMesh)
         VehicleMesh->SetSimulatePhysics(!bIsReplaying); // disable physics when replaying (teleporting)
+    if (FirstPersonCam)
+        FirstPersonCam->bLockToHmd = !bIsReplaying; // only lock orientation and position to HMD when not replaying
+
     // perform all sensor updates that occur when replaying
     if (bIsReplaying)
     {
