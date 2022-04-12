@@ -227,11 +227,21 @@ void ADReyeVRSensor::InterpPositionAndRotation(const FVector &Pos1, const FRotat
 }
 
 // static function to get the DReyeVR sensor
-class UWorld *ADReyeVRSensor::sWorld = nullptr;                   // static world ptr
-class ADReyeVRSensor *ADReyeVRSensor::DReyeVRSensorPtr = nullptr; // static "singleton" ptr
-class ADReyeVRSensor *ADReyeVRSensor::GetDReyeVRSensor()          // static getter
+class UWorld *ADReyeVRSensor::sWorld = nullptr;                             // static world ptr
+class ADReyeVRSensor *ADReyeVRSensor::DReyeVRSensorPtr = nullptr;           // static "singleton" ptr
+class ADReyeVRSensor *ADReyeVRSensor::GetDReyeVRSensor(class UWorld *World) // static getter
 {
-    if (DReyeVRSensorPtr == nullptr) // if need to look for DReyeVR sensor in world
+    // pass in GetWorld() whenever you want the check to be the most up-to-date
+    if (World != nullptr && World != ADReyeVRSensor::sWorld)
+    {
+        // check if the world has been reloaded and we need to refresh our internal pointers
+        UE_LOG(LogTemp, Warning, TEXT("Detected world change! Invalidating cached data"));
+        ADReyeVRSensor::sWorld = World;
+        ADReyeVRSensor::DReyeVRSensorPtr = nullptr;
+        ADReyeVRCustomActor::ActiveCustomActors.clear();
+    }
+
+    if (ADReyeVRSensor::DReyeVRSensorPtr == nullptr) // if need to look for DReyeVR sensor in world
     {
         // need to find the DReyeVR sensor
         TArray<AActor *> FoundActors;
@@ -242,8 +252,8 @@ class ADReyeVRSensor *ADReyeVRSensor::GetDReyeVRSensor()          // static gett
         if (FoundActors.Num() > 0)
         {
             /// TODO: check if multiple DReyeVRSensors exist in the world
-            DReyeVRSensorPtr = CastChecked<ADReyeVRSensor>(FoundActors[0]);
-            ensure(DReyeVRSensorPtr != nullptr);
+            ADReyeVRSensor::DReyeVRSensorPtr = CastChecked<ADReyeVRSensor>(FoundActors[0]);
+            ensure(ADReyeVRSensor::DReyeVRSensorPtr != nullptr);
         }
         if (FoundActors.Num() > 1)
         {
@@ -252,7 +262,7 @@ class ADReyeVRSensor *ADReyeVRSensor::GetDReyeVRSensor()          // static gett
     }
 
     // check if DReyeVR sensor was found
-    if (DReyeVRSensorPtr == nullptr)
+    if (ADReyeVRSensor::DReyeVRSensorPtr == nullptr)
     {
         UE_LOG(LogTemp, Error, TEXT("No DReyeVRSensor found in the world!"));
     }

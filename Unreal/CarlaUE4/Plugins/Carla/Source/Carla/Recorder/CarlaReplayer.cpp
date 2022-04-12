@@ -823,7 +823,7 @@ void CarlaReplayer::ProcessFrameByFrame()
   if (SyncCurrentFrameId > 0)
     LastTime = FrameStartTimes[SyncCurrentFrameId - 1];
   ProcessToTime(FrameStartTimes[SyncCurrentFrameId] - LastTime, (SyncCurrentFrameId == 0));
-  if (ADReyeVRSensor::GetDReyeVRSensor())
+  if (ADReyeVRSensor::GetDReyeVRSensor(Episode->GetWorld()))
     // have the vehicle camera take a screenshot to record the replay
     ADReyeVRSensor::GetDReyeVRSensor()->TakeScreenshot();
   else

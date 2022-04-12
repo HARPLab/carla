@@ -479,7 +479,7 @@ bool CarlaReplayerHelper::ProcessReplayerFinish(bool bApplyAutopilot, bool bIgno
     }
   }
   // tell the DReyeVR sensor to NOT continue replaying
-  if (ADReyeVRSensor::GetDReyeVRSensor())
+  if (ADReyeVRSensor::GetDReyeVRSensor(Episode->GetWorld()))
     ADReyeVRSensor::GetDReyeVRSensor()->StopReplaying();
   else
     UE_LOG(LogTemp, Error, TEXT("No DReyeVR sensor available!"));
@@ -488,7 +488,7 @@ bool CarlaReplayerHelper::ProcessReplayerFinish(bool bApplyAutopilot, bool bIgno
 
 template <typename T> void CarlaReplayerHelper::ProcessReplayerDReyeVRData(const T &DReyeVRDataInstance, const double Per)
 {
-  if (ADReyeVRSensor::GetDReyeVRSensor())
+  if (ADReyeVRSensor::GetDReyeVRSensor(Episode->GetWorld()))
     ADReyeVRSensor::GetDReyeVRSensor()->UpdateData(DReyeVRDataInstance.Data, Per);
   else
     UE_LOG(LogTemp, Error, TEXT("No DReyeVR sensor available!"));

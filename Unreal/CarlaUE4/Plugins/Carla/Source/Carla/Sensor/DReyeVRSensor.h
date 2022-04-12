@@ -54,7 +54,7 @@ class CARLA_API ADReyeVRSensor : public ASensor
         UE_LOG(LogTemp, Warning, TEXT("Not implemented! Implement in EgoSensor!"));
     };
 
-    static class ADReyeVRSensor *GetDReyeVRSensor();
+    static class ADReyeVRSensor *GetDReyeVRSensor(class UWorld *World = nullptr);
     static bool bIsReplaying;
 
   protected:

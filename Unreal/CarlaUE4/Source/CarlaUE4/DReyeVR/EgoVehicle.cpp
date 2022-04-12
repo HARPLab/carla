@@ -324,8 +324,13 @@ void AEgoVehicle::InitSensor()
 
 void AEgoVehicle::ReplayTick()
 {
+    const bool bIsReplaying = EgoSensor->IsReplaying();
+    // need to enable/disable VehicleMesh simulation
+    class USkeletalMeshComponent *VehicleMesh = GetMesh();
+    if (VehicleMesh)
+        VehicleMesh->SetSimulatePhysics(!bIsReplaying); // disable physics when replaying (teleporting)
     // perform all sensor updates that occur when replaying
-    if (EgoSensor->IsReplaying())
+    if (bIsReplaying)
     {
         // this gets reached when the simulator is replaying data from a carla log
         const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
@@ -335,13 +340,14 @@ void AEgoVehicle::ReplayTick()
         const FTransform ReplayTransform(Replay->GetVehicleRotation(), // FRotator (Rotation)
                                          Replay->GetVehicleLocation(), // FVector (Location)
                                          FVector::OneVector);          // FVector (Scale3D)
-        SetActorTransform(ReplayTransform, false, nullptr, ETeleportType::None);
+        // see https://docs.unrealengine.com/4.26/en-US/API/Runtime/Engine/Engine/ETeleportType/
+        SetActorTransform(ReplayTransform, false, nullptr, ETeleportType::TeleportPhysics);
 
         // assign first person camera orientation and location (absolute)
         const FTransform ReplayCameraTransAbs(Replay->GetCameraRotationAbs(), // FRotator (Rotation)
                                               Replay->GetCameraLocationAbs(), // FVector (Location)
                                               FVector::OneVector);            // FVector (Scale3D)
-        FirstPersonCam->SetWorldTransform(ReplayCameraTransAbs, false, nullptr, ETeleportType::None);
+        FirstPersonCam->SetWorldTransform(ReplayCameraTransAbs, false, nullptr, ETeleportType::TeleportPhysics);
 
         // overwrite vehicle inputs to use the replay data
         VehicleInputs = Replay->GetUserInputs();

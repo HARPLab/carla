@@ -60,6 +60,7 @@ void ADReyeVRCustomActor::BeginPlay()
 
 void ADReyeVRCustomActor::BeginDestroy()
 {
+    this->Disable(); // remove from global static table
     Super::BeginDestroy();
 }
 
