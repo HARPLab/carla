@@ -55,7 +55,7 @@ void ADReyeVRCustomActor::BeginPlay()
     Super::BeginPlay();
 
     // apply these dynamic params if there are any
-    ApplyMaterialParams(ScalarParams, VectorParams);
+    ApplyMaterialParams(ScalarParams, VectorParams, 0, NumMaterials);
 }
 
 void ADReyeVRCustomActor::BeginDestroy()
@@ -92,7 +92,7 @@ void ADReyeVRCustomActor::Enable()
 
 void ADReyeVRCustomActor::ApplyMaterialParams(const std::vector<std::pair<FName, float>> &ScalarParamsIn,
                                               const std::vector<std::pair<FName, FLinearColor>> &VectorParamsIn,
-                                              const int MaterialIdx)
+                                              const int StartMaterialIdx, const int NumMaterials)
 {
     /// SCALAR:
     // "Metallic" -> controls how metal-like your surface looks like
@@ -117,14 +117,8 @@ void ADReyeVRCustomActor::ApplyMaterialParams(const std::vector<std::pair<FName,
             DynamicMat->SetVectorParameterValue(VectorParam.first, VectorParam.second);
             // UE_LOG(LogTemp, Log, TEXT("Apply %s=%s"), *VectorParam.first.ToString(), *VectorParam.second.ToString());
         }
-        if (MaterialIdx < 0)
-        {
-            // loop through |MaterialIdx| materials (dynamic array assignment)
-            for (int i = 0; i < std::abs(MaterialIdx); i++)
-                ActorMesh->SetMaterial(i, DynamicMat);
-        }
-        else
-            ActorMesh->SetMaterial(MaterialIdx, DynamicMat);
+        for (int i = 0; i < NumMaterials; i++)
+            ActorMesh->SetMaterial(StartMaterialIdx + i, DynamicMat);
     }
     else
     {

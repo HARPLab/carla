@@ -43,6 +43,9 @@ ACross::ACross(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitia
         {"Emissive", EmissionFactor * FLinearColor::Red},
     };
 
+    // NOTE: this cross has 2 bones (horizontal and vertical components) so we need 2 materials
+    NumMaterials = 2; // default is 1 material, change this to apply these params to a group
+
     // or, you could optionally change the material to something basic such as:
     // AssignMat(0, "MaterialInstanceConstant'/Game/Carla/Static/Vehicles/GeneralMaterials/BrightRed.BrightRed'");
     // AssignMat(1, "MaterialInstanceConstant'/Game/Carla/Static/Vehicles/GeneralMaterials/BrightRed.BrightRed'");
