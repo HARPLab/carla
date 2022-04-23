@@ -1,7 +1,5 @@
 #pragma once
 
-/// TODO: clean up circular dependency!
-#include "EgoVehicle.h"              // DReyeVR ego vehicle ptr
 #include "Engine/LevelScriptActor.h" // ALevelScriptActor
 #include "Periph.h"                  // PeriphSystem
 

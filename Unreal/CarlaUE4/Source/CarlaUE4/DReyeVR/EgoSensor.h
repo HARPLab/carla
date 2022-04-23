@@ -4,7 +4,6 @@
 #include "Carla/Sensor/DReyeVRSensor.h"         // ADReyeVRSensor
 #include "Components/SceneCaptureComponent2D.h" // USceneCaptureComponent2D
 #include "CustomActors.h"                       // ABall (DReyeVR custom actors)
-#include "EgoVehicle.h"                         // AEgoVehicle;
 #include <chrono>                               // timing threads
 #include <cstdint>
 

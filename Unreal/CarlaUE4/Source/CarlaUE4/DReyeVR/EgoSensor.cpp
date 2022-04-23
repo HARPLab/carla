@@ -3,6 +3,7 @@
 #include "Carla/Game/CarlaStatics.h"    // GetEpisode
 #include "CustomActors.h"               // CustomActors (ABall, etc.)
 #include "DReyeVRUtils.h"               // ReadConfigValue, ComputeClosestToRayIntersection
+#include "EgoVehicle.h"                 // AEgoVehicle
 #include "Kismet/GameplayStatics.h"     // UGameplayStatics::ProjectWorldToScreen
 #include "Kismet/KismetMathLibrary.h"   // Sin, Cos, Normalize
 #include "Misc/DateTime.h"              // FDateTime
