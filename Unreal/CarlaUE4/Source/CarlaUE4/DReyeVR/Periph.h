@@ -34,4 +34,20 @@ class PeriphSystem
     bool bUseFixedCross = false;
     const FString PeriphTargetName = "PeriphTarget";
     const FString PeriphFixationName = "PeriphCross";
+
+    // Fixation cross movement variables
+    FVector FixCrossLoc, CrossVector, HeadNeutralLoc;
+    FVector2D TimeBetweenFlashFC, TimeFlashToMoveFC, FCYawBounds, FCPitchBounds;
+    FRotator FixCrossRot, HeadNeutralRot; // do we even need to rotate it
+    bool FCMovesWHead;
+    float FixCrossPitchExtension;
+    float FixationMoveTimeOffset;
+    float TimeBetweenFCMove;
+    float TimeSinceLastFCMove = 0.f;
+    float NextFCMove = 0.f;
+    float FCMoveMaxRadius;
+    int NumFCMoves = 0;
+    
+
+  
 };
