@@ -43,15 +43,27 @@ void PeriphSystem::Initialize(class UWorld *WorldIn)
     check(World != nullptr);
     if (bUseFixedCross)
     {
-        Cross = ACross::RequestNewActor(World, PeriphFixationName);
-        Cross->SetActorScale3D(FixationCrossSize * FVector::OneVector);
+        Cross = ADReyeVRCustomActor::CreateNew(SM_CROSS, MAT_OPAQUE, World, PeriphFixationName);
         check(Cross != nullptr);
+        Cross->SetActorScale3D(FixationCrossSize * FVector::OneVector);
     }
     if (bUsePeriphTarget)
     {
-        PeriphTarget = APeriphTarget::RequestNewActor(World, PeriphTargetName);
-        PeriphTarget->SetActorScale3D(PeriphTargetSize * FVector::OneVector);
+        PeriphTarget = ADReyeVRCustomActor::CreateNew(SM_SPHERE, MAT_OPAQUE, World, PeriphTargetName);
         check(PeriphTarget != nullptr);
+        PeriphTarget->SetActorScale3D(PeriphTargetSize * FVector::OneVector);
+        float Emissive;
+        ReadConfigValue("PeripheralTarget", "EmissionFactor", Emissive);
+        PeriphTarget->MaterialParams.Emissive = Emissive * FLinearColor::Red;
+        bool bUseLegacyPeriphColour;
+        ReadConfigValue("PeripheralTarget", "UseLegacyPeriphColour", bUseLegacyPeriphColour);
+        if (bUseLegacyPeriphColour)
+        {
+            PeriphTarget->MaterialParams.Metallic = 0.f;
+            PeriphTarget->MaterialParams.Specular = 0.5f;
+            PeriphTarget->MaterialParams.Roughness = 0.f;
+            PeriphTarget->MaterialParams.Anisotropy = 0.f;
+        }
     }
 }
 
@@ -61,10 +73,10 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
     if (bIsReplaying || World == nullptr)
     {
         // replay of legacy periph target is handled in UpdateData
-        if (PeriphTarget != nullptr && PeriphTarget->IsEnabled())
-            PeriphTarget->Disable();
-        if (Cross != nullptr && Cross->IsEnabled())
-            Cross->Disable();
+        if (PeriphTarget != nullptr && PeriphTarget->IsActive())
+            PeriphTarget->Deactivate();
+        if (Cross != nullptr && Cross->IsActive())
+            Cross->Deactivate();
         return;
     }
 
@@ -74,7 +86,7 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
     {
         if (bInCleanRoomExperiment)
         {   
-            Cross->Enable();
+            Cross->Activate();
             // TODO may not need this special case
             if (NumFCMoves == 0)
             {
@@ -104,14 +116,14 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
             else if (LastPeriphTick <= NextPeriphTrigger && TimeSinceLastFlash > NextPeriphTrigger)
             {
                 // turn on periph target
-                PeriphTarget->Enable();
+                PeriphTarget->Activate();
                 UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
             }
             else if (LastPeriphTick <= NextPeriphTrigger + FlashDuration
                         && TimeSinceLastFlash > NextPeriphTrigger + FlashDuration)
             {
                 // turn off periph target
-                PeriphTarget->Disable();
+                PeriphTarget->Deactivate();
                 UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
                 TimeSinceLastFlash = 0.f;
 
@@ -157,7 +169,7 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
 
 
 
-            if (PeriphTarget->IsEnabled())
+            if (PeriphTarget->IsActive())
             {
                 const FVector PeriphFinal = -FixCrossRot.RotateVector((PeriphRotator).Vector());
                 PeriphTarget->SetActorLocation(CameraLoc + PeriphFinal * TargetRenderDistance * 100.f);
@@ -165,9 +177,9 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
 
             
         }
-        else if (Cross->IsEnabled())
+        else if (Cross->IsActive())
         {
-            Cross->Disable();
+            Cross->Deactivate();
         }
     }
 
@@ -190,14 +202,14 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
             else if (LastPeriphTick <= NextPeriphTrigger && TimeSinceLastFlash > NextPeriphTrigger)
             {
                 // turn on periph target
-                PeriphTarget->Enable();
+                PeriphTarget->Activate();
                 UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
             }
             else if (LastPeriphTick <= NextPeriphTrigger + FlashDuration &&
                      TimeSinceLastFlash > NextPeriphTrigger + FlashDuration)
             {
                 // turn off periph target
-                PeriphTarget->Disable();
+                PeriphTarget->Deactivate();
                 UE_LOG(LogTemp, Log, TEXT("Periph Target Off \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
             }
             LastPeriphTick = TimeSinceLastFlash;
@@ -208,7 +220,7 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
             // reset the periph flashing
             TimeSinceLastFlash = 0.f;
         }
-        if (PeriphTarget->IsEnabled())
+        if (PeriphTarget->IsActive())
         {
             const FVector PeriphFinal = CameraRot.RotateVector((PeriphRotationOffset + PeriphRotator).Vector());
             PeriphTarget->SetActorLocation(CameraLoc + PeriphFinal * TargetRenderDistance * 100.f);

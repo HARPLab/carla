@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Camera/CameraComponent.h"               // UCameraComponent
+#include "Carla/Actor/DReyeVRCustomActor.h"       // ADReyeVRCustomActor
 #include "Carla/Game/CarlaEpisode.h"              // CarlaEpisode
 #include "Carla/Sensor/DReyeVRData.h"             // DReyeVR namespace
 #include "Carla/Vehicle/CarlaWheeledVehicle.h"    // ACarlaWheeledVehicle
@@ -149,6 +150,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void SetThrottleKbd(const float ThrottleInput);
     void SetBrakeKbd(const float BrakeInput);
     bool bReverse;
+
     // "button presses" should have both a "Press" and "Release" function
     // And, if using the logitech plugin, should also have an "is rising edge" bool so they can only
     // be pressed after being released (cant double press w/ no release)

@@ -679,7 +679,7 @@ template <typename T> void CarlaReplayer::ProcessDReyeVRData(double Per, double 
       {
         // now this has to be garbage collected
         auto Next = std::next(It, 1); // iterator following the last removed element
-        It->second->Disable();
+        It->second->Deactivate();
         It = Next;
       }
       else

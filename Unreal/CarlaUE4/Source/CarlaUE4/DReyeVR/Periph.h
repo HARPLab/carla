@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Carla/Actor/DReyeVRCustomActor.h" // ADReyeVRCustomActor
-#include "CustomActors.h"                   // APeriphTarget, ACross
 
 class PeriphSystem
 {
@@ -9,8 +8,8 @@ class PeriphSystem
     PeriphSystem();
     void ReadConfigVariables();
 
-    class APeriphTarget *PeriphTarget = nullptr;
-    class ACross *Cross = nullptr;
+    class ADReyeVRCustomActor *PeriphTarget = nullptr;
+    class ADReyeVRCustomActor *Cross = nullptr;
 
     void Initialize(class UWorld *World);
     void Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExperiment, const UCameraComponent *Camera);

@@ -288,7 +288,7 @@ void ACarlaRecorder::AddDReyeVRData()
   for (AActor *A : FoundActors)
   {
     ADReyeVRCustomActor *CustomActor = Cast<ADReyeVRCustomActor>(A);
-    if (CustomActor != nullptr && CustomActor->IsEnabled())
+    if (CustomActor != nullptr && CustomActor->IsActive())
     {
       DReyeVRCustomActorData.Add(DReyeVRDataRecorder<DReyeVR::CustomActorData>(&(CustomActor->GetInternals())));
     }

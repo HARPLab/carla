@@ -315,13 +315,16 @@ void ADReyeVRLevel::LegacyReplayPeriph(const DReyeVR::AggregateData &RecorderDat
             RecorderData.GetCameraRotationAbs().RotateVector((PeriphRotationOffset + PeriphRotation).Vector());
         PeriphBall.Location = LegacyData.WorldPos + RotVecDirection * 3.f * 100.f;
         PeriphBall.Scale3D = 0.05f * FVector::OneVector;
-        PeriphBall.TypeId = static_cast<char>(DReyeVR::CustomActorData::Types::PERIPH_TARGET);
+
+        float Emissive;
+        ReadConfigValue("PeripheralTarget", "EmissionFactor", Emissive);
+        PeriphBall.MaterialParams.Emissive = Emissive * FLinearColor::Red;
         this->ReplayCustomActor(PeriphBall, Per);
     }
     else
     {
         if (ADReyeVRCustomActor::ActiveCustomActors.find(Name) != ADReyeVRCustomActor::ActiveCustomActors.end())
-            ADReyeVRCustomActor::ActiveCustomActors[Name]->Disable();
+            ADReyeVRCustomActor::ActiveCustomActors[Name]->Deactivate();
     }
 }
 
@@ -332,21 +335,9 @@ void ADReyeVRLevel::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderDa
     ADReyeVRCustomActor *A = nullptr;
     if (ADReyeVRCustomActor::ActiveCustomActors.find(ActorName) == ADReyeVRCustomActor::ActiveCustomActors.end())
     {
-        switch (RecorderData.TypeId)
-        {
-        case static_cast<char>(DReyeVR::CustomActorData::Types::SPHERE):
-            A = ABall::RequestNewActor(GetWorld(), RecorderData.Name);
-            break;
-        case static_cast<char>(DReyeVR::CustomActorData::Types::CROSS):
-            A = ACross::RequestNewActor(GetWorld(), RecorderData.Name);
-            break;
-        case static_cast<char>(DReyeVR::CustomActorData::Types::PERIPH_TARGET):
-            A = APeriphTarget::RequestNewActor(GetWorld(), RecorderData.Name);
-            break;
-        /// TODO: generalize for other types (templates?? :eyes:)
-        default:
-            break; // ignore unknown actors
-        }
+        /// TODO: also track KnownNumMaterials?
+        A = ADReyeVRCustomActor::CreateNew(RecorderData.MeshPath, RecorderData.MaterialParams.MaterialPath, GetWorld(),
+                                           RecorderData.Name);
     }
     else
     {
@@ -357,7 +348,8 @@ void ADReyeVRLevel::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderDa
     if (A != nullptr)
     {
         A->SetInternals(RecorderData);
-        A->Enable();
+        A->Activate();
+        A->Tick(Per); // update locations immediately
     }
 }
 

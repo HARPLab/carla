@@ -9,22 +9,33 @@
 
 #include "DReyeVRCustomActor.generated.h"
 
+// define some paths to common custom actor types
+#define MAT_OPAQUE "Material'/Game/DReyeVR/Custom/OpaqueParamMaterial.OpaqueParamMaterial'"
+#define MAT_TRANSLUCENT "Material'/Game/DReyeVR/Custom/TranslucentParamMaterial.TranslucentParamMaterial'"
+#define SM_SPHERE "StaticMesh'/Engine/BasicShapes/Sphere.Sphere'"
+#define SM_CUBE "StaticMesh'/Engine/BasicShapes/Cube.Cube'"
+#define SM_CONE "StaticMesh'/Engine/BasicShapes/Cone.Cone'"
+#define SM_CROSS "StaticMesh'/Game/DReyeVR/Custom/Shapes/SM_Cross.SM_Cross'"
+/// TODO: make Arrow mesh
+#define SM_ARROW "StaticMesh'/Engine/BasicShapes/Cube.Cube'"
+
 UCLASS()
 class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
 {
     GENERATED_BODY()
 
   public:
-    ADReyeVRCustomActor(const FObjectInitializer &ObjectInitializer);
+    /// factory function to create a new instance of a given type
+    static ADReyeVRCustomActor *CreateNew(const FString &SM_Path, const FString &Mat_Path, UWorld *World,
+                                          const FString &Name);
 
     virtual void Tick(float DeltaSeconds) override;
 
-    static ADReyeVRCustomActor *RequestNewActor(UWorld *World, const FString &Name);
-    void Enable();
-    void Disable();
-    bool IsEnabled() const
+    void Activate();
+    void Deactivate();
+    bool IsActive() const
     {
-        return bIsEnabled;
+        return bIsActive;
     }
 
     void Initialize(const FString &Name);
@@ -36,18 +47,16 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
     static std::unordered_map<std::string, class ADReyeVRCustomActor *> ActiveCustomActors;
 
     // function to dynamically change the material params of the object at runtime
-    void ApplyMaterialParams(const std::vector<std::pair<FName, float>> &ScalarParamsIn,
-                             const std::vector<std::pair<FName, FLinearColor>> &VectorParamIn,
-                             const int StartMaterialIdx = 0, const int NumMaterials = 1);
+    void AssignMat(const FString &Path);
+    struct DReyeVR::CustomActorData::MaterialParamsStruct MaterialParams;
 
-  protected:
+  private:
+    ADReyeVRCustomActor(const FObjectInitializer &ObjectInitializer);
     void BeginPlay() override;
     void BeginDestroy() override;
-    bool bIsEnabled = false; // initially disabled
-    int NumMaterials = 1;    // default assumes 1 material
+    bool bIsActive = false; // initially deactivated
 
-    void AssignSM(const FString &Path);
-    void AssignMat(const int MatIdx, const FString &Path);
+    bool AssignSM(const FString &Path, UWorld *World);
 
     class DReyeVR::CustomActorData Internals;
 
@@ -55,7 +64,6 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
     class UStaticMeshComponent *ActorMesh = nullptr;
     static int AllMeshCount;
 
-    // for dynamic (parametrized) material
-    std::vector<std::pair<FName, float>> ScalarParams;
-    std::vector<std::pair<FName, FLinearColor>> VectorParams;
+    UPROPERTY(EditAnywhere, Category = "Materials")
+    class UMaterialInstanceDynamic *DynamicMat = nullptr;
 };
