@@ -87,8 +87,6 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
                 HeadNeutralLoc = CameraLoc; HeadNeutralRot = CameraRot;
             }
             
-            // if (FCReset)
-            // {
             if (TimeSinceLastFCMove == 0.f)
             {
                 // update time for the next periph trigger -- this is basically the OFD
@@ -96,10 +94,10 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
                 +  FixationMoveTimeOffset;   // it takes some non zero time to start a new fixation 
                 UE_LOG(LogTemp, Log, TEXT("Next periph target gen \t @ %f"), NextPeriphTrigger);
 
-                //TODO decide where periph target is triggered                                        
                 // generate random position for the next periph target
                 const float RandYaw = FMath::RandRange(PeriphYawBounds.X, PeriphYawBounds.Y);
-                const float RandPitch = FMath::RandRange(PeriphPitchBounds.X, PeriphPitchBounds.Y);
+                const float RandPitch = FMath::RandRange(PeriphPitchBounds.X-FixCrossPitchExtension,
+                 PeriphPitchBounds.Y+FixCrossPitchExtension);
                 const float Roll = 0.f;
                 PeriphRotator = FRotator(RandPitch, RandYaw, Roll);
             }
@@ -130,10 +128,6 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
                 const float RandPitch = FMath::RandRange(FCPitchBounds.X, FCPitchBounds.Y);
                 const float Roll = 0.f;
                 CrossVector = FRotator(RandYaw, RandYaw, Roll).Vector();
-                // float FCcoeff = FMath::FRandRange(-1, 1);
-                // CrossVector = FVector::ForwardVector + FCcoeff*FVector::LeftVector + (FCcoeff/1.5)*FVector::UpVector;
-
-                //TODO this should not be camera relative, maybe neutral pos relative
                 FixCrossLoc = HeadNeutralLoc + HeadNeutralRot.RotateVector(CrossVector) * TargetRenderDistance * 100.f;
                 // FixCrossLoc = CameraLoc + CameraRot.RotateVector(CrossVector) * TargetRenderDistance * 100.f;
                 
