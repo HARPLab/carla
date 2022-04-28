@@ -38,7 +38,7 @@ class PeriphSystem
     FVector FixCrossLoc, CrossVector, HeadNeutralLoc;
     FVector2D TimeBetweenFlashFC, TimeFlashToMoveFC, FCYawBounds, FCPitchBounds;
     FRotator FixCrossRot, HeadNeutralRot; // do we even need to rotate it
-    bool FCMovesWHead;
+    bool FCMovesWHead, PeriphBool = true;
     float FixCrossPitchExtension;
     float FixationMoveTimeOffset;
     float TimeBetweenFCMove;
@@ -46,7 +46,7 @@ class PeriphSystem
     float NextFCMove = 0.f;
     float FCMoveMaxRadius;
     int NumFCMoves = 0;
-    
+    float PeriphSpawnRatio;
 
   
 };

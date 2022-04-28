@@ -30,8 +30,8 @@ void PeriphSystem::ReadConfigVariables()
     ReadConfigValue("CleanRoom", "TimeBetweenFCMove", TimeBetweenFCMove);
     ReadConfigValue("CleanRoom", "FCMoveMaxRadius", FCMoveMaxRadius);
     ReadConfigValue("CleanRoom", "TimeFlashToMoveFC", TimeFlashToMoveFC);
-    ReadConfigValue("CleanRoom", "FCMovesWHead", FCMovesWHead);
-    
+    ReadConfigValue("CleanRoom", "FCMovesWHead", FCMovesWHead);    
+    ReadConfigValue("CleanRoom", "PeriphSpawnRatio", PeriphSpawnRatio);
 
     // general
     ReadConfigValue("PeripheralTarget", "TargetRenderDistanceM", TargetRenderDistance);
@@ -102,30 +102,46 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
             if (TimeSinceLastFCMove == 0.f)
             {
                 // update time for the next periph trigger -- this is basically the OFD
+                PeriphBool = (FMath::RandRange(0.f, 1.f) <= PeriphSpawnRatio) ? true : false;
                 NextPeriphTrigger = FMath::RandRange(TimeBetweenFlashFC.X, TimeBetweenFlashFC.Y) // make sure you get the float version of this fn
                 +  FixationMoveTimeOffset;   // it takes some non zero time to start a new fixation 
-                UE_LOG(LogTemp, Log, TEXT("Next periph target gen \t @ %f"), NextPeriphTrigger);
-
+                if (PeriphBool)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("Next periph target gen \t @ %f"), NextPeriphTrigger);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Log, TEXT("No periph target gen"));
+                }
                 // generate random position for the next periph target
                 const float RandYaw = FMath::RandRange(PeriphYawBounds.X, PeriphYawBounds.Y);
                 const float RandPitch = FMath::RandRange(PeriphPitchBounds.X-FixCrossPitchExtension,
-                 PeriphPitchBounds.Y+FixCrossPitchExtension);
+                    PeriphPitchBounds.Y+FixCrossPitchExtension);
                 const float Roll = 0.f;
                 PeriphRotator = FRotator(RandPitch, RandYaw, Roll);
             }
-            else if (LastPeriphTick <= NextPeriphTrigger && TimeSinceLastFlash > NextPeriphTrigger)
+            else if (LastPeriphTick <= NextPeriphTrigger 
+                        && TimeSinceLastFlash > NextPeriphTrigger
+                    )
             {
-                // turn on periph target
-                PeriphTarget->Activate();
-                UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+                if (PeriphBool)
+                {
+                    // turn on periph target
+                    PeriphTarget->Activate();
+                    UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+                }
             }
             else if (LastPeriphTick <= NextPeriphTrigger + FlashDuration
-                        && TimeSinceLastFlash > NextPeriphTrigger + FlashDuration)
+                        && TimeSinceLastFlash > NextPeriphTrigger + FlashDuration 
+                    )
             {
-                // turn off periph target
-                PeriphTarget->Deactivate();
-                UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
-                TimeSinceLastFlash = 0.f;
+                if (PeriphBool)
+                {
+                    // turn off periph target
+                    PeriphTarget->Deactivate();
+                    UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
+                    TimeSinceLastFlash = 0.f;
+                }               
 
                 NextFCMove = TimeSinceLastFCMove + DeltaTime
                     + FMath::RandRange(TimeFlashToMoveFC.X, TimeFlashToMoveFC.Y);
@@ -141,9 +157,9 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
                 const float Roll = 0.f;
                 CrossVector = FRotator(RandYaw, RandYaw, Roll).Vector();
                 FixCrossLoc = HeadNeutralLoc + HeadNeutralRot.RotateVector(CrossVector) * TargetRenderDistance * 100.f;
-                // FixCrossLoc = CameraLoc + CameraRot.RotateVector(CrossVector) * TargetRenderDistance * 100.f;
-                
-                Cross->SetActorLocation(FixCrossLoc); // if no head movement compensation for FC, this is where loc is set
+                // FixCrossLoc = CameraLoc + CameraRot.RotateVector(CrossVector) * TargetRenderDistance * 100.f;                
+                 // if no head movement compensation for FC, this is where loc is set
+                Cross->SetActorLocation(FixCrossLoc);
                 // adding DeltaTime below makes these reset 0 and triggers first if case above
                 TimeSinceLastFCMove = -DeltaTime; 
                 TimeSinceLastFlash = -DeltaTime;
@@ -161,7 +177,7 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
                 Cross->SetActorLocation(FixCrossLoc);                
             }
 
-            // TODO this is not right, it should be along the line joining 
+            // turn the FC so it always faces the participant 
             // const FRotator LookAtCamRot = (CameraLoc - FixCrossLoc).Rotation();
             const FRotator LookAtCamRot = UKismetMathLibrary::FindLookAtRotation(FixCrossLoc, CameraLoc);
             FixCrossRot = LookAtCamRot; // this is where the FC should be facing to face the first person cam always
