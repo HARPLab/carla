@@ -103,6 +103,8 @@ void AEgoVehicle::ReadConfigVariables()
     // wheel hardware
     ReadConfigValue("Hardware", "DeviceIdx", WheelDeviceIdx);
     ReadConfigValue("Hardware", "LogUpdates", bLogLogitechWheel);
+
+    ReadConfigValue("Replayer", "WriteReticlePos", bWriteReticlePos);
 }
 
 void AEgoVehicle::BeginPlay()
@@ -115,8 +117,6 @@ void AEgoVehicle::BeginPlay()
     Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
     Episode = UCarlaStatics::GetCurrentEpisode(World);
 
-    // Get information about the VR headset & initialize SteamVR
-    InitSteamVR();
 
     // Setup the HUD
     InitFlatHUD();
@@ -130,11 +130,21 @@ void AEgoVehicle::BeginPlay()
     // Initialize logitech steering wheel
     InitLogiWheel();
 
+    while (!(!bIsHMDConnected && UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected()))
+    {
+        // Get information about the VR headset & initialize SteamVR
+        InitSteamVR();
+    }
+
+
     // Bug-workaround for initial delay on throttle; see https://github.com/carla-simulator/carla/issues/1640
     this->GetVehicleMovementComponent()->SetTargetGear(1, true);
 
     // Register Ego Vehicle with ActorRegistry
     Register();
+    
+    // Init the reticle output
+    InitReticleOutFile();
 
     UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
 }
@@ -605,6 +615,18 @@ void AEgoVehicle::DrawSpectatorScreen()
 {
     if (!bEnableSpectatorScreen || Player == nullptr || !bIsHMDConnected)
         return;
+    // if (!bEnableSpectatorScreen || Player == nullptr)
+    //     return;
+
+    // if (!bIsHMDConnected && UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected())
+    // {
+    //     // try reinitializing steamvr if the headset is connected but not active
+    //     InitSteamVR();
+    //     InitSpectator();
+    // }
+    // if (!bIsHMDConnected)
+    //     return;
+
     // calculate View size (of open window). Note this is not the same as resolution
     FIntPoint ViewSize;
     Player->GetViewportSize(ViewSize.X, ViewSize.Y);
@@ -672,7 +694,30 @@ void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
         }
         else
         {
-            FlatHUD->DrawDynamicCrosshair(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), true, Thickness);
+            // FlatHUD->DrawDynamicCrosshair(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), true, Thickness);            
+            FVector2D ReticlePos;
+            UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
+            // UE_LOG(LogTemp, Log, TEXT("ReticlePos:%s"), *ReticlePos.ToString());
+
+            if (EgoSensor->IsReplaying() && bWriteReticlePos)
+            {
+                FString ReticleString =
+                FString::Printf(TEXT("\nFrameSequence:{%d}, ReticlePos:{%s}"), EgoSensor->getTickCount(), *ReticlePos.ToString());
+
+                if(!FFileHelper::SaveStringToFile(*ReticleString, *ReticleOutFile,
+                            FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), 
+                            FILEWRITE_Append)
+                    )
+                {
+                    UE_LOG(LogTemp, Error, TEXT("FileManipulation: Failed to write to reticle out file"));
+                }
+            }            
+
+            /// NOTE: to get the best drawing, the texture is offset slightly by this vector
+            ReticlePos += FVector2D(0.f, -ReticleSize / 2.f); // move reticle up by size/2 (texture in quadrant 4)
+
+            FlatHUD->DrawDynamicCrosshair(ReticlePos, Diameter, FColor(255, 0, 0, 255), true, Thickness);
+
 #if 0
             // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
             // crashes the thread its on by invalidating the ReticleTexture->Resource which is
@@ -684,7 +729,10 @@ void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
             }
             if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
             {
-                FlatHUD->DrawReticle(ReticleTexture, EgoSensor->GetData()->GetProjectedReticleCoords());
+                // FlatHUD->DrawReticle(ReticleTexture, EgoSensor->GetData()->GetProjectedReticleCoords());                
+                FlatHUD->DrawReticle(ReticleTexture, 
+                ReticlePos + FVector2D(-ReticleSize * 0.5f, -ReticleSize * 0.5f));
+                // EgoSensor->GetData()->GetProjectedReticleCoords());
             }
 #endif
         }
@@ -926,3 +974,39 @@ void AEgoVehicle::DebugLines() const
                                  FColor::Red, 3.0f);
     }
 }
+
+
+void AEgoVehicle::InitReticleOutFile()
+{
+    // if (EgoSensor->IsReplaying() || true){
+    if (bWriteReticlePos){        
+        // The returned string has the following format: yyyy.mm.dd-hh.mm.ss
+        ReticleOutFile = FPaths::Combine(FPaths::ProjectDir(), TEXT("ReticleOuts"));
+        IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
+        if (!FileManager.DirectoryExists(*ReticleOutFile))
+        {
+#ifndef _WIN32
+            // this only seems to work on Unix systems, else CreateDirectoryW is not linked?
+            PlatformFile.CreateDirectory(*ReticleOutFile);
+#else
+            // using Windows system calls
+            CreateDirectory(*ReticleOutFile, NULL);
+#endif
+        } 
+
+        FString TimeNow = FDateTime::Now().ToString(); // timestamp directory        
+        ReticleOutFile = FPaths::Combine(ReticleOutFile,TimeNow + TEXT( ".txt"));
+        UE_LOG(LogTemp, Log, TEXT("Writing replayed 2D ReticlePos to %s"), *ReticleOutFile);
+
+        FString StringToWrite=
+        FString::Printf(TEXT("Written from Unreal Engine 4 @ %s"), *TimeNow);
+
+        if(!FFileHelper::SaveStringToFile(StringToWrite, *ReticleOutFile,
+        FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), 
+                        FILEWRITE_Append)
+        )
+        {
+            UE_LOG(LogTemp, Error, TEXT("FileManipulation: Failed to write to reticle out file"));
+        }
+    }               
+} 

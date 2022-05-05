@@ -11,6 +11,7 @@ Unreal/CarlaUE4/.ignore
 RecordingTxts/
 Unreal/CarlaUE4/Config/ReticleOuts/
 Unreal/CarlaUE4/FrameCap/
+Unreal/CarlaUE4/ReticleOuts/
 
 /ExportedMaps
 /Import/*

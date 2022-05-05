@@ -288,4 +288,10 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     bool bIsHMDConnected = false;  // checks for HMD connection on BeginPlay
     bool bIsLogiConnected = false; // check if Logi device is connected (on BeginPlay)
     bool bDrawDebugEditor = false;
+
+    // reticlePos output
+    void InitReticleOutFile();
+    FString ReticleOutFile;
+    bool bWriteReticlePos = false;
+
 };

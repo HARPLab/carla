@@ -46,6 +46,8 @@ void PeriphSystem::Initialize(class UWorld *WorldIn)
         Cross = ADReyeVRCustomActor::CreateNew(SM_CROSS, MAT_OPAQUE, World, PeriphFixationName);
         check(Cross != nullptr);
         Cross->SetActorScale3D(FixationCrossSize * FVector::OneVector);
+        Cross->MaterialParams.BaseColor = FLinearColor::Black;
+        Cross->MaterialParams.Emissive = 0 * FLinearColor::Black;
     }
     if (bUsePeriphTarget)
     {
