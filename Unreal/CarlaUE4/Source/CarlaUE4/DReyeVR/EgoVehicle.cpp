@@ -319,6 +319,11 @@ FRotator AEgoVehicle::GetCameraRot() const
 /// ----------------:SENSOR:------------------ ///
 /// ========================================== ///
 
+const AEgoSensor *AEgoVehicle::GetEgoSensor() const
+{
+    return EgoSensor;
+}
+
 void AEgoVehicle::InitSensor()
 {
     // Spawn the EyeTracker Carla sensor and attach to Ego-Vehicle:
@@ -714,7 +719,7 @@ void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
             }            
 
             /// NOTE: to get the best drawing, the texture is offset slightly by this vector
-            ReticlePos += FVector2D(0.f, -ReticleSize / 2.f); // move reticle up by size/2 (texture in quadrant 4)
+            // ReticlePos += FVector2D(0.f, -ReticleSize / 2.f); // move reticle up by size/2 (texture in quadrant 4)
 
             FlatHUD->DrawDynamicCrosshair(ReticlePos, Diameter, FColor(255, 0, 0, 255), true, Thickness);
 

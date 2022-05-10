@@ -62,6 +62,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     UCameraComponent *GetCamera();
     const DReyeVR::UserInputs &GetVehicleInputs() const;
     FVector2D ProjectGazeToScreen(const FVector &Origin, const FVector &Dir, bool bPlayerViewportRelative = true) const;
+    // ego sensor getter
+    const AEgoSensor *GetEgoSensor() const;
 
     // "clean/empty" camera room in a closed box in Town04 which removes the cognitive load of driving
     bool EnableCleanRoom();  // enable teleport to clean/empty room

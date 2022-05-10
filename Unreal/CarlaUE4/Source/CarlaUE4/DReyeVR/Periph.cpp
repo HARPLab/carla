@@ -1,6 +1,6 @@
 #include "Periph.h"
 #include "DReyeVRUtils.h" // ReadConfigValue
-#include "Kismet/KismetMathLibrary.h"   // FindLookAtRotation
+#include "Kismet/KismetMathLibrary.h"   // FindLookAtRotation, Acos
 
 PeriphSystem::PeriphSystem()
 {
@@ -69,7 +69,8 @@ void PeriphSystem::Initialize(class UWorld *WorldIn)
     }
 }
 
-void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExperiment, const UCameraComponent *Camera)
+void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExperiment, 
+const UCameraComponent *Camera, const AEgoSensor *EgoSensor)
 {
     // if replaying, don't tick periph system
     if (bIsReplaying || World == nullptr)
@@ -90,19 +91,42 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
         {   
             Cross->Activate();
             // TODO may not need this special case
+            // init the first one 
             if (NumFCMoves == 0)
             {
                 CrossVector = CameraRot.RotateVector(FVector::ForwardVector);
                 FixCrossLoc = CameraLoc + CrossVector * TargetRenderDistance * 100.f;
                 Cross->SetActorLocation(FixCrossLoc);
-                Cross->SetActorRotation(CameraRot);                
-
+                Cross->SetActorRotation(CameraRot);
+                
                 // init the bounds for the FC Location
                 HeadNeutralLoc = CameraLoc; HeadNeutralRot = CameraRot;
+                NumFCMoves += 1;
             }
             
+            // FC just got moved
             if (TimeSinceLastFCMove == 0.f)
             {
+                // now that FC has moved, wait to do other stuff until gaze is close to the thing
+                auto Gaze_dir_rel = EgoSensor->GetData()->GetGazeDir(DReyeVR::Gaze::COMBINED);
+                auto Gaze_origin_abs = CameraLoc + EgoSensor->GetData()->GetGazeOrigin(DReyeVR::Gaze::COMBINED);
+                auto Gaze_posn_rel = CameraRot.RotateVector(Gaze_dir_rel);
+                auto Gaze_posn_abs = Gaze_origin_abs + Gaze_posn_rel;                
+                Gaze_posn_rel.Normalize();
+                
+                auto FC_dir = FixCrossLoc - Gaze_origin_abs;
+                UE_LOG(LogTemp, Log, TEXT("FC_dir:%s"), *FC_dir.ToString());
+                FC_dir.Normalize();
+                float DotProd = FVector::DotProduct(FC_dir, Gaze_posn_rel);
+                float angleGaze2FC = UKismetMathLibrary::Acos(DotProd);
+                
+                UE_LOG(LogTemp, Log, TEXT("Angle between gaze and FC \t  %f"), angleGaze2FC);
+                if ( UKismetMathLibrary::Abs(angleGaze2FC) > 0.2 ){ // 0.2rad = 11deg
+                    // can't start the clock until gaze gets closer to FC
+                    return;
+                }                
+
+
                 // update time for the next periph trigger -- this is basically the OFD
                 PeriphBool = (FMath::RandRange(0.f, 1.f) <= PeriphSpawnRatio) ? true : false;
                 NextPeriphTrigger = FMath::RandRange(TimeBetweenFlashFC.X, TimeBetweenFlashFC.Y) // make sure you get the float version of this fn
@@ -122,6 +146,7 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
                 const float Roll = 0.f;
                 PeriphRotator = FRotator(RandPitch, RandYaw, Roll);
             }
+            // time to switch on PT
             else if (LastPeriphTick <= NextPeriphTrigger 
                         && TimeSinceLastFlash > NextPeriphTrigger
                     )
@@ -133,6 +158,7 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
                     UE_LOG(LogTemp, Log, TEXT("Periph Target On \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
                 }
             }
+            // time to switch off PT
             else if (LastPeriphTick <= NextPeriphTrigger + FlashDuration
                         && TimeSinceLastFlash > NextPeriphTrigger + FlashDuration 
                     )
@@ -148,16 +174,16 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
                 NextFCMove = TimeSinceLastFCMove + DeltaTime
                     + FMath::RandRange(TimeFlashToMoveFC.X, TimeFlashToMoveFC.Y);
             }
+            // time to move the FC
             else if (LastPeriphTick > NextPeriphTrigger + FlashDuration 
                     && TimeSinceLastFCMove > NextFCMove)
             {
                 UE_LOG(LogTemp, Log, TEXT("Moving the FC \t @ %f"), UGameplayStatics::GetRealTimeSeconds(World));
-                                
-                
+                                                
                 const float RandYaw = FMath::RandRange(FCYawBounds.X, FCYawBounds.Y);
                 const float RandPitch = FMath::RandRange(FCPitchBounds.X, FCPitchBounds.Y);
                 const float Roll = 0.f;
-                CrossVector = FRotator(RandYaw, RandYaw, Roll).Vector();
+                CrossVector = FRotator(RandPitch, RandYaw, Roll).Vector();
                 FixCrossLoc = HeadNeutralLoc + HeadNeutralRot.RotateVector(CrossVector) * TargetRenderDistance * 100.f;
                 // FixCrossLoc = CameraLoc + CameraRot.RotateVector(CrossVector) * TargetRenderDistance * 100.f;                
                  // if no head movement compensation for FC, this is where loc is set
@@ -175,7 +201,7 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
             // if (FCMovesWHead)
             if (FCMovesWHead)
             {
-                FixCrossLoc = CameraLoc + CameraRot.RotateVector(CrossVector) * TargetRenderDistance * 100.f;
+                // auto Gaze2FCVec = FixCrossLoc - GazeDir;
                 Cross->SetActorLocation(FixCrossLoc);                
             }
 
@@ -184,7 +210,6 @@ void PeriphSystem::Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExp
             const FRotator LookAtCamRot = UKismetMathLibrary::FindLookAtRotation(FixCrossLoc, CameraLoc);
             FixCrossRot = LookAtCamRot; // this is where the FC should be facing to face the first person cam always
             Cross->SetActorRotation(LookAtCamRot);
-
 
 
             if (PeriphTarget->IsActive())

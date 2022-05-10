@@ -170,7 +170,9 @@ void ADReyeVRLevel::Tick(float DeltaSeconds)
             const FVector &NewVehiclePosn = EgoVehiclePtr->GetCameraPosn(); // for post-physics tick
             SpectatorPtr->SetActorLocationAndRotation(NewVehiclePosn, EgoVehiclePtr->GetCameraRot());
         }
-        PS.Tick(DeltaSeconds, ADReyeVRSensor::bIsReplaying, EgoVehiclePtr->IsInCleanRoom(), EgoVehiclePtr->GetCamera());
+        PS.Tick(DeltaSeconds, ADReyeVRSensor::bIsReplaying,
+         EgoVehiclePtr->IsInCleanRoom(), EgoVehiclePtr->GetCamera(),
+         EgoVehiclePtr->GetEgoSensor());
     }
 }
 

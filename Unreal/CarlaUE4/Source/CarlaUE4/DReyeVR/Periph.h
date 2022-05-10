@@ -1,6 +1,8 @@
 #pragma once
 
-#include "Carla/Actor/DReyeVRCustomActor.h" // ADReyeVRCustomActor
+#include "Carla/Actor/DReyeVRCustomActor.h" // ADReyeVRCustomActor 
+#include "EgoSensor.h"
+
 
 class PeriphSystem
 {
@@ -12,7 +14,9 @@ class PeriphSystem
     class ADReyeVRCustomActor *Cross = nullptr;
 
     void Initialize(class UWorld *World);
-    void Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExperiment, const UCameraComponent *Camera);
+    void Tick(float DeltaTime, bool bIsReplaying, bool bInCleanRoomExperiment,
+     const UCameraComponent *Camera,
+     const AEgoSensor *EgoSensor);
     void LegacyTick(const DReyeVR::LegacyPeriphDataStruct &LegacyData);
 
   private:
