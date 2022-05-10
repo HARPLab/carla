@@ -3,13 +3,11 @@
 #include "Carla/Actor/ActorRegistry.h"              // Register
 #include "Carla/Game/CarlaStatics.h"                // GetEpisode
 #include "Carla/Vehicle/CarlaWheeledVehicleState.h" // ECarlaWheeledVehicleState
+#include "DReyeVRPawn.h"                            // ADReyeVRPawn
 #include "DrawDebugHelpers.h"                       // Debug Line/Sphere
 #include "Engine/EngineTypes.h"                     // EBlendMode
 #include "Engine/World.h"                           // GetWorld
 #include "GameFramework/Actor.h"                    // Destroy
-#include "HeadMountedDisplayFunctionLibrary.h"      // SetTrackingOrigin, GetWorldToMetersScale
-#include "HeadMountedDisplayTypes.h"                // ESpectatorScreenMode
-#include "Kismet/GameplayStatics.h"                 // GetPlayerController
 #include "Kismet/KismetSystemLibrary.h"             // PrintString, QuitGame
 #include "Math/Rotator.h"                           // RotateVector, Clamp
 #include "Math/UnrealMathUtility.h"                 // Clamp
@@ -21,18 +19,15 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 {
     ReadConfigVariables();
 
-    // Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+    // this actor ticks AFTER the physics simulation is done
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickGroup = TG_PostPhysics;
-
-    // Set this pawn to be controlled by first (only) player
-    AutoPossessPlayer = EAutoReceiveInput::Player0;
 
     // Set up the root position to be the this mesh
     SetRootComponent(GetMesh());
 
     // Initialize the camera components
-    ConstructCamera();
+    ConstructCameraRoot();
 
     // Initialize audio components
     ConstructEgoSounds();
@@ -54,7 +49,6 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("EgoVehicle", "SpeedometerInMPH", bUseMPH);
     ReadConfigValue("EgoVehicle", "EnableTurnSignalAction", bEnableTurnSignalAction);
     ReadConfigValue("EgoVehicle", "TurnSignalDuration", TurnSignalDuration);
-    ReadConfigValue("EgoVehicle", "CleanRoomCameraLocation", CleanRoomCameraLocation);
     // mirrors
     auto InitMirrorParams = [](const FString &Name, struct MirrorParams &Params) {
         Params.Name = Name;
@@ -80,31 +74,13 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("SteeringWheel", "MaxSteerAngleDeg", MaxSteerAngleDeg);
     ReadConfigValue("SteeringWheel", "MaxSteerVelocity", MaxSteerVelocity);
     ReadConfigValue("SteeringWheel", "SteeringScale", SteeringAnimScale);
-    // camera
-    ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
     // other/cosmetic
     ReadConfigValue("EgoVehicle", "ActorRegistryID", EgoVehicleID);
     ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
-    // HUD (Head's Up Display)
-    ReadConfigValue("EgoVehicleHUD", "HUDScaleVR", HUDScaleVR);
-    ReadConfigValue("EgoVehicleHUD", "DrawFPSCounter", bDrawFPSCounter);
-    ReadConfigValue("EgoVehicleHUD", "DrawFlatReticle", bDrawFlatReticle);
-    ReadConfigValue("EgoVehicleHUD", "ReticleSize", ReticleSize);
-    ReadConfigValue("EgoVehicleHUD", "DrawGaze", bDrawGaze);
-    ReadConfigValue("EgoVehicleHUD", "DrawSpectatorReticle", bDrawSpectatorReticle);
-    ReadConfigValue("EgoVehicleHUD", "EnableSpectatorScreen", bEnableSpectatorScreen);
     // inputs
     ReadConfigValue("VehicleInputs", "ScaleSteeringDamping", ScaleSteeringInput);
     ReadConfigValue("VehicleInputs", "ScaleThrottleInput", ScaleThrottleInput);
     ReadConfigValue("VehicleInputs", "ScaleBrakeInput", ScaleBrakeInput);
-    ReadConfigValue("VehicleInputs", "InvertMouseY", InvertMouseY);
-    ReadConfigValue("VehicleInputs", "ScaleMouseY", ScaleMouseY);
-    ReadConfigValue("VehicleInputs", "ScaleMouseX", ScaleMouseX);
-    // wheel hardware
-    ReadConfigValue("Hardware", "DeviceIdx", WheelDeviceIdx);
-    ReadConfigValue("Hardware", "LogUpdates", bLogLogitechWheel);
-
-    ReadConfigValue("Replayer", "WriteReticlePos", bWriteReticlePos);
 }
 
 void AEgoVehicle::BeginPlay()
@@ -114,37 +90,19 @@ void AEgoVehicle::BeginPlay()
 
     // Get information about the world
     World = GetWorld();
-    Player = UGameplayStatics::GetPlayerController(World, 0); // main player (0) controller
     Episode = UCarlaStatics::GetCurrentEpisode(World);
-
-
-    // Setup the HUD
-    InitFlatHUD();
 
     // Spawn and attach the EgoSensor
     InitSensor();
 
-    // Enable VR spectator screen & eye reticle
-    InitSpectator();
-
-    // Initialize logitech steering wheel
-    InitLogiWheel();
-
-    while (!(!bIsHMDConnected && UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected()))
-    {
-        // Get information about the VR headset & initialize SteamVR
-        InitSteamVR();
-    }
-
+    // initialize
+    InitAIPlayer();
 
     // Bug-workaround for initial delay on throttle; see https://github.com/carla-simulator/carla/issues/1640
     this->GetVehicleMovementComponent()->SetTargetGear(1, true);
 
     // Register Ego Vehicle with ActorRegistry
     Register();
-    
-    // Init the reticle output
-    InitReticleOutFile();
 
     UE_LOG(LogTemp, Log, TEXT("Initialized DReyeVR EgoVehicle"));
 }
@@ -156,9 +114,6 @@ void AEgoVehicle::BeginDestroy()
     // destroy all spawned entities
     if (EgoSensor)
         EgoSensor->Destroy();
-
-    if (bIsLogiConnected)
-        DestroyLogiWheel(false);
 }
 
 // Called every frame
@@ -178,115 +133,53 @@ void AEgoVehicle::Tick(float DeltaSeconds)
     // Render EgoVehicle dashboard
     UpdateDash();
 
-    // Draw the flat-screen HUD items like eye-reticle and FPS counter
-    DrawFlatHUD(DeltaSeconds);
-
-    // Tick clean/empty room (only applies in Map4 currently, need to press "N")
-    TickCleanRoom();
-
     // Update the steering wheel to be responsive to user input
     TickSteeringWheel(DeltaSeconds);
 
-    // Draw the spectator vr screen and overlay elements
-    DrawSpectatorScreen();
+    if (Pawn)
+    {
+        // Draw the spectator vr screen and overlay elements
+        Pawn->DrawSpectatorScreen(EgoSensor->GetData()->GetGazeOrigin(DReyeVR::Gaze::LEFT),
+                                  EgoSensor->GetData()->GetGazeDir(DReyeVR::Gaze::LEFT));
+
+        // draws combined reticle
+        Pawn->DrawFlatHUD(DeltaSeconds, EgoSensor->GetData()->GetGazeOrigin(), EgoSensor->GetData()->GetGazeDir());
+    }
 
     // Update the world level
     TickLevel(DeltaSeconds);
 
     // Play sound that requires constant ticking
     TickSounds();
-
-    // Tick the logitech wheel
-    TickLogiWheel();
 }
 
 /// ========================================== ///
 /// ----------------:CAMERA:------------------ ///
 /// ========================================== ///
 
-void AEgoVehicle::InitSteamVR()
-{
-    bIsHMDConnected = UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled();
-    if (bIsHMDConnected)
-    {
-        FString HMD_Name = UHeadMountedDisplayFunctionLibrary::GetHMDDeviceName().ToString();
-        FString HMD_Version = UHeadMountedDisplayFunctionLibrary::GetVersionString();
-        UE_LOG(LogTemp, Log, TEXT("HMD detected: %s, version %s"), *HMD_Name, *HMD_Version);
-        // Now we'll begin with setting up the VR Origin logic
-        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Level
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("No head mounted device detected!"));
-    }
-}
-
-void AEgoVehicle::ConstructCamera()
+void AEgoVehicle::ConstructCameraRoot()
 {
     // Spawn the RootComponent and Camera for the VR camera
     VRCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VRCameraRoot"));
     VRCameraRoot->SetupAttachment(GetRootComponent()); // The vehicle blueprint itself
 
-    // Create a camera and attach to root component
-    FirstPersonCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCam"));
-    FirstPersonCam->SetupAttachment(VRCameraRoot);
-    FirstPersonCam->bUsePawnControlRotation = false; // free for VR movement
-    FirstPersonCam->bLockToHmd = true;               // lock orientation and position to HMD
-    FirstPersonCam->FieldOfView = FieldOfView;       // editable
-
-    ResetCamera();
+    // First, set the root of the camera to the driver's seat head pos
+    VRCameraRoot->SetRelativeLocation(CameraLocnInVehicle);
 }
 
-bool AEgoVehicle::EnableCleanRoom()
+void AEgoVehicle::SetPawn(ADReyeVRPawn *PawnIn)
 {
-    if (World)
-    {
-        // check town is Town04
-        const FString WorldName = World->GetMapName();
-        UE_LOG(LogTemp, Log, TEXT("Currently in world: \"%s\""), *WorldName);
-        if (WorldName.Contains("Town04"))
-        {
-            UE_LOG(LogTemp, Log, TEXT("Enabling clean room mode"));
-            bCleanRoomActive = true;
-        }
-        else
-        {
-            UE_LOG(LogTemp, Log, TEXT("Need to switch to Town04 to enable clean room mode"));
-            bCleanRoomActive = false;
-        }
-    }
-    return bCleanRoomActive; // true if sucessfull, false otherwise
-}
-
-void AEgoVehicle::DisableCleanRoom()
-{
-    UE_LOG(LogTemp, Log, TEXT("Disabling clean slate calibration"));
-    bCleanRoomActive = false;
-    // teleport camera back to original location (vehicle + initial offset)
-    const FTransform InitPosCamera(this->GetActorRotation() + FRotator::ZeroRotator, // FRotator (Rotation)
-                                   this->GetActorLocation() + CameraLocnInVehicle,   // FVector (Location)
-                                   FVector::OneVector);                              // FVector (Scale3D)
-    VRCameraRoot->SetWorldTransform(InitPosCamera, false, nullptr, ETeleportType::None);
-}
-
-bool AEgoVehicle::IsInCleanRoom() const
-{
-    return bCleanRoomActive;
-}
-
-void AEgoVehicle::TickCleanRoom()
-{
-    if (GetMesh())
-        GetMesh()->SetSimulatePhysics(!bCleanRoomActive); // disable physics when in clean-room
-    if (bCleanRoomActive)
-    {
-        // kinda hacky, just teleports camera to clean room and keeps the vehicle stationary
-        this->SetBrake(1);                                      // tries to make the vehicle not move
-        const FTransform InitPosCamera(FRotator::ZeroRotator,   // FRotator (Rotation)
-                                       CleanRoomCameraLocation, // FVector (Location)
-                                       FVector::OneVector);     // FVector (Scale3D)
-        VRCameraRoot->SetWorldTransform(InitPosCamera, false, nullptr, ETeleportType::None);
-    }
+    ensure(VRCameraRoot != nullptr);
+    this->Pawn = PawnIn;
+    ensure(Pawn != nullptr);
+    this->FirstPersonCam = Pawn->GetCamera();
+    ensure(FirstPersonCam != nullptr);
+    FAttachmentTransformRules F(EAttachmentRule::KeepRelative, false);
+    Pawn->AttachToComponent(VRCameraRoot, F);
+    Pawn->GetCamera()->AttachToComponent(VRCameraRoot, F);
+    // Then set the actual camera to be at its origin (attached to VRCameraRoot)
+    FirstPersonCam->SetRelativeLocation(FVector::ZeroVector);
+    FirstPersonCam->SetRelativeRotation(FRotator::ZeroRotator);
 }
 
 const UCameraComponent *AEgoVehicle::GetCamera() const
@@ -316,13 +209,30 @@ FRotator AEgoVehicle::GetCameraRot() const
 }
 
 /// ========================================== ///
-/// ----------------:SENSOR:------------------ ///
+/// ---------------:AIPLAYER:----------------- ///
 /// ========================================== ///
 
-const AEgoSensor *AEgoVehicle::GetEgoSensor() const
+void AEgoVehicle::InitAIPlayer()
 {
-    return EgoSensor;
+    AI_Player = Cast<AWheeledVehicleAIController>(this->GetController());
+    ensure(AI_Player != nullptr);
 }
+
+void AEgoVehicle::SetAutopilot(const bool AutopilotOn)
+{
+    bAutopilotEnabled = AutopilotOn;
+    AI_Player->SetAutopilot(bAutopilotEnabled);
+    AI_Player->SetStickyControl(bAutopilotEnabled);
+}
+
+bool AEgoVehicle::GetAutopilotStatus() const
+{
+    return bAutopilotEnabled;
+}
+
+/// ========================================== ///
+/// ----------------:SENSOR:------------------ ///
+/// ========================================== ///
 
 void AEgoVehicle::InitSensor()
 {
@@ -387,7 +297,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 
     // First get the gaze origin and direction and vergence from the EyeTracker Sensor
     const float RayLength = FMath::Max(1.f, Data->GetGazeVergence() / 100.f); // vergence to m (from cm)
-    const float VRMeterScale = UHeadMountedDisplayFunctionLibrary::GetWorldToMetersScale(World);
+    const float VRMeterScale = 100.f;
 
     // Both eyes
     CombinedGaze = RayLength * VRMeterScale * Data->GetGazeDir();
@@ -542,214 +452,6 @@ void AEgoVehicle::SetVolume(const float VolumeIn)
 }
 
 /// ========================================== ///
-/// ---------------:SPECTATOR:---------------- ///
-/// ========================================== ///
-
-void AEgoVehicle::InitSpectator()
-{
-    if (bIsHMDConnected)
-    {
-        if (bEnableSpectatorScreen)
-        {
-            InitReticleTexture(); // generate array of pixel values
-            check(ReticleTexture);
-            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::TexturePlusEye);
-            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenTexture(ReticleTexture);
-        }
-        else
-        {
-            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
-        }
-    }
-}
-
-void AEgoVehicle::InitReticleTexture()
-{
-    if (bIsHMDConnected)
-        ReticleSize *= HUDScaleVR;
-
-    /// NOTE: need to create transient like this bc of a UE4 bug in release mode
-    // https://forums.unrealengine.com/development-discussion/rendering/1767838-fimageutils-createtexture2d-crashes-in-packaged-build
-    TArray<FColor> ReticleSrc; // pixel values array for eye reticle texture
-    if (bRectangularReticle)
-    {
-        GenerateSquareImage(ReticleSrc, ReticleSize, FColor(255, 0, 0, 128));
-    }
-    else
-    {
-        GenerateCrosshairImage(ReticleSrc, ReticleSize, FColor(255, 0, 0, 128));
-    }
-    ReticleTexture = UTexture2D::CreateTransient(ReticleSize, ReticleSize, PF_B8G8R8A8);
-    void *TextureData = ReticleTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-    FMemory::Memcpy(TextureData, ReticleSrc.GetData(), 4 * ReticleSize * ReticleSize);
-    ReticleTexture->PlatformData->Mips[0].BulkData.Unlock();
-    ReticleTexture->UpdateResource();
-    // ReticleTexture = FImageUtils::CreateTexture2D(ReticleSize, ReticleSize, ReticleSrc, GetWorld(),
-    //                                               "EyeReticleTexture", EObjectFlags::RF_Transient, params);
-
-    check(ReticleTexture);
-    check(ReticleTexture->Resource);
-}
-
-FVector2D AEgoVehicle::ProjectGazeToScreen(const FVector &InOrigin, const FVector &InDir,
-                                           bool bPlayerViewportRelative) const
-{
-    if (this->Player == nullptr)
-        return FVector2D::ZeroVector;
-
-    // compute the 3D world point of the InOrigin + InDir
-    const FVector &WorldPos = GetCamera()->GetComponentLocation();
-    const FRotator &WorldRot = GetCamera()->GetComponentRotation();
-    const FVector Origin = WorldPos + WorldRot.RotateVector(InOrigin);
-    const FVector GazeDir = 100.f * WorldRot.RotateVector(InDir);
-    const FVector WorldPoint = Origin + GazeDir;
-
-    FVector2D ProjectedCoords;
-    // first project the 3D point to 2D using the player's viewport
-    UGameplayStatics::ProjectWorldToScreen(this->Player, WorldPoint, ProjectedCoords, bPlayerViewportRelative);
-
-    // then perform any other operations and transformations
-
-    /// NOTE: we like using this constant offset for visualization
-    ProjectedCoords += FVector2D(0.f, -0.5f * this->ReticleSize); // move reticle up by size/2 (texture in quadrant 4)
-
-    return ProjectedCoords;
-}
-
-void AEgoVehicle::DrawSpectatorScreen()
-{
-    if (!bEnableSpectatorScreen || Player == nullptr || !bIsHMDConnected)
-        return;
-    // if (!bEnableSpectatorScreen || Player == nullptr)
-    //     return;
-
-    // if (!bIsHMDConnected && UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected())
-    // {
-    //     // try reinitializing steamvr if the headset is connected but not active
-    //     InitSteamVR();
-    //     InitSpectator();
-    // }
-    // if (!bIsHMDConnected)
-    //     return;
-
-    // calculate View size (of open window). Note this is not the same as resolution
-    FIntPoint ViewSize;
-    Player->GetViewportSize(ViewSize.X, ViewSize.Y);
-
-    /// TODO: draw other things on the spectator screen?
-    if (bDrawSpectatorReticle)
-    {
-        const FVector2D ReticlePos = ProjectGazeToScreen(EgoSensor->GetData()->GetGazeOrigin(DReyeVR::Gaze::LEFT),
-                                                         EgoSensor->GetData()->GetGazeDir(DReyeVR::Gaze::LEFT));
-        /// NOTE: the SetSpectatorScreenModeTexturePlusEyeLayout expects normalized positions on the screen
-        // define min and max bounds (where the texture is actually drawn on screen)
-        const FVector2D TextureRectMin = ReticlePos / ViewSize;                 // top left
-        const FVector2D TextureRectMax = (ReticlePos + ReticleSize) / ViewSize; // bottom right
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
-            FVector2D{0.f, 0.f}, // whole window (top left)
-            FVector2D{1.f, 1.f}, // whole window (top -> bottom right)
-            TextureRectMin,      // top left of texture
-            TextureRectMax,      // bottom right of texture
-            true,                // draw eye data as background
-            false,               // clear w/ black
-            true                 // use alpha
-        );
-    }
-}
-
-/// ========================================== ///
-/// ----------------:FLATHUD:----------------- ///
-/// ========================================== ///
-
-void AEgoVehicle::InitFlatHUD()
-{
-    check(Player);
-    AHUD *Raw_HUD = Player->GetHUD();
-    FlatHUD = Cast<ADReyeVRHUD>(Raw_HUD);
-    if (FlatHUD)
-        FlatHUD->SetPlayer(Player);
-    else
-        UE_LOG(LogTemp, Warning, TEXT("Unable to initialize DReyeVR HUD!"));
-    // make sure to disable the flat hud when in VR (not supported, only displays on half of one eye screen)
-    if (bIsHMDConnected)
-    {
-        bDrawFlatHud = false;
-    }
-}
-
-void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
-{
-    if (FlatHUD == nullptr || Player == nullptr || bDrawFlatHud == false)
-        return;
-    // calculate View size (of open window). Note this is not the same as resolution
-    FIntPoint ViewSize;
-    Player->GetViewportSize(ViewSize.X, ViewSize.Y);
-    // Get eye tracker variables
-    const FRotator WorldRot = GetCamera()->GetComponentRotation();
-    const FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(this->CombinedGaze);
-
-    // Draw elements of the HUD
-    if (bDrawFlatReticle) // Draw reticle on flat-screen HUD
-    {
-        const float Diameter = ReticleSize;
-        const float Thickness = (ReticleSize / 2.f) / 10.f; // 10 % of radius
-        if (bRectangularReticle)
-        {
-            FlatHUD->DrawDynamicSquare(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), Thickness);
-        }
-        else
-        {
-            // FlatHUD->DrawDynamicCrosshair(CombinedGazePosn, Diameter, FColor(255, 0, 0, 255), true, Thickness);            
-            FVector2D ReticlePos;
-            UGameplayStatics::ProjectWorldToScreen(Player, CombinedGazePosn, ReticlePos, true);
-            // UE_LOG(LogTemp, Log, TEXT("ReticlePos:%s"), *ReticlePos.ToString());
-
-            if (EgoSensor->IsReplaying() && bWriteReticlePos)
-            {
-                FString ReticleString =
-                FString::Printf(TEXT("\nFrameSequence:{%d}, ReticlePos:{%s}"), EgoSensor->getTickCount(), *ReticlePos.ToString());
-
-                if(!FFileHelper::SaveStringToFile(*ReticleString, *ReticleOutFile,
-                            FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), 
-                            FILEWRITE_Append)
-                    )
-                {
-                    UE_LOG(LogTemp, Error, TEXT("FileManipulation: Failed to write to reticle out file"));
-                }
-            }            
-
-            /// NOTE: to get the best drawing, the texture is offset slightly by this vector
-            // ReticlePos += FVector2D(0.f, -ReticleSize / 2.f); // move reticle up by size/2 (texture in quadrant 4)
-
-            FlatHUD->DrawDynamicCrosshair(ReticlePos, Diameter, FColor(255, 0, 0, 255), true, Thickness);
-
-#if 0
-            // many problems here, for some reason the UE4 hud's DrawSimpleTexture function
-            // crashes the thread its on by invalidating the ReticleTexture->Resource which is
-            // non-const (but should be!!) This has to be a bug in UE4 code that we unfortunately have
-            // to work around
-            if (!ensure(ReticleTexture) || !ensure(ReticleTexture->Resource))
-            {
-                InitReticleTexture();
-            }
-            if (ReticleTexture != nullptr && ReticleTexture->Resource != nullptr)
-            {
-                // FlatHUD->DrawReticle(ReticleTexture, EgoSensor->GetData()->GetProjectedReticleCoords());                
-                FlatHUD->DrawReticle(ReticleTexture, 
-                ReticlePos + FVector2D(-ReticleSize * 0.5f, -ReticleSize * 0.5f));
-                // EgoSensor->GetData()->GetProjectedReticleCoords());
-            }
-#endif
-        }
-    }
-    if (bDrawFPSCounter)
-    {
-        FlatHUD->DrawDynamicText(FString::FromInt(int(1.f / DeltaSeconds)), FVector2D(ViewSize.X - 100, 50),
-                                 FColor(0, 255, 0, 213), 2);
-    }
-}
-
-/// ========================================== ///
 /// -----------------:DASH:------------------- ///
 /// ========================================== ///
 
@@ -798,8 +500,6 @@ void AEgoVehicle::ConstructDashText() // dashboard text (speedometer, turn signa
 
 void AEgoVehicle::UpdateDash()
 {
-    if (Player == nullptr)
-        return;
     // Draw text components
     float XPH; // miles-per-hour or km-per-hour
     if (EgoSensor->IsReplaying())
@@ -879,7 +579,7 @@ void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
     const float RawSteering = GetVehicleInputs().Steering; // this is scaled in SetSteering
     const float TargetAngle = (RawSteering / ScaleSteeringInput) * SteeringAnimScale;
     FRotator NewRotation = CurrentRotation;
-    if (bIsLogiConnected)
+    if (Pawn && Pawn->GetIsLogiConnected())
     {
         NewRotation.Roll = TargetAngle;
     }
@@ -948,10 +648,9 @@ void AEgoVehicle::Register()
 
 void AEgoVehicle::DebugLines() const
 {
+#if WITH_EDITOR
     // Compute World positions and orientations
     const FRotator WorldRot = FirstPersonCam->GetComponentRotation();
-
-#if WITH_EDITOR
     // Rotate and add the gaze ray to the origin
     FVector CombinedGazePosn = CombinedOrigin + WorldRot.RotateVector(CombinedGaze);
 
@@ -972,46 +671,4 @@ void AEgoVehicle::DebugLines() const
                       FColor::Yellow, false, -1, 0, 1);
     }
 #endif
-    if (bDrawGaze && FlatHUD != nullptr)
-    {
-        // Draw line components in FlatHUD
-        FlatHUD->DrawDynamicLine(CombinedOrigin, CombinedOrigin + 10.f * WorldRot.RotateVector(CombinedGaze),
-                                 FColor::Red, 3.0f);
-    }
 }
-
-
-void AEgoVehicle::InitReticleOutFile()
-{
-    // if (EgoSensor->IsReplaying() || true){
-    if (bWriteReticlePos){        
-        // The returned string has the following format: yyyy.mm.dd-hh.mm.ss
-        ReticleOutFile = FPaths::Combine(FPaths::ProjectDir(), TEXT("ReticleOuts"));
-        IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
-        if (!FileManager.DirectoryExists(*ReticleOutFile))
-        {
-#ifndef _WIN32
-            // this only seems to work on Unix systems, else CreateDirectoryW is not linked?
-            PlatformFile.CreateDirectory(*ReticleOutFile);
-#else
-            // using Windows system calls
-            CreateDirectory(*ReticleOutFile, NULL);
-#endif
-        } 
-
-        FString TimeNow = FDateTime::Now().ToString(); // timestamp directory        
-        ReticleOutFile = FPaths::Combine(ReticleOutFile,TimeNow + TEXT( ".txt"));
-        UE_LOG(LogTemp, Log, TEXT("Writing replayed 2D ReticlePos to %s"), *ReticleOutFile);
-
-        FString StringToWrite=
-        FString::Printf(TEXT("Written from Unreal Engine 4 @ %s"), *TimeNow);
-
-        if(!FFileHelper::SaveStringToFile(StringToWrite, *ReticleOutFile,
-        FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), 
-                        FILEWRITE_Append)
-        )
-        {
-            UE_LOG(LogTemp, Error, TEXT("FileManipulation: Failed to write to reticle out file"));
-        }
-    }               
-} 

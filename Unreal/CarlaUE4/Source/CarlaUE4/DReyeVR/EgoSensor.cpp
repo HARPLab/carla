@@ -59,9 +59,6 @@ void AEgoSensor::ReadConfigVariables()
 
     // foveated rendering variables
     ReadConfigValue("FoveatedRender", "Enabled", bEnableFovRender);
-
-    // legacy code for periph recording support
-    ReadConfigValue("Replayer", "UsingLegacyPeriph", ADReyeVRSensor::bUsingLegacyPeriphFile);
 }
 
 void AEgoSensor::BeginPlay()
@@ -463,11 +460,6 @@ void AEgoSensor::TickFoveatedRender()
 
 void AEgoSensor::UpdateData(const DReyeVR::AggregateData &RecorderData, const double Per)
 {
-    if (bUsingLegacyPeriphFile)
-    {
-        if (DReyeVRLevel)
-            DReyeVRLevel->LegacyReplayPeriph(RecorderData, Per);
-    }
     // call the parent function
     ADReyeVRSensor::UpdateData(RecorderData, Per);
 }

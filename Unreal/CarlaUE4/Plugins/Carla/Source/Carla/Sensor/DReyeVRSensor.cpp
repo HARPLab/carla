@@ -13,16 +13,13 @@
 #include "carla/sensor/s11n/DReyeVRSerializer.h" // DReyeVRSerializer::Data
 
 class DReyeVR::AggregateData *ADReyeVRSensor::Data = nullptr;
-bool ADReyeVRSensor::bIsReplaying = false;                   // initially not replaying
-bool DReyeVR::AggregateData::bUsingLegacyPeriphFile = false; // assume not using periph
-bool ADReyeVRSensor::bUsingLegacyPeriphFile = DReyeVR::AggregateData::bUsingLegacyPeriphFile;
+bool ADReyeVRSensor::bIsReplaying = false; // initially not replaying
 
 ADReyeVRSensor::ADReyeVRSensor(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
     // no need for any other initialization
     PrimaryActorTick.bCanEverTick = true;
     ADReyeVRSensor::Data = new DReyeVR::AggregateData();
-    ADReyeVRSensor::Data->bUsingLegacyPeriphFile = ADReyeVRSensor::bUsingLegacyPeriphFile;
 }
 
 FActorDefinition ADReyeVRSensor::GetSensorDefinition()

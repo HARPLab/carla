@@ -42,16 +42,11 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void SetEgoVehicle(class AEgoVehicle *EgoVehicle); // provide access to EgoVehicle (and by extension its camera)
     void SetLevel(class ADReyeVRLevel *Level);         // provides access to ADReyeVRLevel
 
-    // const DReyeVR::EyeTracker GetEgoSensor() const;
     void UpdateData(const DReyeVR::AggregateData &RecorderData, const double Per) override;
     void UpdateData(const DReyeVR::CustomActorData &RecorderData, const double Per) override;
 
     // function where replayer requests a screenshot
     void TakeScreenshot() override;
-    
-    const int64_t getTickCount() const{
-      return TickCount;
-    }    
 
   protected:
     void BeginPlay();
@@ -109,10 +104,8 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 
     ////////////////:REPLAY:////////////////
     class ADReyeVRLevel *DReyeVRLevel = nullptr;
-    bool bUsingLegacyPeriphFile = false;
 
     ////////////////:OTHER:////////////////
     int EgoSensorID;
     void Register();
-
 };

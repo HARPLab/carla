@@ -1,11 +1,14 @@
 #pragma once
 
-#include "Engine/LevelScriptActor.h" // ALevelScriptActor
-#include "Periph.h"                  // PeriphSystem
+#include "Carla/Actor/DReyeVRCustomActor.h" // ADReyeVRCustomActor
+#include "Carla/Sensor/DReyeVRData.h"       // DReyeVR::
+#include "Engine/LevelScriptActor.h"        // ALevelScriptActor
+#include <unordered_map>                    // std::unordered_map
 
 #include "LevelScript.generated.h"
 
 class AEgoVehicle;
+class ADReyeVRPawn;
 
 UCLASS()
 class ADReyeVRLevel : public ALevelScriptActor
@@ -54,14 +57,14 @@ class ADReyeVRLevel : public ALevelScriptActor
 
     // Custom actors
     void ReplayCustomActor(const DReyeVR::CustomActorData &RecorderData, const double Per);
-
-    // periph stimuli
-    void LegacyReplayPeriph(const DReyeVR::AggregateData &RecorderData, const double Per);
+    void DrawBBoxes();
+    std::unordered_map<std::string, ADReyeVRCustomActor *> BBoxes;
 
   private:
     // for handling inputs and possessions
     APlayerController *Player = nullptr;
-    AController *AI_Player = nullptr;
+    void StartDReyeVRPawn();
+    ADReyeVRPawn *DReyeVR_Pawn = nullptr;
 
     // for toggling bw spectator mode
     bool bIsSpectating = true;
@@ -76,8 +79,4 @@ class ADReyeVRLevel : public ALevelScriptActor
     // for recorder/replayer params
     bool bReplaySync = false;        // false allows for interpolation
     bool bRecorderInitiated = false; // allows tick-wise checking for replayer/recorder
-
-    // for the periph stimuli
-    PeriphSystem PS;
-    FRotator PeriphRotationOffset;
 };

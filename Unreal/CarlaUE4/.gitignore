@@ -12,15 +12,11 @@ Plugins/Carla/Debug
 Plugins/Carla/DerivedDataCache
 Plugins/Carla/Intermediate
 Plugins/Carla/Saved
-Plugins/LogitechWheelPlugin
-Plugins/SRanipal
 
 /Content
 Config/CarlaSettings.ini
 Config/DefaultEditor.ini
 Config/CarSimConfig.ini
-Config/SteamVRBindings
-Config/steamvr_ue_editor_app.json
 
 *.code-workspace
 .idea

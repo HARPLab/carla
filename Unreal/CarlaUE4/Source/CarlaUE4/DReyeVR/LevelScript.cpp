@@ -3,10 +3,10 @@
 #include "Carla/Sensor/DReyeVRSensor.h"        // ADReyeVRSensor
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
 #include "Components/AudioComponent.h"         // UAudioComponent
+#include "DReyeVRPawn.h"                       // ADReyeVRPawn
 #include "EgoVehicle.h"                        // AEgoVehicle
 #include "HeadMountedDisplayFunctionLibrary.h" // IsHeadMountedDisplayAvailable
 #include "Kismet/GameplayStatics.h"            // GetPlayerController
-#include "Periph.h"                            // PeriphSystem
 #include "UObject/UObjectIterator.h"           // TObjectInterator
 
 ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
@@ -18,7 +18,6 @@ ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
     ReadConfigValue("Level", "EgoVolumePercent", EgoVolumePercent);
     ReadConfigValue("Level", "NonEgoVolumePercent", NonEgoVolumePercent);
     ReadConfigValue("Level", "AmbientVolumePercent", AmbientVolumePercent);
-    ReadConfigValue("PeripheralTarget", "RotationOffset", PeriphRotationOffset);
 
     // Recorder/replayer
     ReadConfigValue("Replayer", "RunSyncReplay", bReplaySync);
@@ -43,6 +42,9 @@ void ADReyeVRLevel::BeginPlay()
     // start input mapping
     SetupPlayerInputComponent();
 
+    // spawn the DReyeVR pawn and possess it
+    StartDReyeVRPawn();
+
     // Find the ego vehicle in the world
     /// TODO: optionally, spawn ego-vehicle here with parametrized inputs
     FindEgoVehicle();
@@ -50,30 +52,25 @@ void ADReyeVRLevel::BeginPlay()
     // Initialize DReyeVR spectator
     SetupSpectator();
 
-    // Initialize periph stimuli system
-    PS.Initialize(GetWorld());
-
     // Initialize control mode
-    /// TODO: read in initial control mode from .ini
     ControlMode = DRIVER::HUMAN;
-    switch (ControlMode)
-    {
-    case (DRIVER::HUMAN):
-        PossessEgoVehicle();
-        break;
-    case (DRIVER::SPECTATOR):
-        PossessSpectator();
-        break;
-    case (DRIVER::AI):
-        HandoffDriverToAI();
-        break;
-    }
+}
+
+void ADReyeVRLevel::StartDReyeVRPawn()
+{
+    FActorSpawnParameters S;
+    DReyeVR_Pawn = GetWorld()->SpawnActor<ADReyeVRPawn>(FVector::ZeroVector, FRotator::ZeroRotator, S);
+    /// NOTE: the pawn is automatically possessed by player0
+    // as the constructor has the AutoPossessPlayer != disabled
+    // if you want to manually possess then you can do Player->Possess(DReyeVR_Pawn);
+    ensure(DReyeVR_Pawn != nullptr);
 }
 
 bool ADReyeVRLevel::FindEgoVehicle()
 {
     if (EgoVehiclePtr != nullptr)
         return true;
+    ensure(DReyeVR_Pawn);
     TArray<AActor *> FoundEgoVehicles;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEgoVehicle::StaticClass(), FoundEgoVehicles);
     for (AActor *Vehicle : FoundEgoVehicles)
@@ -81,31 +78,16 @@ bool ADReyeVRLevel::FindEgoVehicle()
         UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle in world: %s"), *(Vehicle->GetName()));
         EgoVehiclePtr = CastChecked<AEgoVehicle>(Vehicle);
         EgoVehiclePtr->SetLevel(this);
-        if (!AI_Player)
-            AI_Player = EgoVehiclePtr->GetController();
+        if (DReyeVR_Pawn)
+        {
+            // need to assign ego vehicle before possess!
+            DReyeVR_Pawn->BeginEgoVehicle(EgoVehiclePtr, GetWorld(), Player);
+            UE_LOG(LogTemp, Log, TEXT("Created DReyeVR controller pawn"));
+        }
         /// TODO: handle multiple ego-vehcles? (we should only ever have one!)
         return true;
     }
     UE_LOG(LogTemp, Error, TEXT("Did not find EgoVehicle"));
-#if 0
-    UE_LOG(LogTemp, Log, TEXT("Did not find EgoVehicle, spawning"));
-    FActorSpawnParameters EgoVehicleSpawnInfo;
-    EgoVehicleSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    FTransform Spawn = GetSpawnPoint();
-    FSoftObjectPath Ref(
-        "Blueprint'/Game/Carla/Blueprints/Vehicles/DReyeVR/BP_EgoVehicle_DReyeVR.BP_EgoVehicle_DReyeVR'");
-    UObject *Obj = Ref.ResolveObject();
-    UBlueprint *Blueprint = Cast<UBlueprint>(Obj);
-    if (Blueprint != nullptr)
-    {
-        EgoVehiclePtr = GetWorld()->SpawnActor<AEgoVehicle>(Blueprint->GeneratedClass, // TODO: refactor so
-                                                            Spawn.GetLocation(),       // that the EgoVehicle class
-                                                            Spawn.Rotator(),           // contains its own vehicle mesh
-                                                            EgoVehicleSpawnInfo);      // properties without BP
-    }
-    if (EgoVehiclePtr == nullptr)
-        UE_LOG(LogTemp, Error, TEXT("Spawning EgoVehicle failed!"))
-#endif
     return (EgoVehiclePtr != nullptr);
 }
 
@@ -161,19 +143,8 @@ void ADReyeVRLevel::Tick(float DeltaSeconds)
         // Initialize recorder/replayer
         SetupReplayer(); // once this is successfully run, it no longer gets executed
     }
-    if (EgoVehiclePtr && SpectatorPtr && AI_Player)
-    {
-        if (ControlMode == DRIVER::AI) // when AI is controlling EgoVehicle
-        {
-            // Physically attach the Controller to the specified Pawn, so that our position reflects theirs.
-            // const FVector &NewVehiclePosn = EgoVehiclePtr->GetNextCameraPosn(DeltaSeconds); // for pre-physics tick
-            const FVector &NewVehiclePosn = EgoVehiclePtr->GetCameraPosn(); // for post-physics tick
-            SpectatorPtr->SetActorLocationAndRotation(NewVehiclePosn, EgoVehiclePtr->GetCameraRot());
-        }
-        PS.Tick(DeltaSeconds, ADReyeVRSensor::bIsReplaying,
-         EgoVehiclePtr->IsInCleanRoom(), EgoVehiclePtr->GetCamera(),
-         EgoVehiclePtr->GetEgoSensor());
-    }
+
+    DrawBBoxes();
 }
 
 void ADReyeVRLevel::SetupPlayerInputComponent()
@@ -197,16 +168,18 @@ void ADReyeVRLevel::SetupPlayerInputComponent()
 
 void ADReyeVRLevel::PossessEgoVehicle()
 {
-    if (!EgoVehiclePtr)
+    if (Player->GetPawn() != DReyeVR_Pawn)
     {
-        UE_LOG(LogTemp, Error, TEXT("No EgoVehicle to possess. Searching..."));
-        if (!FindEgoVehicle())
-            return;
+        UE_LOG(LogTemp, Log, TEXT("Possessing DReyeVR EgoVehicle"));
+        Player->Possess(DReyeVR_Pawn);
     }
-    check(EgoVehiclePtr != nullptr);
-    // repossess the ego vehicle
-    Player->Possess(EgoVehiclePtr);
-    UE_LOG(LogTemp, Log, TEXT("Possessing DReyeVR EgoVehicle"));
+    ensure(EgoVehiclePtr != nullptr);
+    if (EgoVehiclePtr)
+    {
+        EgoVehiclePtr->SetAutopilot(false);
+        UE_LOG(LogTemp, Log, TEXT("Disabling EgoVehicle Autopilot"));
+        this->ControlMode = DRIVER::AI;
+    }
     this->ControlMode = DRIVER::HUMAN;
 }
 
@@ -239,22 +212,13 @@ void ADReyeVRLevel::PossessSpectator()
 
 void ADReyeVRLevel::HandoffDriverToAI()
 {
-    if (!EgoVehiclePtr)
+    ensure(EgoVehiclePtr != nullptr);
+    if (EgoVehiclePtr)
     {
-        UE_LOG(LogTemp, Error, TEXT("No EgoVehicle for AI handoff. Searching... "));
-        if (!FindEgoVehicle())
-            return;
+        EgoVehiclePtr->SetAutopilot(true);
+        UE_LOG(LogTemp, Log, TEXT("Enabling EgoVehicle Autopilot"));
+        this->ControlMode = DRIVER::AI;
     }
-    if (!AI_Player)
-    {
-        UE_LOG(LogTemp, Error, TEXT("No EgoVehicle for AI handoff"));
-        return;
-    }
-    check(AI_Player != nullptr);
-    PossessSpectator();
-    AI_Player->Possess(EgoVehiclePtr);
-    UE_LOG(LogTemp, Log, TEXT("Handoff to AI driver"));
-    this->ControlMode = DRIVER::AI;
 }
 
 void ADReyeVRLevel::PlayPause()
@@ -302,32 +266,50 @@ void ADReyeVRLevel::SetupReplayer()
     }
 }
 
-void ADReyeVRLevel::LegacyReplayPeriph(const DReyeVR::AggregateData &RecorderData, const double Per)
+void ADReyeVRLevel::DrawBBoxes()
 {
-    // treat the periph ball target as a CustomActor
-    // visibility triggers spawning/destroying the actor
-    const DReyeVR::LegacyPeriphDataStruct &LegacyData = RecorderData.GetLegacyPeriphData();
-    const std::string Name = "Legacy_PeriphBall";
-    if (LegacyData.Visible)
+#if 0
+    TArray<AActor *> FoundActors;
+    if (GetWorld() != nullptr)
     {
-        DReyeVR::CustomActorData PeriphBall;
-        PeriphBall.Name = FString(UTF8_TO_TCHAR(Name.c_str()));
-        const FRotator PeriphRotation{LegacyData.head2target_pitch, LegacyData.head2target_yaw, 0.f};
-        const FVector RotVecDirection =
-            RecorderData.GetCameraRotationAbs().RotateVector((PeriphRotationOffset + PeriphRotation).Vector());
-        PeriphBall.Location = LegacyData.WorldPos + RotVecDirection * 3.f * 100.f;
-        PeriphBall.Scale3D = 0.05f * FVector::OneVector;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACarlaWheeledVehicle::StaticClass(), FoundActors);
+    }
+    for (AActor *A : FoundActors)
+    {
+        std::string name = TCHAR_TO_UTF8(*A->GetName());
+        if (A->GetName().Contains("DReyeVR"))
+            continue; // skip drawing a bbox over the EgoVehicle
+        if (BBoxes.find(name) == BBoxes.end())
+        {
+            BBoxes[name] = ADReyeVRCustomActor::CreateNew(SM_CUBE, MAT_TRANSLUCENT, GetWorld(), "BBox" + A->GetName());
+        }
+        const float DistThresh = 20.f; // meters before nearby bounding boxes become red
+        ADReyeVRCustomActor *BBox = BBoxes[name];
+        ensure(BBox != nullptr);
+        if (BBox != nullptr)
+        {
+            BBox->Activate();
+            BBox->MaterialParams.Opacity = 0.1f;
+            FLinearColor Col = FLinearColor::Green;
+            if (FVector::Distance(EgoVehiclePtr->GetActorLocation(), A->GetActorLocation()) < DistThresh * 100.f)
+            {
+                Col = FLinearColor::Red;
+            }
+            BBox->MaterialParams.BaseColor = Col;
+            BBox->MaterialParams.Emissive = 0.1 * Col;
 
-        float Emissive;
-        ReadConfigValue("PeripheralTarget", "EmissionFactor", Emissive);
-        PeriphBall.MaterialParams.Emissive = Emissive * FLinearColor::Red;
-        this->ReplayCustomActor(PeriphBall, Per);
+            FVector Origin;
+            FVector BoxExtent;
+            A->GetActorBounds(true, Origin, BoxExtent, false);
+            // UE_LOG(LogTemp, Log, TEXT("Origin: %s Extent %s"), *Origin.ToString(), *BoxExtent.ToString());
+            // divide by 100 to get from m to cm, multiply by 2 bc the cube is scaled in both X and Y
+            BBox->SetActorScale3D(2 * BoxExtent / 100.f);
+            BBox->SetActorLocation(Origin);
+            // extent already covers the rotation aspect since the bbox is dynamic and axis aligned
+            // BBox->SetActorRotation(A->GetActorRotation());
+        }
     }
-    else
-    {
-        if (ADReyeVRCustomActor::ActiveCustomActors.find(Name) != ADReyeVRCustomActor::ActiveCustomActors.end())
-            ADReyeVRCustomActor::ActiveCustomActors[Name]->Deactivate();
-    }
+#endif
 }
 
 void ADReyeVRLevel::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderData, const double Per)
