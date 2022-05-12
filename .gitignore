@@ -6,12 +6,20 @@ TrafficManager/build
 Util/Build
 Install
 Plugins
-!Unreal/CarlaUE4/Plugins
-Unreal/CarlaUE4/.ignore
-RecordingTxts/
-Unreal/CarlaUE4/Config/ReticleOuts/
-Unreal/CarlaUE4/FrameCap/
-Unreal/CarlaUE4/ReticleOuts/
+# added by DReyeVR so only Carla plugins are tracked
+!Unreal/CarlaUE4/Plugins/Carla*
+
+# added by DReyeVR so old builds can be ignored
+Build*
+
+# added by DReyeVR so the frame captures are ignored
+Unreal/CarlaUE4/FrameCap
+
+# added by DReyeVR to MacOS builds don't track the .xcworkspace
+Unreal/CarlaUE4/CarlaUE4.xcworkspace
+
+# added by DReyeVR to ignore this auto-generated file
+Unreal/CarlaUE4/Config/OptionalModules.ini
 
 /ExportedMaps
 /Import/*
