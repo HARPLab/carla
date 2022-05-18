@@ -1,5 +1,4 @@
 #include "DReyeVRPawn.h"
-#include "Carla/Sensor/DReyeVRData.h"          // DReyeVR namespace, includes CityScapesPalette
 #include "DReyeVRUtils.h"                      // ProjectGazeToScreen
 #include "HeadMountedDisplayFunctionLibrary.h" // SetTrackingOrigin, GetWorldToMetersScale
 #include "HeadMountedDisplayTypes.h"           // ESpectatorScreenMode
