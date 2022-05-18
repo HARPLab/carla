@@ -344,7 +344,8 @@ void ADReyeVRPawn::InitLogiWheel()
         const float ScreenDurationSec = 20.f;
         const FLinearColor MsgColour = FLinearColor(1, 0, 0, 1); // RED
         UKismetSystemLibrary::PrintString(World, LogiError, PrintToScreen, PrintToLog, MsgColour, ScreenDurationSec);
-        UE_LOG(LogTemp, Warning, TEXT("%s"), *LogiError); // Error is RED
+        if (PrintToLog)
+            UE_LOG(LogTemp, Warning, TEXT("%s"), *LogiError); // Error is RED
     }
 #endif
 }
