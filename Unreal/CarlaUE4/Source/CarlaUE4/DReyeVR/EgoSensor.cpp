@@ -49,6 +49,7 @@ void AEgoSensor::ReadConfigVariables()
     ReadConfigValue("EgoSensor", "DrawDebugFocusTrace", bDrawDebugFocusTrace);
 
     // variables corresponding to the action of screencapture during replay
+    ReadConfigValue("Replayer", "RecordAllShaders", bRecordAllShaders);
     ReadConfigValue("Replayer", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("Replayer", "FileFormatJPG", bFileFormatJPG);
     ReadConfigValue("Replayer", "LinearGamma", bFrameCapForceLinearGamma);
@@ -366,11 +367,7 @@ void AEgoSensor::ConstructFrameCapture()
         FrameCap->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
         // apply postprocessing effects
-        FPostProcessSettings Effects;
-        Effects.bOverride_ColorGamma = true;
-        const float TargetGamma = 1.2f; /// TODO: parametrize?
-        Effects.ColorGamma = TargetGamma * FVector4(1.f, 1.f, 1.f, 1.f);
-        FrameCap->PostProcessSettings = Effects;
+        FrameCap->PostProcessSettings = CreatePostProcessingEffect(0);
 
         FrameCap->Deactivate();
         FrameCap->TextureTarget = CaptureRenderTarget;
@@ -412,18 +409,33 @@ void AEgoSensor::InitFrameCapture()
 
 void AEgoSensor::TakeScreenshot()
 {
+    /// NOTE: this is a slow function that takes multiple high-res screenshots (with different shader params)
+    // of the current scene and writes the images to disk immediately. The intention is to use this function
+    // during synchronized replay with screen capture so that performance is not an issue since the simulator
+    // is not necessarily running in real-time.
     if (bCaptureFrameData && FrameCap && Camera)
     {
-        FMinimalViewInfo DesiredView;
-        // using 5 digits to reach frame 99999 ~ 30m (assuming ~50fps frame capture)
-        const FString Suffix = FString::Printf(TEXT("%05d.png"), ScreenshotCount);
-        Camera->GetCameraView(0, DesiredView);
-        FrameCap->PostProcessSettings = Camera->PostProcessSettings;
-        FrameCap->SetCameraView(DesiredView); // move camera to the Camera view
-        FrameCap->CaptureScene();             // also available: CaptureSceneDeferred()
-        ScreenshotCount++;                    // progress to next frame
-        SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix),
-                        bFileFormatJPG);
+        for (int i = 0; i < GetNumberOfShaders(); i++)
+        {
+            // using 5 digits to reach frame 99999 ~ 30m (assuming ~50fps frame capture)
+            const FString Suffix = FString::Printf(TEXT("%d_%05d.png"), i, ScreenshotCount);
+            // apply the postprocessing effect
+            FrameCap->PostProcessSettings = CreatePostProcessingEffect(i);
+            // apply the camera view (position & orientation)
+            FMinimalViewInfo DesiredView;
+            Camera->GetCameraView(0, DesiredView);
+            FrameCap->SetCameraView(DesiredView); // move camera to the Camera view
+            // capture the scene and save the screenshot to disk
+            FrameCap->CaptureScene(); // also available: CaptureSceneDeferred()
+            ScreenshotCount++;        // progress to next frame
+            SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix),
+                            bFileFormatJPG);
+            if (!bRecordAllShaders)
+            {
+                // exit after the first shader (rgb)
+                break;
+            }
+        }
     }
 }
 
