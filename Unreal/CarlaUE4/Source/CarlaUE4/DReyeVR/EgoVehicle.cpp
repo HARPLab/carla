@@ -208,6 +208,11 @@ void AEgoVehicle::SetCameraRootPose(const FString &CameraPoseName)
     SetCameraRootPose(CameraPoseTransform);
 }
 
+size_t AEgoVehicle::GetNumCameraPoses() const
+{
+    return CameraTransforms.size();
+}
+
 void AEgoVehicle::SetCameraRootPose(size_t CameraPoseIdx)
 {
     // allow setting the camera root by indexing into CameraTransforms array

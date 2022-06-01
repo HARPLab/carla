@@ -50,6 +50,7 @@ void AEgoSensor::ReadConfigVariables()
 
     // variables corresponding to the action of screencapture during replay
     ReadConfigValue("Replayer", "RecordAllShaders", bRecordAllShaders);
+    ReadConfigValue("Replayer", "RecordAllPoses", bRecordAllPoses);
     ReadConfigValue("Replayer", "RecordFrames", bCaptureFrameData);
     ReadConfigValue("Replayer", "FileFormatJPG", bFileFormatJPG);
     ReadConfigValue("Replayer", "LinearGamma", bFrameCapForceLinearGamma);
@@ -71,9 +72,6 @@ void AEgoSensor::BeginPlay()
 
     // Initialize the eye tracker hardware
     InitEyeTracker();
-
-    // Set up frame capture (after world has been initialized)
-    InitFrameCapture();
 
     // Register EgoSensor with the CarlaActorRegistry
     Register();
@@ -382,6 +380,7 @@ void AEgoSensor::ConstructFrameCapture()
 
 void AEgoSensor::InitFrameCapture()
 {
+    // creates the directory for the frame capture to take place
     if (bCaptureFrameData)
     {
         // create out dir
@@ -404,6 +403,7 @@ void AEgoSensor::InitFrameCapture()
             PlatformFile.CreateDirectory(*FrameCapLocation);
 #endif
         }
+        bCreatedDirectory = true;
     }
 }
 
@@ -413,29 +413,52 @@ void AEgoSensor::TakeScreenshot()
     // of the current scene and writes the images to disk immediately. The intention is to use this function
     // during synchronized replay with screen capture so that performance is not an issue since the simulator
     // is not necessarily running in real-time.
-    if (bCaptureFrameData && FrameCap && Camera)
+
+    // create directory if necessary
+    if (bCaptureFrameData && !bCreatedDirectory)
+    {
+        InitFrameCapture(); // Set up frame capture directory
+    }
+
+    // capture the screenshot to the directory
+    if (bCaptureFrameData && FrameCap && Camera && Vehicle)
     {
         for (int i = 0; i < GetNumberOfShaders(); i++)
         {
-            // using 5 digits to reach frame 99999 ~ 30m (assuming ~50fps frame capture)
-            const FString Suffix = FString::Printf(TEXT("%d_%05d.png"), i, ScreenshotCount);
             // apply the postprocessing effect
             FrameCap->PostProcessSettings = CreatePostProcessingEffect(i);
-            // apply the camera view (position & orientation)
-            FMinimalViewInfo DesiredView;
-            Camera->GetCameraView(0, DesiredView);
-            FrameCap->SetCameraView(DesiredView); // move camera to the Camera view
-            // capture the scene and save the screenshot to disk
-            FrameCap->CaptureScene(); // also available: CaptureSceneDeferred()
-            ScreenshotCount++;        // progress to next frame
-            SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix),
-                            bFileFormatJPG);
+            // loop through all camera poses
+            for (int j = 0; j < Vehicle->GetNumCameraPoses(); j++)
+            {
+                // set this pose
+                Vehicle->SetCameraRootPose(j);
+
+                // using 5 digits to reach frame 99999 ~ 30m (assuming ~50fps frame capture)
+                // suffix is denoted as _s(hader)X_p(ose)Y_Z.png where X is the shader idx, Y is the pose idx, Z is tick
+                const FString Suffix = FString::Printf(TEXT("_s%d_p%d_%05d.png"), i, j, ScreenshotCount);
+                // apply the camera view (position & orientation)
+                FMinimalViewInfo DesiredView;
+                Camera->GetCameraView(0, DesiredView);
+                FrameCap->SetCameraView(DesiredView); // move camera to the Camera view
+                // capture the scene and save the screenshot to disk
+                FrameCap->CaptureScene(); // also available: CaptureSceneDeferred()
+                SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix),
+                                bFileFormatJPG);
+                if (!bRecordAllPoses)
+                {
+                    // exit after the first camera pose (seated)
+                    break;
+                }
+            }
+            // set camera pose back to 0
+            Vehicle->SetCameraRootPose(0);
             if (!bRecordAllShaders)
             {
                 // exit after the first shader (rgb)
                 break;
             }
         }
+        ScreenshotCount++; // progress to next frame
     }
 }
 

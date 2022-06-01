@@ -64,6 +64,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void PlayTurnSignalSound(const float DelayBeforePlay = 0.f) const;
 
     // Camera view
+    size_t GetNumCameraPoses() const;                // how many diff poses?
     void SetCameraRootPose(const FTransform &Pose);  // give arbitrary FTransform
     void SetCameraRootPose(const FString &PoseName); // index into named FTransform
     void SetCameraRootPose(size_t PoseIdx);          // index into ordered FTransform
