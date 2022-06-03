@@ -49,7 +49,6 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 
 void AEgoVehicle::ReadConfigVariables()
 {
-    ReadConfigValue("EgoVehicle", "CameraInit", CameraLocnInVehicle);
     ReadConfigValue("EgoVehicle", "DashLocation", DashboardLocnInVehicle);
     ReadConfigValue("EgoVehicle", "SpeedometerInMPH", bUseMPH);
     ReadConfigValue("EgoVehicle", "EnableTurnSignalAction", bEnableTurnSignalAction);
@@ -81,7 +80,7 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("SteeringWheel", "MaxSteerVelocity", MaxSteerVelocity);
     ReadConfigValue("SteeringWheel", "SteeringScale", SteeringAnimScale);
     // camera
-    ReadConfigValue("EgoVehicle", "FieldOfView", FieldOfView);
+    ReadConfigValue("CameraParams", "FieldOfView", FieldOfView);
     // other/cosmetic
     ReadConfigValue("EgoVehicle", "ActorRegistryID", EgoVehicleID);
     ReadConfigValue("EgoVehicle", "DrawDebugEditor", bDrawDebugEditor);
@@ -105,6 +104,8 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("Hardware", "LogUpdates", bLogLogitechWheel);
 
     ReadConfigValue("Replayer", "WriteReticlePos", bWriteReticlePos);
+    ReadConfigValue("Replayer", "CameraFollowHMD", bCameraFollowHMD);
+
 }
 
 void AEgoVehicle::BeginPlay()
@@ -203,6 +204,88 @@ void AEgoVehicle::Tick(float DeltaSeconds)
 /// ----------------:CAMERA:------------------ ///
 /// ========================================== ///
 
+
+void AEgoVehicle::ConstructCamera()
+{
+    // Spawn the RootComponent and Camera for the VR camera
+    VRCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VRCameraRoot"));
+    VRCameraRoot->SetupAttachment(GetRootComponent()); // The vehicle blueprint itself
+    VRCameraRoot->SetRelativeLocation(FVector::ZeroVector);
+    VRCameraRoot->SetRelativeRotation(FRotator::ZeroRotator);
+
+    // taking this names directly from the [CameraPose] params in DReyeVRConfig.ini
+    std::vector<FString> CameraPoses = {
+        "DriversSeat",  // 1st
+        "ThirdPerson",  // 2nd
+        "BirdsEyeView", // 3rd
+        "Front",        // 4th
+    };
+    for (FString &Key : CameraPoses)
+    {
+        FVector Location;
+        FRotator Rotation;
+        ReadConfigValue("CameraPose", Key + "Loc", Location);
+        ReadConfigValue("CameraPose", Key + "Rot", Rotation);
+        // converting FString to std::string for hashing
+        FTransform Transform = FTransform(Rotation, Location, FVector::OneVector);
+        CameraTransforms.push_back(std::make_pair(Key, Transform));
+    }
+
+    // assign the starting camera root pose to the given starting pose
+    FString StartingPose;
+    ReadConfigValue("CameraPose", "StartingPose", StartingPose);
+    SetCameraRootPose(StartingPose);
+
+    // Create a camera and attach to root component
+    FirstPersonCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCam"));
+    FirstPersonCam->PostProcessSettings = CreatePostProcessingEffect(0); // default (0) is RGB
+    FirstPersonCam->SetupAttachment(VRCameraRoot);
+    FirstPersonCam->bUsePawnControlRotation = false; // free for VR movement
+    FirstPersonCam->bLockToHmd = true;               // lock orientation and position to HMD
+    FirstPersonCam->FieldOfView = FieldOfView;       // editable
+}
+
+void AEgoVehicle::SetCameraRootPose(const FString &CameraPoseName)
+{
+    // given a string (key), index into the map to obtain the FTransform
+    FTransform CameraPoseTransform;
+    bool bFoundMatchingPair = false;
+    for (std::pair<FString, FTransform> &CamPose : CameraTransforms)
+    {
+        if (CamPose.first == CameraPoseName)
+        {
+            CameraPoseTransform = CamPose.second;
+            bFoundMatchingPair = true;
+            break;
+        }
+    }
+    ensure(bFoundMatchingPair == true); // yells at you if CameraPoseName was not found
+    SetCameraRootPose(CameraPoseTransform);
+}
+
+size_t AEgoVehicle::GetNumCameraPoses() const
+{
+    return CameraTransforms.size();
+}
+
+void AEgoVehicle::SetCameraRootPose(size_t CameraPoseIdx)
+{
+    // allow setting the camera root by indexing into CameraTransforms array
+    CameraPoseIdx = std::min(CameraPoseIdx, CameraTransforms.size() - 1);
+    SetCameraRootPose(CameraTransforms[CameraPoseIdx].second);
+}
+
+void AEgoVehicle::SetCameraRootPose(const FTransform &CameraPoseTransform)
+{
+    // sets the base posision of the Camera root (where the camera is at "rest")
+    this->CameraPose = CameraPoseTransform;
+    UE_LOG(LogTemp, Log, TEXT("Setting camera pose to: %s"), *(CameraPose + CameraPoseOffset).ToString());
+
+    // First, set the root of the camera to the driver's seat head pos
+    VRCameraRoot->SetRelativeLocation(CameraPose.GetLocation() + CameraPoseOffset.GetLocation());
+    VRCameraRoot->SetRelativeRotation(CameraPose.Rotator() + CameraPoseOffset.Rotator());
+}
+
 void AEgoVehicle::InitSteamVR()
 {
     bIsHMDConnected = UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled();
@@ -220,21 +303,6 @@ void AEgoVehicle::InitSteamVR()
     }
 }
 
-void AEgoVehicle::ConstructCamera()
-{
-    // Spawn the RootComponent and Camera for the VR camera
-    VRCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VRCameraRoot"));
-    VRCameraRoot->SetupAttachment(GetRootComponent()); // The vehicle blueprint itself
-
-    // Create a camera and attach to root component
-    FirstPersonCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCam"));
-    FirstPersonCam->SetupAttachment(VRCameraRoot);
-    FirstPersonCam->bUsePawnControlRotation = false; // free for VR movement
-    FirstPersonCam->bLockToHmd = true;               // lock orientation and position to HMD
-    FirstPersonCam->FieldOfView = FieldOfView;       // editable
-
-    ResetCamera();
-}
 
 bool AEgoVehicle::EnableCleanRoom()
 {
@@ -263,7 +331,7 @@ void AEgoVehicle::DisableCleanRoom()
     bCleanRoomActive = false;
     // teleport camera back to original location (vehicle + initial offset)
     const FTransform InitPosCamera(this->GetActorRotation() + FRotator::ZeroRotator, // FRotator (Rotation)
-                                   this->GetActorLocation() + CameraLocnInVehicle,   // FVector (Location)
+                                   this->GetActorLocation() + CameraPose.GetLocation(),   // FVector (Location)
                                    FVector::OneVector);                              // FVector (Scale3D)
     VRCameraRoot->SetWorldTransform(InitPosCamera, false, nullptr, ETeleportType::None);
 }
@@ -362,11 +430,14 @@ void AEgoVehicle::ReplayTick()
         // see https://docs.unrealengine.com/4.26/en-US/API/Runtime/Engine/Engine/ETeleportType/
         SetActorTransform(ReplayTransform, false, nullptr, ETeleportType::TeleportPhysics);
 
-        // assign first person camera orientation and location (absolute)
-        const FTransform ReplayCameraTransAbs(Replay->GetCameraRotationAbs(), // FRotator (Rotation)
-                                              Replay->GetCameraLocationAbs(), // FVector (Location)
-                                              FVector::OneVector);            // FVector (Scale3D)
-        FirstPersonCam->SetWorldTransform(ReplayCameraTransAbs, false, nullptr, ETeleportType::TeleportPhysics);
+        if (bCameraFollowHMD)
+        {
+            // assign first person camera orientation and location (absolute)
+            const FTransform ReplayCameraTransAbs(Replay->GetCameraRotationAbs(), // FRotator (Rotation)
+                                                Replay->GetCameraLocationAbs(), // FVector (Location)
+                                                FVector::OneVector);            // FVector (Scale3D)
+            FirstPersonCam->SetWorldTransform(ReplayCameraTransAbs, false, nullptr, ETeleportType::TeleportPhysics);
+        }
 
         // overwrite vehicle inputs to use the replay data
         VehicleInputs = Replay->GetUserInputs();

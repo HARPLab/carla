@@ -101,7 +101,6 @@ void AEgoVehicle::ReleaseResetCamera()
 void AEgoVehicle::ResetCamera()
 {
     // First, set the root of the camera to the driver's seat head pos
-    VRCameraRoot->SetRelativeLocation(CameraLocnInVehicle);
     // Then set the actual camera to be at its origin (attached to VRCameraRoot)
     FirstPersonCam->SetRelativeLocation(FVector::ZeroVector);
     FirstPersonCam->SetRelativeRotation(FRotator::ZeroRotator);

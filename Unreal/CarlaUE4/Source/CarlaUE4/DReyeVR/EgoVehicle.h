@@ -74,6 +74,13 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void PlayGearShiftSound(const float DelayBeforePlay = 0.f) const;
     void PlayTurnSignalSound(const float DelayBeforePlay = 0.f) const;
 
+    // Camera view
+    size_t GetNumCameraPoses() const;                // how many diff poses?
+    void SetCameraRootPose(const FTransform &Pose);  // give arbitrary FTransform
+    void SetCameraRootPose(const FString &PoseName); // index into named FTransform
+    void SetCameraRootPose(size_t PoseIdx);          // index into ordered FTransform
+    const FTransform &GetCameraRootPose() const;
+
   protected:
     // Called when the game starts (spawned) or ends (destroyed)
     virtual void BeginPlay() override;
@@ -97,8 +104,12 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class USceneComponent *VRCameraRoot;
     UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UCameraComponent *FirstPersonCam;
-    FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // depends on vehicle mesh (units in cm)
-    float FieldOfView = 90.f;                           // in degrees
+    FTransform CameraPose, CameraPoseOffset;                      // camera pose (location & rotation) and manual offset
+    std::vector<std::pair<FString, FTransform>> CameraTransforms; // collection of named transforms from params
+    size_t CurrentCameraTransformIdx = 0;
+    float FieldOfView = 90.f;
+    bool bCameraFollowHMD = true; // disable this (in params) to replay without following the player's HMD (replay-only)
+
 
     ////////////////:SENSOR:////////////////
     void ReplayTick();
