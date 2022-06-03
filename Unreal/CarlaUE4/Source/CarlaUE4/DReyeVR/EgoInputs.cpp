@@ -389,6 +389,10 @@ void AEgoVehicle::DestroyLogiWheel(bool DestroyModule)
 void AEgoVehicle::TickLogiWheel()
 {
 #if USE_LOGITECH_PLUGIN
+    if (!bIsLogiConnected)
+    {
+        InitLogiWheel();
+    }
     bIsLogiConnected = LogiIsConnected(WheelDeviceIdx); // get status of connected device
     if (bIsLogiConnected)
     {

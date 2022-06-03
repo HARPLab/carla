@@ -124,17 +124,16 @@ void AEgoVehicle::BeginPlay()
     // Spawn and attach the EgoSensor
     InitSensor();
 
+    // Get information about the VR headset & initialize SteamVR
+    // InitSteamVR();
+
     // Enable VR spectator screen & eye reticle
-    InitSpectator();
+    // InitSpectator();
 
     // Initialize logitech steering wheel
     InitLogiWheel();
 
-    while (!(!bIsHMDConnected && UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected()))
-    {
-        // Get information about the VR headset & initialize SteamVR
-        InitSteamVR();
-    }
+
 
 
     // Bug-workaround for initial delay on throttle; see https://github.com/carla-simulator/carla/issues/1640
@@ -618,19 +617,17 @@ FVector2D AEgoVehicle::ProjectGazeToScreen(const FVector &InOrigin, const FVecto
 
 void AEgoVehicle::DrawSpectatorScreen()
 {
-    if (!bEnableSpectatorScreen || Player == nullptr || !bIsHMDConnected)
+    if (!bEnableSpectatorScreen || Player == nullptr)
         return;
-    // if (!bEnableSpectatorScreen || Player == nullptr)
-    //     return;
 
-    // if (!bIsHMDConnected && UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected())
-    // {
-    //     // try reinitializing steamvr if the headset is connected but not active
-    //     InitSteamVR();
-    //     InitSpectator();
-    // }
-    // if (!bIsHMDConnected)
-    //     return;
+    if (!bIsHMDConnected && UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected())
+    {
+        // try reinitializing steamvr if the headset is connected but not active
+        InitSteamVR();
+        InitSpectator();
+    }
+    if (!bIsHMDConnected)
+        return;
 
     // calculate View size (of open window). Note this is not the same as resolution
     FIntPoint ViewSize;
@@ -679,7 +676,9 @@ void AEgoVehicle::InitFlatHUD()
 
 void AEgoVehicle::DrawFlatHUD(float DeltaSeconds)
 {
-    if (FlatHUD == nullptr || Player == nullptr || bDrawFlatHud == false)
+    
+    // if (FlatHUD == nullptr || Player == nullptr || bDrawFlatHud == false)
+    if (FlatHUD == nullptr || Player == nullptr || bDrawFlatHud == false || bIsHMDConnected == true)
         return;
     // calculate View size (of open window). Note this is not the same as resolution
     FIntPoint ViewSize;

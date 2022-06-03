@@ -32,6 +32,7 @@ void PeriphSystem::ReadConfigVariables()
     ReadConfigValue("CleanRoom", "TimeFlashToMoveFC", TimeFlashToMoveFC);
     ReadConfigValue("CleanRoom", "FCMovesWHead", FCMovesWHead);    
     ReadConfigValue("CleanRoom", "PeriphSpawnRatio", PeriphSpawnRatio);
+    ReadConfigValue("CleanRoom", "FCPeriphTriggerAngle", FCPeriphTriggerAngle);    
 
     // general
     ReadConfigValue("PeripheralTarget", "TargetRenderDistanceM", TargetRenderDistance);
@@ -101,7 +102,7 @@ const UCameraComponent *Camera, const AEgoSensor *EgoSensor)
                 
                 // init the bounds for the FC Location
                 HeadNeutralLoc = CameraLoc; HeadNeutralRot = CameraRot;
-                NumFCMoves += 1;
+                // NumFCMoves += 1;
             }
             
             // FC just got moved
@@ -121,11 +122,10 @@ const UCameraComponent *Camera, const AEgoSensor *EgoSensor)
                 float angleGaze2FC = UKismetMathLibrary::Acos(DotProd);
                 
                 UE_LOG(LogTemp, Log, TEXT("Angle between gaze and FC \t  %f"), angleGaze2FC);
-                if ( UKismetMathLibrary::Abs(angleGaze2FC) > 0.2 ){ // 0.2rad = 11deg
+                if ( UKismetMathLibrary::Abs(angleGaze2FC) > FCPeriphTriggerAngle ){ // 0.2rad = 11deg
                     // can't start the clock until gaze gets closer to FC
                     return;
                 }                
-
 
                 // update time for the next periph trigger -- this is basically the OFD
                 PeriphBool = (FMath::RandRange(0.f, 1.f) <= PeriphSpawnRatio) ? true : false;

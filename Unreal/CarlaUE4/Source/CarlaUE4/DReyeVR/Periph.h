@@ -51,6 +51,7 @@ class PeriphSystem
     float FCMoveMaxRadius;
     int NumFCMoves = 0;
     float PeriphSpawnRatio;
+    float FCPeriphTriggerAngle;
 
   
 };
