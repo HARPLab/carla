@@ -16,7 +16,10 @@ export PYTHONPATH=$PYTHONPATH:/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/
 export PYTHONPATH=$PYTHONPATH:/scratch/abhijatb/Bosch22/LbC_DReyeVR/scenario_runner
 
 
-python3 replay_and_sensorout.py \
+
+
+# python3 replay_and_sensorout.py \
+python3 replay_agent_SI.py \
 -f /scratch/abhijatb/Bosch22/dreyevr_recordings/exp_swapnil55.rec \
 --route-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/route55.xml \
 --scenarios-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/dreyevr/town05_scenarios.json \

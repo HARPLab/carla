@@ -225,7 +225,8 @@ class ReplayAgent(object):
         imu_bp.set_attribute("sensor_tick",str(0.05))
         self.ego_imu = self.world.spawn_actor(imu_bp,imu_transform,attach_to=self.ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
         def imu_callback(imu):
-            print("IMU measure:\n"+str(imu)+'\n')
+            pass
+            # print("IMU measure:\n"+str(imu)+'\n')
         self.ego_imu.listen(lambda imu: imu_callback(imu))   
 
         gnss_bp = self.world.get_blueprint_library().find('sensor.other.gnss')
@@ -235,7 +236,8 @@ class ReplayAgent(object):
         gnss_bp.set_attribute("sensor_tick",str(0.01))
         self.ego_gnss = self.world.spawn_actor(gnss_bp,gnss_transform,attach_to=self.ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
         def gnss_callback(gnss):
-            print("GNSS measure:\n"+str(gnss)+'\n')
+            pass
+            # print("GNSS measure:\n"+str(gnss)+'\n')
         self.ego_gnss.listen(lambda gnss: gnss_callback(gnss))
 
         '''
@@ -256,9 +258,9 @@ class ReplayAgent(object):
         # set to ignore the hero vehicles or not
         self.client.set_replayer_ignore_hero(self.args.ignore_hero)
         if self.args.sync_replay:
-            self.async_replay()
-        else:
             self.sync_replay()
+        else:
+            self.async_replay()
         
         return
 
@@ -275,9 +277,10 @@ class ReplayAgent(object):
         # load the appropriate world map so we can set sync replay
         # see: https://github.com/carla-simulator/carla/issues/4144
         filename = pathlib.Path(self.args.recorder_filename)
-        town_name = filename.stem()[-2] # TODO hacky way to get the town the replay is in
+        town_name = filename.stem[-2] # TODO hacky way to get the town the replay is in
         # other way may be to start the replay async, get the town, then restart in synchronous mode
-        self.client.load_world('Town0'+town_name)
+        # print("Loading Town0"+town_name)
+        self.client.load_world('Town0'+town_name)        
 
         # Set synchronous mode settings
         new_settings = self.world.get_settings()
@@ -289,7 +292,7 @@ class ReplayAgent(object):
         print(self.client.replay_file(self.args.recorder_filename,
                 self.args.start, 0,
                 0, False))
-        self.world.tick()
+        self.world.tick(5.0)
         assert(self.world.get_settings().synchronous_mode)
         
         self._init_camera_sensors()
@@ -354,7 +357,7 @@ class ReplayAgent(object):
 
     def run_step(self):
 
-        input_data = self.sensor_interface.get_data()
+        all_sensors_data = self.sensor_interface.get_data()
 
         if self.args.sync_replay:
             self.world.tick()
