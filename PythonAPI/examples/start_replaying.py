@@ -9,6 +9,10 @@
 import glob
 import os
 import sys
+import pathlib
+import datetime
+from DReyeVR_utils import find_ego_vehicle
+from common import COLOR, CONVERTER
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -23,6 +27,19 @@ import carla
 import argparse
 
 
+import cv2
+import numpy as np 
+
+def decode_img(image):
+    raw_image = np.array(image.raw_data)
+    image_shape = raw_image.reshape((256, 144, 4))
+    rgb_value = image_shape[:, :, :3]
+    cv2.imshow("", rgb_value)
+    cv2.waitKey(1)
+    return rgb_value/255.0  # normalize
+
+
+
 def main():
 
     argparser = argparse.ArgumentParser(
@@ -32,6 +49,11 @@ def main():
         metavar='H',
         default='127.0.0.1',
         help='IP of the host server (default: 127.0.0.1)')
+    argparser.add_argument(
+        '-o', '--output-dir',
+        metavar='O',
+        default="/scratch/abhijatb/Bosch22/dreyevr_recordings_sensors/",
+        help='output directory to store sensor outputs (/scratch/abhijatb/Bosch22/dreyevr_recordings_sensors)')    
     argparser.add_argument(
         '-p', '--port',
         metavar='P',
@@ -80,6 +102,7 @@ def main():
     try:
 
         client = carla.Client(args.host, args.port)
+        # client = carla.Client('127.0.0.1', 2000)
         client.set_timeout(60.0)
 
         # set the time factor for the replayer
@@ -90,8 +113,41 @@ def main():
 
         # replay the session
         print(client.replay_file(args.recorder_filename, args.start, args.duration, args.camera, args.spawn_sensors))
+        
+        world = client.get_world() 
+        ego_vehicle = find_ego_vehicle(world)
+        ego_transform = ego_vehicle.get_transform()
+
+        # get sensors during replay
+        imu_bp = world.get_blueprint_library().find('sensor.other.imu')
+        imu_location = carla.Location(0,0,0)
+        imu_rotation = carla.Rotation(0,0,0)
+        imu_transform = carla.Transform(imu_location, imu_rotation)
+        imu_bp.set_attribute("sensor_tick",str(3.0))
+        ego_imu = world.spawn_actor(imu_bp,imu_transform,attach_to=ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
+        def imu_callback(imu):
+            print("IMU measure:\n"+str(imu)+'\n')
+        ego_imu.listen(lambda imu: imu_callback(imu))        
+
+        # control = carla.VehicleControl()
+        # control.steer = 90.0
+        # control.throttle = 0.0
+        # control.brake = 1.0
+        # ego_vehicle.apply_control(control)
+
+        while True: # cv2.waitKey(1) != 'q':
+            world_snapshot = world.wait_for_tick()
+
 
     finally:
+        if ego_vehicle is not None
+            if ego_cam is not None:
+                ego_cam.stop()
+                ego_cam.destroy()
+            if ego_imu is not None:
+                ego_imu.stop()
+                ego_imu.destroy()
+            
         pass
 
 

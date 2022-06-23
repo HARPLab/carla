@@ -1062,7 +1062,7 @@ void AEgoVehicle::InitReticleOutFile()
         {
 #ifndef _WIN32
             // this only seems to work on Unix systems, else CreateDirectoryW is not linked?
-            PlatformFile.CreateDirectory(*ReticleOutFile);
+            FileManager.CreateDirectory(*ReticleOutFile);
 #else
             // using Windows system calls
             CreateDirectory(*ReticleOutFile, NULL);

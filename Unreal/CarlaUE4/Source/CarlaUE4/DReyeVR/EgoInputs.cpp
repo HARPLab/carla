@@ -130,7 +130,7 @@ void AEgoVehicle::SetSteeringKbd(const float SteeringInput)
 {
     if (SteeringInput == 0.f && bIsLogiConnected && !bPedalsDefaulting)
         return;
-    SetSteering(SteeringInput);
+    // SetSteering(SteeringInput);
 }
 
 void AEgoVehicle::SetSteering(const float SteeringInput)
@@ -146,7 +146,7 @@ void AEgoVehicle::SetThrottleKbd(const float ThrottleInput)
 {
     if (ThrottleInput == 0.f && bIsLogiConnected && !bPedalsDefaulting)
         return;
-    SetThrottle(ThrottleInput);
+    // SetThrottle(ThrottleInput);
 }
 
 void AEgoVehicle::SetThrottle(const float ThrottleInput)
@@ -169,7 +169,7 @@ void AEgoVehicle::SetBrakeKbd(const float BrakeInput)
 {
     if (BrakeInput == 0.f && bIsLogiConnected && !bPedalsDefaulting)
         return;
-    SetBrake(BrakeInput);
+    // SetBrake(BrakeInput);
 }
 
 void AEgoVehicle::SetBrake(const float BrakeInput)
