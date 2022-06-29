@@ -140,7 +140,7 @@ def main():
 
 
     finally:
-        if ego_vehicle is not None
+        if ego_vehicle is not None:
             if ego_cam is not None:
                 ego_cam.stop()
                 ego_cam.destroy()

@@ -15,13 +15,57 @@ export PYTHONPATH=$PYTHONPATH:/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard
 export PYTHONPATH=$PYTHONPATH:/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/team_code
 export PYTHONPATH=$PYTHONPATH:/scratch/abhijatb/Bosch22/LbC_DReyeVR/scenario_runner
 
+# data collection options
+ROUTENUM=54
+SENSORCONFIG="CILRS"
+
+FILES="/scratch/abhijatb/Bosch22/dreyevr_recordings/*$ROUTENUM.rec"
+for replay_file in $FILES
+do
+    python3 replay_agent_SI.py \
+    -f $replay_file \
+    --route-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/route$ROUTENUM.xml \
+    --route-id=$ROUTENUM \
+    --sensor-config=$SENSORCONFIG \
+    --sync-replay 
+  sleep 5
+done
 
 
 
-# python3 replay_and_sensorout.py \
-python3 replay_agent_SI.py \
--f /scratch/abhijatb/Bosch22/dreyevr_recordings/exp_swapnil55.rec \
---route-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/route55.xml \
---scenarios-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/dreyevr/town05_scenarios.json \
---route-id=55 \
---sync-replay
+# python3 replay_agent_SI.py \
+# -f /scratch/abhijatb/Bosch22/dreyevr_recordings/exp_swapnil54.rec \
+# --route-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/route54.xml \
+# --scenarios-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/dreyevr/town05_scenarios.json \
+# --route-id=54 \
+# --sync-replay 
+#--debug-mode
+
+# python3 replay_agent_SI.py \
+# -f /scratch/abhijatb/Bosch22/dreyevr_recordings/exp_swapnil55.rec \
+# --route-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/route55.xml \
+# --scenarios-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/dreyevr/town05_scenarios.json \
+# --route-id=55 \
+# --sync-replay \
+# --debug-mode
+
+# FILES="/scratch/abhijatb/Bosch22/dreyevr_recordings/*32.rec"
+# for replay_file in $FILES
+# do
+#   echo "Recording $replay_file"
+#   # take action on each file. $f store current file name
+#   # perform some operation with the file
+#   python3 replay_agent_SI.py \
+#   -f $replay_file \
+#   --route-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/route32.xml \
+#   --route-id=32 \
+#   --scenarios-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/dreyevr/town03_scenarios.json \
+#   --sync-replay
+
+# python3 replay_agent_SI.py \
+# -f /scratch/abhijatb/Bosch22/dreyevr_recordings/exp_swapnil32.rec \
+# --route-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/route32.xml \
+# --route-id=32 \
+# --scenarios-file=/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/dreyevr/town03_scenarios.json \
+# --sync-replay
+# -- debug-mode

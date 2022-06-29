@@ -100,7 +100,7 @@ def main():
 
     client = carla.Client(args.host, args.port)
     client.set_timeout(10.0)
-    sync_mode = False  # synchronous mode
+    sync_mode = True  # synchronous mode
     np.random.seed(int(time.time()))
 
     if rospy is not None:
@@ -113,6 +113,12 @@ def main():
         pub = init_ros_pub(IP_SELF, IP_ROSMASTER, PORT_ROSMASTER)
 
     world = client.get_world()
+    if sync_mode:
+        new_settings = world.get_settings()
+        new_settings.synchronous_mode = True
+        new_settings.fixed_delta_seconds = 1. / 20
+        world.apply_settings(new_settings) 
+
     sensor = DReyeVRSensor(world)
 
     def publish_and_print(data):
@@ -129,6 +135,7 @@ def main():
         while True:
             if sync_mode:
                 world.tick()
+                assert(world.get_settings().synchronous_mode)
             else:
                 world.wait_for_tick()
     finally:

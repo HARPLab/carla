@@ -65,6 +65,7 @@ class DReyeVRSensor:
     def update(self, data) -> None:
         # update local variables
         elements: List[str] = [key for key in dir(data) if "__" not in key]
+        # print("update dreyevr sensor", self)
         for key in elements:
             self.data[key] = self.preprocess(getattr(data, key))
 
@@ -121,3 +122,15 @@ class DReyeVRSensor:
         FinalRay = ptM - oM  # Combined ray between midpoints of endpoints
         # returns the magnitude of the vector (length)
         return np.linalg.norm(FinalRay) / 100.0
+
+class DReyeVRSensorCallBack(object):
+    '''
+    TODO: build a Queue abstraction and make the __call__ threaded
+    '''
+    def __init__(self, dreyevr_sensor):
+        self.dreyevr_sensor = dreyevr_sensor
+        return
+
+    def __call__(self, data):
+        self.dreyevr_sensor.update(data)
+        return

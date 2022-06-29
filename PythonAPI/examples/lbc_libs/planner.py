@@ -45,6 +45,10 @@ class RoutePlanner(object):
         # self.mean = np.array([49.0, 8.0])
         # self.scale = np.array([111324.60662786, 73032.1570362])
         # TODO: update this for new CARLA
+        # https://github.com/autonomousvision/transfuser/issues/48#issuecomment-1054376659
+        self.mean = np.array([0.0, 0.0])
+        self.scale = np.array([111324.60662786, 111319.490945])
+
 
 
         self.debug = Plotter(debug_size)

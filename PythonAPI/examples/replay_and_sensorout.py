@@ -467,9 +467,14 @@ def main():
             #     world_snapshot = replayer.world.wait_for_tick()   
 
     finally:
+        if args.sync_replay:
+            settings = replayer.world.get_settings()
+            settings.synchronous_mode = False
+            settings.fixed_delta_seconds = None
+            replayer.world.apply_settings(settings)
+
         if replayer.ego_vehicle is not None:
-            replayer._destroy()            
-        pass
+            replayer._destroy()
 
 
 if __name__ == '__main__':

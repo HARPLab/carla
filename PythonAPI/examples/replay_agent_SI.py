@@ -32,7 +32,7 @@ import argparse
 import cv2
 import numpy as np 
 
-from DReyeVR_utils import find_ego_vehicle
+from DReyeVR_utils import find_ego_vehicle, DReyeVRSensor, DReyeVRSensorCallBack
 from PIL import Image, ImageDraw
 from common import COLOR, CONVERTER
 from lbc_data_utils import get_nearby_lights, draw_traffic_lights
@@ -45,17 +45,8 @@ from srunner.scenariomanager.carla_data_provider import *
 from srunner.tools.route_parser import RouteParser
 from srunner.scenariomanager.timer import GameTime
 
-
 from team_code.planner import RoutePlanner
-
-def decode_img(image):
-    raw_image = np.array(image.raw_data)
-    image_shape = raw_image.reshape((256, 144, 4))
-    rgb_value = image_shape[:, :, :3]
-    cv2.imshow("", rgb_value)
-    cv2.waitKey(1)
-    return rgb_value/255.0  # normalize
-
+from agents.navigation.local_planner import RoadOption
 
 class ReplayAgent(object):
     # TODO: inherit from map or other object?
@@ -64,20 +55,37 @@ class ReplayAgent(object):
     _sensors_list = []
 
     def __init__(self, args):        
-        
+        self.args = args
         self.client = carla.Client(args.host, args.port)
         # client = carla.Client('127.0.0.1', 2000)                 
         self.world = self.client.get_world() 
+        self.replay_file = self.args.recorder_filename
+        # load the appropriate world map so we can set sync replay if needed
+        # see: https://github.com/carla-simulator/carla/issues/4144
+        filename = pathlib.Path(self.replay_file)
+        town_name = filename.stem[-2] # TODO hacky way to get the town the replay is in
+        # other way may be to start the replay async, get the town, then restart in synchronous mode
+        self.client.load_world('Town0'+town_name)
+        
         CarlaDataProvider.set_client(self.client)
         CarlaDataProvider.set_world(self.world)
         
         self.ego_vehicle = find_ego_vehicle(self.world)
 
-        self.replay_file = args.recorder_filename
-        self.args = args
+        
+        
         self.path_to_dataset = pathlib.Path(args.output_dir) / \
                                 pathlib.Path(self.replay_file).stem
-
+        
+        now =  str(datetime.datetime.now()).split(' ')
+        now_str = now[0] + '_' + now[1]
+        
+        self.path_to_dataset = pathlib.Path(str(self.path_to_dataset) + '_' + str(now_str))
+        (self.path_to_dataset / 'rgb').mkdir(parents=True)
+        (self.path_to_dataset / 'rgb_left').mkdir(parents=True)
+        (self.path_to_dataset / 'rgb_right').mkdir(parents=True)
+        (self.path_to_dataset / 'topdown').mkdir(parents=True)
+        (self.path_to_dataset / 'measurements').mkdir(parents=True)
 
         # init route planners for far and near
         self._read_route() # this calls self.set_global_plan()
@@ -88,8 +96,15 @@ class ReplayAgent(object):
         self._waypoint_planner = RoutePlanner(4.0, 50)
         self._waypoint_planner.set_route(self._plan_gps_HACK, True)
 
-        # this data structure will contain all sensor data
+        # this data structure will contain all def CARLA sensor data
         self.sensor_interface = SensorInterface()
+
+        # other sensor for the dreyevr data
+        self.dreyevr_sensor =  DReyeVRSensor(self.world)
+        self.dreyevr_sensor.ego_sensor.listen(DReyeVRSensorCallBack(self.dreyevr_sensor))
+
+        # timing stuff
+        self.step = 0
         
         return
 
@@ -104,57 +119,122 @@ class ReplayAgent(object):
                 self._sensors_list[i] = None
         self._sensors_list = []
 
-    
+    # Sensor interface code    
     def sensors(self):
-        return [
+        if self.args.sensor_config =="LBC":
+            sensor_specs = \
+            [
+                    {
+                        'type': 'sensor.camera.rgb',
+                        'x': 1.3, 'y': 0.0, 'z': 1.3,
+                        'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
+                        'width': 256, 'height': 144, 'fov': 90,
+                        'id': 'rgb'
+                        },
+                    {
+                        'type': 'sensor.camera.rgb',
+                        'x': 1.2, 'y': -0.25, 'z': 1.3,
+                        'roll': 0.0, 'pitch': 0.0, 'yaw': -45.0,
+                        'width': 256, 'height': 144, 'fov': 90,
+                        'id': 'rgb_left'
+                        },
+                    {
+                        'type': 'sensor.camera.rgb',
+                        'x': 1.2, 'y': 0.25, 'z': 1.3,
+                        'roll': 0.0, 'pitch': 0.0, 'yaw': 45.0,
+                        'width': 256, 'height': 144, 'fov': 90,
+                        'id': 'rgb_right'
+                        },
+                    {
+                        'type': 'sensor.other.imu',
+                        'x': 0.0, 'y': 0.0, 'z': 0.0,
+                        'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
+                        'sensor_tick': 0.05,
+                        'id': 'imu'
+                        },
+                    {
+                        'type': 'sensor.other.gnss',
+                        'x': 0.0, 'y': 0.0, 'z': 0.0,
+                        'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
+                        'sensor_tick': 0.01,
+                        'id': 'gps'
+                        },
+                    {
+                        'type': 'sensor.speedometer',
+                        'reading_frequency': 20,
+                        'id': 'speed'
+                        },
+                    {
+                    'type': 'sensor.camera.semantic_segmentation',
+                    'x': 0.0, 'y': 0.0, 'z': 100.0,
+                    'roll': 0.0, 'pitch': -90.0, 'yaw': 0.0,
+                    'width': 512, 'height': 512, 'fov': 5 * 10.0,
+                    'id': 'map'
+                        }
+            ]
+        elif self.args.sensor_config == "CILRS":
+            sensor_specs = \
+            [		
                 {
-                    'type': 'sensor.camera.rgb',
-                    'x': 1.3, 'y': 0.0, 'z': 1.3,
-                    'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
-                    'width': 256, 'height': 144, 'fov': 90,
-                    'id': 'rgb'
-                    },
+					'type': 'sensor.camera.rgb',
+					'x': 1.3, 'y': 0.0, 'z':2.3,
+					'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
+					'width': 400, 'height': 300, 'fov': 100,
+					'id': 'rgb'
+					},
+				{
+					'type': 'sensor.camera.rgb',
+					'x': 1.3, 'y': 0.0, 'z':2.3,
+					'roll': 0.0, 'pitch': 0.0, 'yaw': -60.0,
+					'width': 400, 'height': 300, 'fov': 100,
+					'id': 'rgb_left'
+					},
+				{
+					'type': 'sensor.camera.rgb',
+					'x': 1.3, 'y': 0.0, 'z':2.3,
+					'roll': 0.0, 'pitch': 0.0, 'yaw': 60.0,
+					'width': 400, 'height': 300, 'fov': 100,
+					'id': 'rgb_right'
+					},
+				{
+					'type': 'sensor.camera.rgb',
+					'x': -1.3, 'y': 0.0, 'z':2.3,
+					'roll': 0.0, 'pitch': 0.0, 'yaw': -180.0,
+					'width': 400, 'height': 300, 'fov': 100,
+					'id': 'rgb_rear'
+					},
+				{
+					'type': 'sensor.other.imu',
+					'x': 0.0, 'y': 0.0, 'z': 0.0,
+					'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
+					'sensor_tick': 0.05,
+					'id': 'imu'
+					},
+				{
+					'type': 'sensor.other.gnss',
+					'x': 0.0, 'y': 0.0, 'z': 0.0,
+					'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
+					'sensor_tick': 0.01,
+					'id': 'gps'
+					},
+				{
+					'type': 'sensor.speedometer',
+					'reading_frequency': 20,
+					'id': 'speed'
+					},
                 {
-                    'type': 'sensor.camera.rgb',
-                    'x': 1.2, 'y': -0.25, 'z': 1.3,
-                    'roll': 0.0, 'pitch': 0.0, 'yaw': -45.0,
-                    'width': 256, 'height': 144, 'fov': 90,
-                    'id': 'rgb_left'
-                    },
-                {
-                    'type': 'sensor.camera.rgb',
-                    'x': 1.2, 'y': 0.25, 'z': 1.3,
-                    'roll': 0.0, 'pitch': 0.0, 'yaw': 45.0,
-                    'width': 256, 'height': 144, 'fov': 90,
-                    'id': 'rgb_right'
-                    },
-                {
-                    'type': 'sensor.other.imu',
-                    'x': 0.0, 'y': 0.0, 'z': 0.0,
-                    'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
-                    'sensor_tick': 0.05,
-                    'id': 'imu'
-                    },
-                {
-                    'type': 'sensor.other.gnss',
-                    'x': 0.0, 'y': 0.0, 'z': 0.0,
-                    'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
-                    'sensor_tick': 0.01,
-                    'id': 'gps'
-                    },
-                {
-                    'type': 'sensor.speedometer',
-                    'reading_frequency': 20,
-                    'id': 'speed'
-                    },
-                {
-                'type': 'sensor.camera.semantic_segmentation',
-                'x': 0.0, 'y': 0.0, 'z': 100.0,
-                'roll': 0.0, 'pitch': -90.0, 'yaw': 0.0,
-                'width': 512, 'height': 512, 'fov': 5 * 10.0,
-                'id': 'map'
+                    'type': 'sensor.camera.semantic_segmentation',
+                    'x': 0.0, 'y': 0.0, 'z': 100.0,
+                    'roll': 0.0, 'pitch': -90.0, 'yaw': 0.0,
+                    'width': 512, 'height': 512, 'fov': 5 * 10.0,
+                    'id': 'map'
                 }
-                ]
+            ]
+        else:
+            print("not a valid sensor config")
+            raise NotImplementedError 
+
+        return sensor_specs
     
     def setup_sensors(self, debug_mode=False):
         """
@@ -258,6 +338,72 @@ class ReplayAgent(object):
         # Tick once to spawn the sensors
         self.world.tick()
 
+    def process_sensor_data(self, all_sensors_data):
+        self.step+=1
+        rgb = cv2.cvtColor(all_sensors_data['rgb'][1][:, :, :3], cv2.COLOR_BGR2RGB)
+        rgb_left = cv2.cvtColor(all_sensors_data['rgb_left'][1][:, :, :3], cv2.COLOR_BGR2RGB)
+        rgb_right = cv2.cvtColor(all_sensors_data['rgb_right'][1][:, :, :3], cv2.COLOR_BGR2RGB)
+        gps = all_sensors_data['gps'][1][:2]
+        speed = all_sensors_data['speed'][1]['speed']
+        compass = all_sensors_data['imu'][1][-1]
+
+        result = {
+                'rgb': rgb,
+                'rgb_left': rgb_left,
+                'rgb_right': rgb_right,
+                'gps': gps,
+                'speed': speed,
+                'compass': compass
+                }
+
+        # modify the semantic segmentation sensor
+        _actors = self.world.get_actors()
+        traffic_lights = get_nearby_lights(self.ego_vehicle, _actors.filter('*traffic_light*'))
+
+        topdown = all_sensors_data['map'][1][:, :, 2] # input_data['map'][0] is just timestamp
+        topdown = draw_traffic_lights(topdown, self.ego_vehicle, traffic_lights)
+        result['topdown'] = topdown
+
+        return result
+    
+    def save(self, far_node, near_command, steer, throttle, brake, target_speed, tick_data):
+        """
+        Save sensor data
+        """
+        if self.step < 10:
+            return
+        frame = self.step // 10
+        # print(self.dreyevr_sensor.data)
+
+        print("S/T/B inputs: ", steer, throttle, brake)
+        print("High level command: ", near_command.value)
+        pos = self._get_position(tick_data['gps'])
+        theta = tick_data['compass']
+        speed = tick_data['speed']
+
+        data = {
+                'x': pos[0],
+                'y': pos[1],
+                'theta': theta,
+                'speed': speed,
+                'target_speed': target_speed,
+                'x_command': far_node[0],
+                'y_command': far_node[1],
+                'command': near_command.value,
+                'steer': steer,
+                'throttle': throttle,
+                'brake': brake,
+                }        
+        
+        save_path = self.path_to_dataset
+        (save_path / 'measurements' / ('%04d.json' % frame)).write_text(str(data))
+
+        Image.fromarray(tick_data['rgb']).save(save_path / 'rgb' / ('%04d.png' % frame))
+        Image.fromarray(tick_data['rgb_left']).save(save_path / 'rgb_left' / ('%04d.png' % frame))
+        Image.fromarray(tick_data['rgb_right']).save(save_path / 'rgb_right' / ('%04d.png' % frame))
+        Image.fromarray(tick_data['topdown']).save(save_path / 'topdown' / ('%04d.png' % frame))
+        return
+
     def convert_topdown_img(self, topdown_image, path_to_map):
         topdown_array = np.frombuffer(topdown_image.raw_data, dtype=np.dtype("uint8"))
         topdown_array = copy.deepcopy(topdown_array)
@@ -283,6 +429,7 @@ class ReplayAgent(object):
         self.client.set_replayer_ignore_hero(self.args.ignore_hero)
         if self.args.sync_replay:
             self.sync_replay()
+            self.replayinit_timestep = self.dreyevr_sensor.data['timestamp']
         else:
             self.async_replay()
         
@@ -292,31 +439,32 @@ class ReplayAgent(object):
 
     def async_replay(self):
         # replay the session
-        print(self.client.replay_file(self.args.recorder_filename,
+        replay_info_str = self.client.replay_file(self.args.recorder_filename,
          self.args.start, self.args.duration,
-         self.args.camera, self.args.spawn_sensors))
-        self._init_camera_sensors()
-        self._init_measurement_sensors()
+         self.args.camera, self.args.spawn_sensors)
+        print(replay_info_str)
+        for line in replay_info_str.split("\n"):
+            if "Total time recorded" in line:
+                self.replay_duration = float(line.split(": ")[-1])
+                break
         return
 
-    def sync_replay(self, desired_fps=20):
-        # load the appropriate world map so we can set sync replay
-        # see: https://github.com/carla-simulator/carla/issues/4144
-        filename = pathlib.Path(self.args.recorder_filename)
-        town_name = filename.stem[-2] # TODO hacky way to get the town the replay is in
-        # other way may be to start the replay async, get the town, then restart in synchronous mode
-        self.client.load_world('Town0'+town_name)
-
+    def sync_replay(self):
         # Set synchronous mode settings
         new_settings = self.world.get_settings()
         new_settings.synchronous_mode = True
-        new_settings.fixed_delta_seconds = 1. / desired_fps
+        new_settings.fixed_delta_seconds = 1. / self.args.desired_fps
         self.world.apply_settings(new_settings) 
 
         # replay the session
-        print(self.client.replay_file(self.args.recorder_filename,
+        replay_info_str = self.client.replay_file(self.args.recorder_filename,
                 self.args.start, 0,
-                0, False))
+                0, False)
+        print(replay_info_str)
+        for line in replay_info_str.split("\n"):
+            if "Total time recorded" in line:
+                self.replay_duration = float(line.split(": ")[-1])
+                break
         
         self.world.tick()
         assert(self.world.get_settings().synchronous_mode)
@@ -327,6 +475,52 @@ class ReplayAgent(object):
         return
 
     def run_step(self):
+        timestamp = self._update_timestep()        
+
+        # update carla data
+        all_sensors_data = self.sensor_interface.get_data()
+        tick_data = self.process_sensor_data(all_sensors_data)
+
+        gps = self._get_position(tick_data['gps'])
+        near_node, near_command = self._waypoint_planner.run_step(gps)
+        far_node, far_command = self._command_planner.run_step(gps)
+
+        # update dreyevr sensor data
+        # TODO: need to make sure that the timing here is correct
+        # first, gotta make sure that the dreyevr data is not stale
+        # then, gotta make sure that it is the correct dreyevr tick wrt the sim tick
+        # (this is esp relevant when we're using sync mode and dreyevr tick behaviour is undefined)
+        dreyevr_data = self.dreyevr_sensor.data        
+        steer = dreyevr_data['steering_input']
+        throttle = dreyevr_data['throttle_input']
+        brake = dreyevr_data['brake_input']
+        target_speed = tick_data['speed'] # TODO what is this target speed supposed to be in LbC?
+        # print("DReyeVR sensor ", dreyevr_data['timestamp'],
+        #     dreyevr_data['steering_input'], dreyevr_data['throttle_input'],
+        #     dreyevr_data['brake_input'])
+        # steer, throttle, brake, target_speed = 1.0, 1.0, 0.0, 1.0        
+        # if the replay is over, wxit
+        if (dreyevr_data['timestamp'] - self.replayinit_timestep) > \
+                self.replay_duration + 1 :
+                raise KeyboardInterrupt # start exiting the replay
+
+        if self.step % (self.args.desired_fps / 2.0) ==0: # want to save @ 2Hz
+            self.save(far_node, near_command, 
+                    steer, throttle, brake,
+                    target_speed, tick_data)
+
+        if self.args.sync_replay:            
+            self.world.tick()
+            # write on top of map
+            # make sure all the near/far node stuff is correct
+
+        else: # replay is asynchronous
+            world_snapshot = self.world.wait_for_tick()   
+
+        return
+
+    # new internal interface functions
+    def _update_timestep(self):
         timestamp = None
         if self.world:
             snapshot = self.world.get_snapshot()
@@ -336,27 +530,17 @@ class ReplayAgent(object):
             # Update game time and actor information
             GameTime.on_carla_tick(timestamp)
             CarlaDataProvider.on_carla_tick()
+        return timestamp
 
-        all_sensors_data = self.sensor_interface.get_data()
-
-        if self.args.sync_replay:
-            self.world.tick()
-            # write on top of map
-            # make sure all the near/far node stuff is correct
-            self.process_sensors() 
-
-        else: # replay is asynchronous
-            world_snapshot = self.world.wait_for_tick()   
-
-        return
-
-    # new internal interface functions
     def _update_commands(self):
         gps_normed = self._get_position(gps)
         # could replace this with DReyeVR code from replay?
         near_node, near_command = self._waypoint_planner.run_step(gps_normed)
         far_node, far_command = self._command_planner.run_step(gps_normed)
 
+    def _scale_dryevevr_controls(steering_input, brake_input, throttle_input):
+        return steering, brake, throttle
+    
     # internals borrowed from BaseAgent
     def _get_position(self, gps):
         gps = (gps - self._command_planner.mean) * self._command_planner.scale
@@ -386,108 +570,53 @@ class ReplayAgent(object):
 
         # prepare route's trajectory (interpolate and add the GPS route) 
         gps_route, route = interpolate_trajectory(route_config.trajectory)
+        # print(route)
         self.route = route
 
         # this will be the global plan for the replay agent    
         self._set_global_plan(gps_route, self.route)
 
         # Print route in debug mode
-        if debug_mode:
-            self._draw_waypoints(world, self.route, vertical_shift=0.1, persistency=50000.0)
+        if self.args.debug_mode:
+            self._draw_all_waypoints(vertical_shift=0.1, persistency=50000.0)
         return
 
-    # deprecated
-    def _init_camera_sensors(self):
-        now = datetime.datetime.now()
-        path_to_dataset = pathlib.Path(str(self.path_to_dataset) + '_' + str(now))
-        
-        cam_bp = self.world.get_blueprint_library().find('sensor.camera.rgb')
-        cam_location = carla.Location(1.3,0,1.3)
-        cam_rotation = carla.Rotation(0,0,0)
-        cam_transform = carla.Transform(cam_location, cam_rotation)
-        cam_bp.set_attribute("image_size_x", str(256))
-        cam_bp.set_attribute("image_size_y", str(144))
-        cam_bp.set_attribute("fov", str(90))
-        self.ego_cam = self.world.spawn_actor(cam_bp,cam_transform,attach_to=self.ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
-        path_to_rgb = path_to_dataset / ('rgb')
-        self.ego_cam.listen(lambda image: image.save_to_disk( str(path_to_rgb / ('%.6d.jpg' % image.frame))))
-        self.sensor_actor_list.append(self.ego_cam)
+    # debug functions
+    def _draw_all_waypoints(self, vertical_shift=1, persistency=50000):
+        """
+        Draw a list of waypoints at a certain height `vertical_shift`.
+        """
+        # TODO: change so only turns are shown
+        world = self.world
+        waypoints = self.route
+        # Remove all Straight lines?
+        for w in waypoints:
+            wp = w[0].location + carla.Location(z=vertical_shift)
 
-        cam_bp_left = self.world.get_blueprint_library().find('sensor.camera.rgb')
-        cam_location_left = carla.Location(1.2,-0.25,1.3)
-        cam_rotation_left = carla.Rotation(0,-45, 0)
-        cam_transform_left = carla.Transform(cam_location_left, cam_rotation_left)
-        cam_bp_left.set_attribute("image_size_x", str(256))
-        cam_bp_left.set_attribute("image_size_y", str(144))
-        cam_bp_left.set_attribute("fov", str(90))
-        self.ego_cam_left = self.world.spawn_actor(cam_bp_left, cam_transform_left,
-                        attach_to=self.ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
-        path_to_rgb_left = path_to_dataset / ('rgb_left')
-        self.ego_cam_left.listen(lambda image: image.save_to_disk( str(path_to_rgb_left / ('%.6d.jpg' % image.frame))))
-        self.sensor_actor_list.append(self.ego_cam_left)
+            size = 0.2
+            if w[1] == RoadOption.LEFT:  # Yellow
+                color = carla.Color(255, 255, 0)
+            elif w[1] == RoadOption.RIGHT:  # Cyan
+                color = carla.Color(0, 255, 255)
+            elif w[1] == RoadOption.CHANGELANELEFT:  # Orange
+                color = carla.Color(255, 64, 0)
+            elif w[1] == RoadOption.CHANGELANERIGHT:  # Dark Cyan
+                color = carla.Color(0, 64, 255)
+            elif w[1] == RoadOption.STRAIGHT:  # Gray
+                color = carla.Color(128, 128, 128)
+            else:  # LANEFOLLOW
+                color = carla.Color(0, 255, 0)  # Green
+                size = 0.1  # hide markers when lane following
 
-        cam_bp_right = self.world.get_blueprint_library().find('sensor.camera.rgb')
-        cam_location_right = carla.Location(1.2,0.25,1.3)
-        cam_rotation_right = carla.Rotation(0,45,0)
-        cam_transform_right = carla.Transform(cam_location_right, cam_rotation_right)
-        cam_bp_right.set_attribute("image_size_x", str(256))
-        cam_bp_right.set_attribute("image_size_y", str(144))
-        cam_bp_right.set_attribute("fov", str(90))
-        self.ego_cam_right = self.world.spawn_actor(cam_bp_right, cam_transform_right,
-                        attach_to=self.ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
-        path_to_rgb_right = path_to_dataset / ('rgb_right')
-        self.ego_cam_right.listen(lambda image: image.save_to_disk( str(path_to_rgb_right / ('%.6d.jpg' % image.frame))))
-        self.sensor_actor_list.append(self.ego_cam_right)
+            world.debug.draw_point(wp, size=size, color=color, life_time=persistency)
 
-        sem_bp = self.world.get_blueprint_library().find('sensor.camera.semantic_segmentation')
-        sem_bp.set_attribute("image_size_x",str(512))
-        sem_bp.set_attribute("image_size_y",str(512))
-        sem_bp.set_attribute("fov",str(50))
-        sem_location = carla.Location(0,0,100)
-        sem_rotation = carla.Rotation(-90,0,0)
-        sem_transform = carla.Transform(sem_location,sem_rotation)
-        self.sem_cam = self.world.spawn_actor(sem_bp,sem_transform,
-                            attach_to=self.ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
-        path_to_map = path_to_dataset
-        # the LbC color converter is applied to the image, to get the semantic segmentation view
-        self.sem_cam.listen(lambda image: self.convert_topdown_img(image, path_to_map))
-        self.sensor_actor_list.append(self.ego_cam_right)
-
+        # draw start and end in RED and BLUE
+        world.debug.draw_point(waypoints[0][0].location + carla.Location(z=vertical_shift), size=size,
+                               color=carla.Color(0, 0, 255), life_time=persistency)
+        world.debug.draw_point(waypoints[-1][0].location + carla.Location(z=vertical_shift), size=size,
+                               color=carla.Color(255, 0, 0), life_time=persistency)
         return
 
-    # deprecated
-    def _init_measurement_sensors(self):
-        imu_bp = self.world.get_blueprint_library().find('sensor.other.imu')
-        imu_location = carla.Location(0,0,0)
-        imu_rotation = carla.Rotation(0,0,0)
-        imu_transform = carla.Transform(imu_location, imu_rotation)
-        imu_bp.set_attribute("sensor_tick",str(0.05))
-        self.ego_imu = self.world.spawn_actor(imu_bp,imu_transform,attach_to=self.ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
-        def imu_callback(imu):
-            print("IMU measure:\n"+str(imu)+'\n')
-        self.ego_imu.listen(lambda imu: imu_callback(imu))   
-
-        gnss_bp = self.world.get_blueprint_library().find('sensor.other.gnss')
-        gnss_location = carla.Location(0,0,0)
-        gnss_rotation = carla.Rotation(0,0,0)
-        gnss_transform = carla.Transform(gnss_location,gnss_rotation)
-        gnss_bp.set_attribute("sensor_tick",str(0.01))
-        self.ego_gnss = self.world.spawn_actor(gnss_bp,gnss_transform,attach_to=self.ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
-        def gnss_callback(gnss):
-            print("GNSS measure:\n"+str(gnss)+'\n')
-        self.ego_gnss.listen(lambda gnss: gnss_callback(gnss))
-
-        '''
-        speedo_bp = self.world.get_blueprint_library().find('sensor.speedometer')
-        speedo_location = carla.Location(0,0,0)
-        speedo_rotation = carla.Rotation(0,0,0)
-        speedo_transform = carla.Transform(speedo_location,speedo_rotation)
-        speedo_bp.set_attribute("reading_frequency",str(20))
-        self.ego_speedo = self.world.spawn_actor(speedo_bp,speedo_transform,attach_to=ego_vehicle, attachment_type=carla.AttachmentType.Rigid)
-        def speedo_callback(speedo):
-            print("Speedometer measure:\n"+str(speedo)+'\n')
-        self.ego_speedo.listen(lambda speedo: speedo_callback(speedo))
-        '''
 
 def main():
 
@@ -532,6 +661,10 @@ def main():
         default="/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/route55.xml",
         help='route filename (route55.xml)')
     argparser.add_argument(
+        '--sensor-config',
+        default="LBC",
+        help='sensor spec to use (depends on downstream learning algorithm needs: LBC/CILRS)')
+    argparser.add_argument(
         '--scenarios-file',
         metavar='S',
         default="/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/data/dreyevr/town05_scenarios.json",
@@ -552,7 +685,11 @@ def main():
     argparser.add_argument(
         '--route-id',
         default="55",
-        help='route ID (55)')        
+        help='route ID (55)')
+    argparser.add_argument(
+        '--desired-fps',
+        default=20,
+        help='desired fps in sync mode (20)')          
 
     argparser.add_argument(
         '-i', '--ignore-hero',
@@ -566,6 +703,10 @@ def main():
         '--sync-replay',
         action='store_true',
         help='run the replay in synchronous mode')
+    argparser.add_argument(
+        '--debug-mode',
+        action='store_true',
+        help='draw the route waypoints for debug mode')
     args = argparser.parse_args()
 
     try:
