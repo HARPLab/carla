@@ -612,6 +612,7 @@ void export_sensor_data() {
       .add_property("throttle_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetThrottle))
       .add_property("steering_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetSteering))
       .add_property("brake_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetBrake))
+      .add_property("vehicle_velocity", CALL_RETURNING_COPY(csd::DReyeVREvent, GetVehicleVelocity))
       .add_property("current_gear_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetToggledReverse))
       .add_property("handbrake_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetHandbrake))
       .def(self_ns::str(self_ns::self))

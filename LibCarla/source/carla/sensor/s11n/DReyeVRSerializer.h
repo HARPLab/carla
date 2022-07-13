@@ -66,6 +66,7 @@ class DReyeVRSerializer
         float Throttle;
         float Steering;
         float Brake;
+        float VehicleVelocity;
         bool ToggledReverse;
         bool HoldHandbrake;
 
@@ -75,7 +76,7 @@ class DReyeVRSerializer
                              LGazeDir, LGazeOrigin, LGazeValid, LEyeOpenness, LEyeOpenValid, LPupilPos, LPupilPosValid, LPupilDiameter, // left gaze/eye
                              RGazeDir, RGazeOrigin, RGazeValid, REyeOpenness, REyeOpenValid, RPupilPos, RPupilPosValid, RPupilDiameter, // right gaze/eye
                              FocusActorName, FocusActorPoint, FocusActorDist,         // focus info
-                             Throttle, Steering, Brake, ToggledReverse, HoldHandbrake // user inputs
+                             Throttle, Steering, Brake, VehicleVelocity, ToggledReverse, HoldHandbrake // user inputs
         )
     };
 

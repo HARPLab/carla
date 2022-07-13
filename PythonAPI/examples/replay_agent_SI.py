@@ -302,8 +302,8 @@ class ReplayAgent(object):
 
                 elif sensor_spec['type'].startswith('sensor.other.gnss'):
                     bp.set_attribute('noise_alt_stddev', str(0.000005))
-                    bp.set_attribute('noise_lat_stddev', str(0.000005))
-                    bp.set_attribute('noise_lon_stddev', str(0.000005))
+                    bp.set_attribute('noise_lat_stddev', str(0.00000005))
+                    bp.set_attribute('noise_lon_stddev', str(0.00000005))
                     bp.set_attribute('noise_alt_bias', str(0.0))
                     bp.set_attribute('noise_lat_bias', str(0.0))
                     bp.set_attribute('noise_lon_bias', str(0.0))
@@ -421,7 +421,7 @@ class ReplayAgent(object):
         Image.fromarray(topdown_slice).save(path_to_map / 'topdown' / ('%04d.png' % topdown_image.frame))
         # topdown_image.save_to_disk( str(path_to_map / ('/%.6d.jpg' % topdown_image.frame)) )
         return
-
+            
     def start_replay(self):
         self.client.set_replayer_time_factor(self.args.time_factor)
         GameTime.restart()
@@ -468,9 +468,6 @@ class ReplayAgent(object):
         
         self.world.tick()
         assert(self.world.get_settings().synchronous_mode)
-        
-        # self._init_camera_sensors()
-        # self._init_measurement_sensors()
 
         return
 
@@ -479,6 +476,7 @@ class ReplayAgent(object):
 
         # update carla data
         all_sensors_data = self.sensor_interface.get_data()
+        # print(self.ego_vehicle.get_velocity())
         tick_data = self.process_sensor_data(all_sensors_data)
 
         gps = self._get_position(tick_data['gps'])
@@ -494,7 +492,9 @@ class ReplayAgent(object):
         steer = dreyevr_data['steering_input']
         throttle = dreyevr_data['throttle_input']
         brake = dreyevr_data['brake_input']
-        target_speed = tick_data['speed'] # TODO what is this target speed supposed to be in LbC?
+        print("EgoSensor spd", dreyevr_data)
+        brake = dreyevr_data['brake_input']
+        target_speed = dreyevr_data['speed'] # TODO what is this target speed supposed to be in LbC?
         # print("DReyeVR sensor ", dreyevr_data['timestamp'],
         #     dreyevr_data['steering_input'], dreyevr_data['throttle_input'],
         #     dreyevr_data['brake_input'])

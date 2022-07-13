@@ -16,7 +16,7 @@ export PYTHONPATH=$PYTHONPATH:/scratch/abhijatb/Bosch22/LbC_DReyeVR/leaderboard/
 export PYTHONPATH=$PYTHONPATH:/scratch/abhijatb/Bosch22/LbC_DReyeVR/scenario_runner
 
 # data collection options
-ROUTENUM=54
+ROUTENUM=32
 SENSORCONFIG="CILRS"
 
 FILES="/scratch/abhijatb/Bosch22/dreyevr_recordings/*$ROUTENUM.rec"
@@ -28,7 +28,9 @@ do
     --route-id=$ROUTENUM \
     --sensor-config=$SENSORCONFIG \
     --sync-replay 
+    --start 15
   sleep 5
+  break
 done
 
 

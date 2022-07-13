@@ -147,6 +147,10 @@ class DReyeVREvent : public SensorData
     {
         return InternalData.Brake;
     }
+    float GetVehicleVelocity() const
+    {
+        return InternalData.VehicleVelocity;
+    }
     bool GetToggledReverse() const
     {
         return InternalData.ToggledReverse;

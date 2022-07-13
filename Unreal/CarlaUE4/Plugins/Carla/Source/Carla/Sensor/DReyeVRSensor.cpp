@@ -142,6 +142,7 @@ void ADReyeVRSensor::PostPhysTick(UWorld *W, ELevelTick TickType, float DeltaSec
                     Data->GetUserInputs().Throttle,       // Vehicle input throttle
                     Data->GetUserInputs().Steering,       // Vehicle input steering
                     Data->GetUserInputs().Brake,          // Vehicle input brake
+                    Data->GetVehicleVelocity(),           // Vehicle velocity in cm/s
                     Data->GetUserInputs().ToggledReverse, // Vehicle input gear (reverse, fwd)
                     Data->GetUserInputs().HoldHandbrake   // Vehicle input handbrake
                 });

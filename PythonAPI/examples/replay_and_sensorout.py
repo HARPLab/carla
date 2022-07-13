@@ -281,7 +281,6 @@ class ReplayAgent(object):
         # other way may be to start the replay async, get the town, then restart in synchronous mode
         # print("Loading Town0"+town_name)
         self.client.load_world('Town0'+town_name)        
-
         # Set synchronous mode settings
         new_settings = self.world.get_settings()
         new_settings.synchronous_mode = True
@@ -338,7 +337,7 @@ class ReplayAgent(object):
                     'type': 'sensor.other.gnss',
                     'x': 0.0, 'y': 0.0, 'z': 0.0,
                     'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
-                    'sensor_tick': 0.01,
+                    'sensor_tick': 0.05,
                     'id': 'gps'
                     },
                 {
