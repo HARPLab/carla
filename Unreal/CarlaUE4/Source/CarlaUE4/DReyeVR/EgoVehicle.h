@@ -141,6 +141,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class AWheeledVehicleAIController *AI_Player = nullptr;
     void InitAIPlayer();
     bool bAutopilotEnabled = false;
+    void TickAutopilot();
 
     ////////////////:INPUTS:////////////////
     /// NOTE: since there are so many functions here, they are defined in EgoInputs.cpp

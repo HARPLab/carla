@@ -137,6 +137,9 @@ void AEgoVehicle::Tick(float DeltaSeconds)
     // Update the steering wheel to be responsive to user input
     TickSteeringWheel(DeltaSeconds);
 
+    // Ensure appropriate autopilot functionality is accessible from EgoVehicle
+    TickAutopilot();
+
     if (Pawn)
     {
         // Draw the spectator vr screen and overlay elements
@@ -292,6 +295,15 @@ void AEgoVehicle::SetAutopilot(const bool AutopilotOn)
 bool AEgoVehicle::GetAutopilotStatus() const
 {
     return bAutopilotEnabled;
+}
+
+void AEgoVehicle::TickAutopilot()
+{
+    ensure(AI_Player != nullptr);
+    if (AI_Player != nullptr)
+    {
+        bAutopilotEnabled = AI_Player->IsAutopilotEnabled();
+    }
 }
 
 /// ========================================== ///
