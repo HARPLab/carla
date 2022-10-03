@@ -144,6 +144,7 @@ void ADReyeVRLevel::Tick(float DeltaSeconds)
         SetupReplayer(); // once this is successfully run, it no longer gets executed
     }
 
+    RefreshActors(DeltaSeconds);
     DrawBBoxes();
 }
 
@@ -266,50 +267,113 @@ void ADReyeVRLevel::SetupReplayer()
     }
 }
 
+void ADReyeVRLevel::RefreshActors(float DeltaSeconds)
+{
+    // only update the AllActors container on refresh ticks
+    if (TimeSinceLastActorRefresh == 0.f)
+    {
+        // this is expensive so make sure RefreshActorSearchTick is reasonable!
+        TArray<AActor *> FoundActors;
+        if (GetWorld() != nullptr)
+        {
+            UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACarlaWheeledVehicle::StaticClass(), FoundActors);
+        }
+        // force "delete" for these elements
+        for (auto &bbox_key_value : BBoxes)
+        {
+            bbox_key_value.second->Deactivate(); // value (second) is ADReyeVRCustomActor*
+            bbox_key_value.second->Destroy();    // try to delete this actor in UE4 terms
+        }
+        BBoxes.clear();
+
+        // add all the new actors (and delete old ones) to container
+        std::unordered_map<std::string, ActorAndMetadata> AllActorsTmp = {};
+        for (AActor *A : FoundActors)
+        {
+            std::string name = TCHAR_TO_UTF8(*A->GetName());
+
+            // compute bounds for the axis-aligned bounding box
+            FVector BBox_Offset, BBox_Extent;
+            A->GetActorBounds(true, BBox_Offset, BBox_Extent, false);
+
+            ActorAndMetadata ActorData;
+            ActorData.Actor = A;
+            /// TODO: ensure the rotation of the BBOX extent works as expected (axis aligned tightest bound)
+            ActorData.BBox_Extent = A->GetActorRotation().RotateVector(BBox_Extent);
+            if (AllActors.find(name) != AllActors.end() && AllActors[name].BBox_Extent.Size() < BBox_Extent.Size())
+            {
+                // keep these bounds (tightest) from before
+                ActorData.BBox_Extent = AllActors[name].BBox_Extent;
+            }
+            ActorData.BBox_Offset = BBox_Offset - A->GetActorLocation(); // only offset to static mesh
+            AllActorsTmp[name] = ActorData;
+        }
+        // reset & update the AllActors container
+        AllActors.clear();
+        AllActors = AllActorsTmp;
+    }
+
+    if (TimeSinceLastActorRefresh < RefreshActorSearchTick)
+    {
+        // keep incrementing the time since last refresh as long as the threshold has not been met
+        TimeSinceLastActorRefresh += DeltaSeconds;
+    }
+    else
+    {
+        // reset the time since last actor was refreshed if beyond the tick threshold
+        TimeSinceLastActorRefresh = 0.f;
+    }
+}
+
 void ADReyeVRLevel::DrawBBoxes()
 {
-#if 0
-    TArray<AActor *> FoundActors;
-    if (GetWorld() != nullptr)
+    const FString &EyeFocusActorName = EgoVehiclePtr->GetSensor()->GetData()->GetFocusActorName();
+    for (auto &pair : AllActors)
     {
-        UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACarlaWheeledVehicle::StaticClass(), FoundActors);
-    }
-    for (AActor *A : FoundActors)
-    {
-        std::string name = TCHAR_TO_UTF8(*A->GetName());
-        if (A->GetName().Contains("DReyeVR"))
-            continue; // skip drawing a bbox over the EgoVehicle
+        const std::string &name = pair.first;
+        const ActorAndMetadata &AaMd = pair.second;
+        const AActor *A = AaMd.Actor;
+        const FVector &BBox_Offset = AaMd.BBox_Offset;
+        const FVector &BBox_Extent = AaMd.BBox_Extent;
+
+        if (A == nullptr || A == EgoVehiclePtr)
+            continue; // skip bbox overlay for null or EgoVehicle actors
+
+        const auto OverlayTag = FName("Overlay"); // also defined in CarlaActor.cpp::SetActorEnableOverlay
+        if (!A->ActorHasTag(OverlayTag))
+        {
+            continue; // skip bbox overlay for actors without the bbox tag
+        }
+
+        ensure(A != nullptr);
+
+        // find the bbox in the container
         if (BBoxes.find(name) == BBoxes.end())
         {
             BBoxes[name] = ADReyeVRCustomActor::CreateNew(SM_CUBE, MAT_TRANSLUCENT, GetWorld(), "BBox" + A->GetName());
         }
-        const float DistThresh = 20.f; // meters before nearby bounding boxes become red
         ADReyeVRCustomActor *BBox = BBoxes[name];
         ensure(BBox != nullptr);
+
+        // here define the logic for when/how/why to draw a bbox overlay
         if (BBox != nullptr)
         {
             BBox->Activate();
             BBox->MaterialParams.Opacity = 0.1f;
             FLinearColor Col = FLinearColor::Green;
-            if (FVector::Distance(EgoVehiclePtr->GetActorLocation(), A->GetActorLocation()) < DistThresh * 100.f)
+            if (EyeFocusActorName.Equals(A->GetName()))
             {
                 Col = FLinearColor::Red;
             }
             BBox->MaterialParams.BaseColor = Col;
             BBox->MaterialParams.Emissive = 0.1 * Col;
 
-            FVector Origin;
-            FVector BoxExtent;
-            A->GetActorBounds(true, Origin, BoxExtent, false);
-            // UE_LOG(LogTemp, Log, TEXT("Origin: %s Extent %s"), *Origin.ToString(), *BoxExtent.ToString());
             // divide by 100 to get from m to cm, multiply by 2 bc the cube is scaled in both X and Y
-            BBox->SetActorScale3D(2 * BoxExtent / 100.f);
-            BBox->SetActorLocation(Origin);
-            // extent already covers the rotation aspect since the bbox is dynamic and axis aligned
-            // BBox->SetActorRotation(A->GetActorRotation());
+            BBox->SetActorScale3D(2 * BBox_Extent / 100.f);
+            BBox->SetActorLocation(A->GetActorLocation() + BBox_Offset);
+            BBox->SetActorRotation(A->GetActorRotation());
         }
     }
-#endif
 }
 
 void ADReyeVRLevel::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderData, const double Per)

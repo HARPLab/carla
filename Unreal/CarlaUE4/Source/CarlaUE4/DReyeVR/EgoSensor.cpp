@@ -97,9 +97,9 @@ void AEgoSensor::ManualTick(float DeltaSeconds)
     {
         const float Timestamp = int64_t(1000.f * UGameplayStatics::GetRealTimeSeconds(World));
         /// TODO: query the eye tracker hardware asynchronously (not limited to UE4 tick)
-        TickEyeTracker();                             // query the eye-tracker hardware for current data
-        ComputeTraceFocusInfo(ECC_GameTraceChannel4); // compute gaze focus data
-        ComputeEgoVars();                             // get all necessary ego-vehicle data
+        TickEyeTracker();   // query the eye-tracker hardware for current data
+        ComputeFocusInfo(); // compute gaze focus data
+        ComputeEgoVars();   // get all necessary ego-vehicle data
 
         // Update the internal sensor data that gets handed off to Carla (for recording/replaying/PythonAPI)
         GetData()->Update(Timestamp,                  // TimestampCarla (ms)
@@ -244,6 +244,15 @@ void AEgoSensor::ComputeDummyEyeData()
     Left->GazeOrigin = Combined->GazeOrigin + 5 * FVector::LeftVector;
     Right->GazeDir = Combined->GazeDir;
     Right->GazeOrigin = Combined->GazeOrigin + 5 * FVector::RightVector;
+}
+
+void AEgoSensor::ComputeFocusInfo()
+{
+    // ECC_Visibility: General visibility testing channel.
+    // ECC_Camera: Usually used when tracing from the camera to something.
+    // https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/Engine/ECollisionChannel/
+    // https://zompidev.blogspot.com/2021/08/visibility-vs-camera-trace-channels-in.html
+    ComputeTraceFocusInfo(ECC_Visibility);
 }
 
 void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius)

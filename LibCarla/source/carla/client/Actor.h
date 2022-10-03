@@ -102,6 +102,9 @@ namespace client {
     /// Enable or disable gravity on this actor.
     void SetEnableGravity(bool enabled = true);
 
+    /// Enable or disable DReyeVR overlay actors 
+    void SetEnableOverlay(bool enabled = true);
+
     rpc::ActorState GetActorState() const;
 
     bool IsAlive() const {

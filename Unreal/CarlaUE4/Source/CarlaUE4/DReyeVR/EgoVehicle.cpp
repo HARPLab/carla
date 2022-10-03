@@ -274,6 +274,10 @@ FRotator AEgoVehicle::GetCameraRot() const
 {
     return GetCamera()->GetComponentRotation();
 }
+const class AEgoSensor *AEgoVehicle::GetSensor() const
+{
+    return const_cast<const class AEgoSensor *>(EgoSensor);
+}
 
 /// ========================================== ///
 /// ---------------:AIPLAYER:----------------- ///

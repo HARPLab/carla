@@ -593,6 +593,27 @@ ECarlaServerResponse FCarlaActor::SetActorEnableGravity(bool bEnabled)
   return ECarlaServerResponse::Success;
 }
 
+ECarlaServerResponse FCarlaActor::SetActorEnableOverlay(bool bEnabled)
+{
+  /// TODO: consider moving the OverlayActor logic (including tracking) to within the FCarlaActor?
+
+  auto Actor = GetActor();
+  if (Actor == nullptr)
+  {
+    return ECarlaServerResponse::NullActor;
+  }
+  const auto OverlayTag = FName("Overlay");
+  if (bEnabled)
+  {
+    Actor->Tags.Add(OverlayTag);
+  }
+  else
+  {
+    Actor->Tags.Remove(OverlayTag);
+  }
+  return ECarlaServerResponse::Success;
+}
+
 // FVehicleActor functions ---------------------
 
 ECarlaServerResponse FVehicleActor::EnableActorConstantVelocity(const FVector& Velocity)

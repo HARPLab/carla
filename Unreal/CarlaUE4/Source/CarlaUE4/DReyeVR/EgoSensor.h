@@ -63,6 +63,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void DestroyEyeTracker();
     void ComputeDummyEyeData(); // when no hardware sensor is present
     void TickEyeTracker();      // tick hardware sensor
+    void ComputeFocusInfo();
     void ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius = 0.f);
     float MaxTraceLenM = 100.f;        // maximum trace length in m
     bool bDrawDebugFocusTrace = false; // draw the trace ray and hit point or not

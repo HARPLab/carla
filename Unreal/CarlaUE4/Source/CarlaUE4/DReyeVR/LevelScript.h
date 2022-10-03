@@ -57,8 +57,6 @@ class ADReyeVRLevel : public ALevelScriptActor
 
     // Custom actors
     void ReplayCustomActor(const DReyeVR::CustomActorData &RecorderData, const double Per);
-    void DrawBBoxes();
-    std::unordered_map<std::string, ADReyeVRCustomActor *> BBoxes;
 
   private:
     // for handling inputs and possessions
@@ -70,6 +68,20 @@ class ADReyeVRLevel : public ALevelScriptActor
     bool bIsSpectating = true;
     APawn *SpectatorPtr = nullptr;
     AEgoVehicle *EgoVehiclePtr = nullptr;
+
+    // for accessing all actors (vehicles/walkers only) in the world
+    float RefreshActorSearchTick = 5.f; // tickrate (seconds) for UGameplayStatics::GetAllActorsOfClass
+    float TimeSinceLastActorRefresh = 0.f;
+
+    struct ActorAndMetadata
+    {
+        AActor *Actor;
+        FVector BBox_Offset, BBox_Extent;
+    };
+    std::unordered_map<std::string, ActorAndMetadata> AllActors = {};
+    void RefreshActors(float DeltaSeconds);
+    void DrawBBoxes();
+    std::unordered_map<std::string, ADReyeVRCustomActor *> BBoxes;
 
     // for audio control
     float EgoVolumePercent;
