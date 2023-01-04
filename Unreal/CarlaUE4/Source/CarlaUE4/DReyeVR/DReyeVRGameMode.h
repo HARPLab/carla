@@ -1,22 +1,22 @@
 #pragma once
 
 #include "Carla/Actor/DReyeVRCustomActor.h" // ADReyeVRCustomActor
+#include "Carla/Game/CarlaGameModeBase.h"   // ACarlaGameModeBase
 #include "Carla/Sensor/DReyeVRData.h"       // DReyeVR::
-#include "Engine/LevelScriptActor.h"        // ALevelScriptActor
 #include <unordered_map>                    // std::unordered_map
 
-#include "LevelScript.generated.h"
+#include "DReyeVRGameMode.generated.h"
 
 class AEgoVehicle;
 class ADReyeVRPawn;
 
 UCLASS()
-class ADReyeVRLevel : public ALevelScriptActor
+class ADReyeVRGameMode : public ACarlaGameModeBase
 {
     GENERATED_UCLASS_BODY()
 
   public:
-    ADReyeVRLevel();
+    ADReyeVRGameMode();
 
     virtual void BeginPlay() override;
 
@@ -27,7 +27,7 @@ class ADReyeVRLevel : public ALevelScriptActor
     // input handling
     void SetupPlayerInputComponent();
     void SetupSpectator();
-    bool FindEgoVehicle();
+    bool SetupEgoVehicle();
 
     // EgoVehicle functions
     enum DRIVER
@@ -57,31 +57,20 @@ class ADReyeVRLevel : public ALevelScriptActor
 
     // Custom actors
     void ReplayCustomActor(const DReyeVR::CustomActorData &RecorderData, const double Per);
+    void DrawBBoxes();
+    std::unordered_map<std::string, ADReyeVRCustomActor *> BBoxes;
 
   private:
     // for handling inputs and possessions
-    APlayerController *Player = nullptr;
     void StartDReyeVRPawn();
-    ADReyeVRPawn *DReyeVR_Pawn = nullptr;
+    class APlayerController *Player = nullptr;
+    class ADReyeVRPawn *DReyeVR_Pawn = nullptr;
+    class UClass *EgoVehicleBPClass = nullptr;
 
     // for toggling bw spectator mode
     bool bIsSpectating = true;
-    APawn *SpectatorPtr = nullptr;
-    AEgoVehicle *EgoVehiclePtr = nullptr;
-
-    // for accessing all actors (vehicles/walkers only) in the world
-    float RefreshActorSearchTick = 5.f; // tickrate (seconds) for UGameplayStatics::GetAllActorsOfClass
-    float TimeSinceLastActorRefresh = 0.f;
-
-    struct ActorAndMetadata
-    {
-        AActor *Actor;
-        FVector BBox_Offset, BBox_Extent;
-    };
-    std::unordered_map<std::string, ActorAndMetadata> AllActors = {};
-    void RefreshActors(float DeltaSeconds);
-    void DrawBBoxes();
-    std::unordered_map<std::string, ADReyeVRCustomActor *> BBoxes;
+    class APawn *SpectatorPtr = nullptr;
+    class AEgoVehicle *EgoVehiclePtr = nullptr;
 
     // for audio control
     float EgoVolumePercent;

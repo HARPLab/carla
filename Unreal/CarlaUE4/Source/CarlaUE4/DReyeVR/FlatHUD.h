@@ -61,6 +61,7 @@ UCLASS() class ADReyeVRHUD : public ACarlaHUD
   public:
     ADReyeVRHUD(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
     {
+        UE_LOG(LogTemp, Log, TEXT("Initializing DReyeVR HUD"));
     }
 
     virtual void DrawHUD() override;

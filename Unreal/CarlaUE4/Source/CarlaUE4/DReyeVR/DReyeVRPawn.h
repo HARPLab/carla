@@ -81,7 +81,7 @@ class ADReyeVRPawn : public APawn
 
     ////////////////:FLATHUD:////////////////
     // (Flat) HUD (NOTE: ONLY FOR NON VR)
-    void InitFlatHUD(APlayerController *P);
+    void InitFlatHUD();
     UPROPERTY(Category = HUD, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class ADReyeVRHUD *FlatHUD;
     FVector2D ReticlePos;                // 2D reticle position from eye gaze

@@ -1,6 +1,6 @@
 #include "EgoSensor.h"
 
-#include "Carla/Game/CarlaStatics.h"    // GetEpisode
+#include "Carla/Game/CarlaStatics.h"    // GetCurrentEpisode
 #include "DReyeVRUtils.h"               // ReadConfigValue, ComputeClosestToRayIntersection
 #include "EgoVehicle.h"                 // AEgoVehicle
 #include "Kismet/GameplayStatics.h"     // UGameplayStatics::ProjectWorldToScreen
@@ -255,7 +255,7 @@ void AEgoSensor::ComputeFocusInfo()
     ComputeTraceFocusInfo(ECC_Visibility);
 }
 
-void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius)
+bool AEgoSensor::ComputeGazeTrace(FHitResult &Hit, const ECollisionChannel TraceChannel, float TraceRadius) const
 {
     const float TraceLen = MaxTraceLenM * 100.f; // convert to m from cm
     const FRotator &WorldRot = GetData()->GetCameraRotationAbs();
@@ -268,12 +268,13 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
     TraceParam.AddIgnoredActor(Vehicle); // don't collide with the vehicle since that would be useless
     TraceParam.bTraceComplex = true;
     TraceParam.bReturnPhysicalMaterial = false;
-    FHitResult Hit(EForceInit::ForceInit);
+    Hit = FHitResult(EForceInit::ForceInit);
     bool bDidHit = false;
 
     // 0 for a point, >0 for a sphear trace
     TraceRadius = FMath::Max(TraceRadius, 0.f); // clamp to be positive
 
+    ensure(World != nullptr);
     if (TraceRadius == 0.f) // Single ray/line trace
     {
         bDidHit = World->LineTraceSingleByChannel(Hit, GazeOrigin, GazeOrigin + GazeRay, TraceChannel, TraceParam);
@@ -285,10 +286,36 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
         bDidHit = World->SweepSingleByChannel(Hit, GazeOrigin, GazeOrigin + GazeRay, FQuat(0.f, 0.f, 0.f, 0.f),
                                               TraceChannel, Sphear, TraceParam);
     }
+    if (bDrawDebugFocusTrace)
+    {
+        DrawDebugSphere(World, Hit.Location, 8.0f, 30, FColor::Blue);
+        DrawDebugLine(World,
+                      GazeOrigin,           // start line
+                      GazeOrigin + GazeRay, // end line
+                      FColor::Purple, false, -1, 0, 1);
+    }
+    return bDidHit;
+}
+
+void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius)
+{
+    FHitResult Hit;
+    bool bDidHit = ComputeGazeTrace(Hit, TraceChannel, TraceRadius);
     // Update fields
     FString ActorName = "None";
     if (Hit.Actor != nullptr)
+    {
         Hit.Actor->GetName(ActorName);
+        FString Suffix = ""; // suffix to the actor "name" (actor type we care about)
+        if (Cast<AWheeledVehicle>(Hit.Actor) != nullptr)
+            Suffix = "_Vehicle";
+        else if (Cast<ACharacter>(Hit.Actor) != nullptr)
+            Suffix = "_Walker";
+        else if (Cast<ATrafficSignBase>(Hit.Actor) != nullptr)
+            Suffix = "_TrafficLight";
+        /// TODO: add more suffixes here.
+        ActorName += Suffix;
+    }
     // update internal data structure (see DReyeVRData::FocusInfo for default constructor)
     FocusInfoData = {
         Hit.Actor,    // pointer to actor being hit (if any, else nullptr)
@@ -298,14 +325,6 @@ void AEgoSensor::ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, flo
         Hit.Distance, // distance from ray start
         bDidHit,      // whether or not there was a hit
     };
-    if (bDrawDebugFocusTrace)
-    {
-        DrawDebugSphere(World, FocusInfoData.HitPoint, 8.0f, 30, FColor::Blue);
-        DrawDebugLine(World,
-                      GazeOrigin,           // start line
-                      GazeOrigin + GazeRay, // end line
-                      FColor::Purple, false, -1, 0, 1);
-    }
 }
 
 float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const FVector &R0, const FVector &RDir) const
@@ -325,7 +344,7 @@ void AEgoSensor::SetEgoVehicle(class AEgoVehicle *NewEgoVehicle)
     check(Vehicle);
 }
 
-void AEgoSensor::SetLevel(class ADReyeVRLevel *LevelIn)
+void AEgoSensor::SetLevel(class ADReyeVRGameMode *LevelIn)
 {
     DReyeVRLevel = LevelIn;
     check(DReyeVRLevel);

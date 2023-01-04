@@ -11,18 +11,18 @@
 #include "Components/PlanarReflectionComponent.h"     // Planar Reflection
 #include "Components/SceneComponent.h"                // USceneComponent
 #include "CoreMinimal.h"                              // Unreal functions
+#include "DReyeVRGameMode.h"                          // ADReyeVRGameMode
 #include "DReyeVRUtils.h"                             // ReadConfigValue
 #include "EgoSensor.h"                                // AEgoSensor
 #include "FlatHUD.h"                                  // ADReyeVRHUD
 #include "ImageUtils.h"                               // CreateTexture2D
-#include "LevelScript.h"                              // ADReyeVRLevel
 #include "WheeledVehicle.h"                           // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
 
 #include "EgoVehicle.generated.h"
 
-class ADReyeVRLevel;
+class ADReyeVRGameMode;
 class ADReyeVRPawn;
 
 UCLASS()
@@ -41,7 +41,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     virtual void Tick(float DeltaTime) override; // called automatically
 
     // Setters from external classes
-    void SetLevel(ADReyeVRLevel *Level);
+    void SetLevel(ADReyeVRGameMode *Level);
     void SetPawn(ADReyeVRPawn *Pawn);
     void SetVolume(const float VolumeIn);
 
@@ -208,7 +208,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     ////////////////:LEVEL:////////////////
     void TickLevel(float DeltaSeconds);
-    class ADReyeVRLevel *DReyeVRLevel;
+    class ADReyeVRGameMode *DReyeVRLevel;
 
     ////////////////:DASH:////////////////
     // Text Render components (Like the HUD but part of the mesh and works in VR)

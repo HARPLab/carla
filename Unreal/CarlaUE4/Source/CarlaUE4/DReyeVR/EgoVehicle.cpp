@@ -1,7 +1,7 @@
 #include "EgoVehicle.h"
 #include "Carla/Actor/ActorAttribute.h"             // FActorAttribute
 #include "Carla/Actor/ActorRegistry.h"              // Register
-#include "Carla/Game/CarlaStatics.h"                // GetEpisode
+#include "Carla/Game/CarlaStatics.h"                // GetCurrentEpisode
 #include "Carla/Vehicle/CarlaWheeledVehicleState.h" // ECarlaWheeledVehicleState
 #include "DReyeVRPawn.h"                            // ADReyeVRPawn
 #include "DrawDebugHelpers.h"                       // Debug Line/Sphere
@@ -17,6 +17,8 @@
 // Sets default values
 AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
+    UE_LOG(LogTemp, Log, TEXT("Spawning Ego Vehicle: %s"), *FString(this->GetName()));
+
     ReadConfigVariables();
 
     // this actor ticks AFTER the physics simulation is done
@@ -40,6 +42,8 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
 
     // Initialize the steering wheel
     ConstructSteeringWheel();
+
+    UE_LOG(LogTemp, Log, TEXT("Finished spawning %s"), *FString(this->GetName()));
 }
 
 void AEgoVehicle::ReadConfigVariables()
@@ -93,9 +97,6 @@ void AEgoVehicle::BeginPlay()
     World = GetWorld();
     Episode = UCarlaStatics::GetCurrentEpisode(World);
 
-    // Spawn and attach the EgoSensor
-    InitSensor();
-
     // initialize
     InitAIPlayer();
 
@@ -122,11 +123,11 @@ void AEgoVehicle::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
-    // Update the positions based off replay data
-    ReplayTick();
-
     // Get the current data from the AEgoSensor and use it
     UpdateSensor(DeltaSeconds);
+
+    // Update the positions based off replay data
+    ReplayTick();
 
     // Draw debug lines on editor
     DebugLines();
@@ -251,10 +252,12 @@ void AEgoVehicle::SetPawn(ADReyeVRPawn *PawnIn)
 
 const UCameraComponent *AEgoVehicle::GetCamera() const
 {
+    ensure(FirstPersonCam != nullptr);
     return FirstPersonCam;
 }
 UCameraComponent *AEgoVehicle::GetCamera()
 {
+    ensure(FirstPersonCam != nullptr);
     return FirstPersonCam;
 }
 FVector AEgoVehicle::GetCameraOffset() const
@@ -285,7 +288,10 @@ const class AEgoSensor *AEgoVehicle::GetSensor() const
 
 void AEgoVehicle::InitAIPlayer()
 {
-    AI_Player = Cast<AWheeledVehicleAIController>(this->GetController());
+    this->SpawnDefaultController(); // spawns default (AI) controller and gets possessed by it
+    auto PlayerController = this->GetController();
+    ensure(PlayerController != nullptr);
+    AI_Player = Cast<AWheeledVehicleAIController>(PlayerController);
     ensure(AI_Player != nullptr);
 }
 
@@ -316,6 +322,9 @@ void AEgoVehicle::TickAutopilot()
 
 void AEgoVehicle::InitSensor()
 {
+    // update the world on refresh (ex. --reloadWorld)
+    World = GetWorld();
+    check(World != nullptr);
     // Spawn the EyeTracker Carla sensor and attach to Ego-Vehicle:
     FActorSpawnParameters EyeTrackerSpawnInfo;
     EyeTrackerSpawnInfo.Owner = this;
@@ -375,6 +384,20 @@ void AEgoVehicle::ReplayTick()
 
 void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
+    if (EgoSensor == nullptr) // Spawn and attach the EgoSensor
+    {
+        // unfortunately World->SpawnActor *sometimes* fails if used in BeginPlay so
+        // calling it once in the tick is fine to avoid this crash.
+        InitSensor();
+    }
+
+    ensure(EgoSensor != nullptr);
+    if (EgoSensor == nullptr)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("EgoSensor initialization failed!"));
+        return;
+    }
+
     // Explicitly update the EgoSensor here, synchronized with EgoVehicle tick
     EgoSensor->ManualTick(DeltaSeconds); // Ensures we always get the latest data
 
@@ -692,7 +715,7 @@ void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
 /// -----------------:LEVEL:------------------ ///
 /// ========================================== ///
 
-void AEgoVehicle::SetLevel(ADReyeVRLevel *Level)
+void AEgoVehicle::SetLevel(ADReyeVRGameMode *Level)
 {
     this->DReyeVRLevel = Level;
     check(DReyeVRLevel != nullptr);

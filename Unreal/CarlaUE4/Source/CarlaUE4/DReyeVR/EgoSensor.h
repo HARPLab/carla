@@ -27,7 +27,7 @@
 #include "EgoSensor.generated.h"
 
 class AEgoVehicle;
-class ADReyeVRLevel;
+class ADReyeVRGameMode;
 
 UCLASS()
 class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
@@ -40,13 +40,14 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void ManualTick(float DeltaSeconds); // Tick called explicitly from DReyeVR EgoVehicle
 
     void SetEgoVehicle(class AEgoVehicle *EgoVehicle); // provide access to EgoVehicle (and by extension its camera)
-    void SetLevel(class ADReyeVRLevel *Level);         // provides access to ADReyeVRLevel
+    void SetLevel(class ADReyeVRGameMode *Level);      // provides access to ADReyeVRGameMode
 
     void UpdateData(const DReyeVR::AggregateData &RecorderData, const double Per) override;
     void UpdateData(const DReyeVR::CustomActorData &RecorderData, const double Per) override;
 
     // function where replayer requests a screenshot
     void TakeScreenshot() override;
+    bool ComputeGazeTrace(FHitResult &Hit, const ECollisionChannel TraceChannel, float TraceRadius = 0.f) const;
 
   protected:
     void BeginPlay();
@@ -107,7 +108,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     bool bEnableFovRender = false;
 
     ////////////////:REPLAY:////////////////
-    class ADReyeVRLevel *DReyeVRLevel = nullptr;
+    class ADReyeVRGameMode *DReyeVRLevel = nullptr;
 
     ////////////////:OTHER:////////////////
     int EgoSensorID;

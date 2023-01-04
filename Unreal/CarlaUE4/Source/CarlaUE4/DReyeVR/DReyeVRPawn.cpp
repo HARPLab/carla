@@ -22,6 +22,9 @@ ADReyeVRPawn::ADReyeVRPawn(const FObjectInitializer &ObjectInitializer) : Super(
 
     // spawn and construct the first person camera
     ConstructCamera();
+
+    // log
+    UE_LOG(LogTemp, Log, TEXT("Spawning DReyeVR pawn for player0"));
 }
 
 void ADReyeVRPawn::ReadConfigVariables()
@@ -89,7 +92,7 @@ void ADReyeVRPawn::BeginEgoVehicle(AEgoVehicle *Vehicle, UWorld *World, APlayerC
     FirstPersonCam->RegisterComponentWithWorld(World);
 
     // Setup the HUD
-    InitFlatHUD(Player);
+    InitFlatHUD();
 }
 
 void ADReyeVRPawn::BeginDestroy()
@@ -207,15 +210,24 @@ void ADReyeVRPawn::DrawSpectatorScreen(const FVector &GazeOrigin, const FVector 
         // define min and max bounds (where the texture is actually drawn on screen)
         const FVector2D TextureRectMin = ReticlePos / ViewSize;                 // top left
         const FVector2D TextureRectMax = (ReticlePos + ReticleSize) / ViewSize; // bottom right
-        UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
-            FVector2D{0.f, 0.f}, // whole window (top left)
-            FVector2D{1.f, 1.f}, // whole window (top -> bottom right)
-            TextureRectMin,      // top left of texture
-            TextureRectMax,      // bottom right of texture
-            true,                // draw eye data as background
-            false,               // clear w/ black
-            true                 // use alpha
-        );
+        auto Within01 = [](const float Num) { return 0.f <= Num && Num <= 1.f; };
+        bool RectMinValid = Within01(TextureRectMin.X) && Within01(TextureRectMin.Y);
+        bool RectMaxValid = Within01(TextureRectMax.X) && Within01(TextureRectMax.Y);
+        const FVector2D WindowTopLeft{0.f, 0.f};     // top left of screen
+        const FVector2D WindowBottomRight{1.f, 1.f}; // bottom right of screen
+        if (RectMinValid && RectMaxValid)
+        {
+            /// TODO: disable the texture when RectMin or RectMax is invalid
+            UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenModeTexturePlusEyeLayout(
+                WindowTopLeft,     // whole window (top left)
+                WindowBottomRight, // whole window (top -> bottom right)
+                TextureRectMin,    // top left of texture
+                TextureRectMax,    // bottom right of texture
+                true,              // draw eye data as background
+                false,             // clear w/ black
+                true               // use alpha
+            );
+        }
     }
 }
 
@@ -223,13 +235,14 @@ void ADReyeVRPawn::DrawSpectatorScreen(const FVector &GazeOrigin, const FVector 
 /// ----------------:FLATHUD:----------------- ///
 /// ========================================== ///
 
-void ADReyeVRPawn::InitFlatHUD(APlayerController *P)
+void ADReyeVRPawn::InitFlatHUD()
 {
-    check(P);
-    AHUD *Raw_HUD = P->GetHUD();
+    check(Player);
+    class AHUD *Raw_HUD = Player->GetHUD();
+    ensure(Raw_HUD);
     FlatHUD = Cast<ADReyeVRHUD>(Raw_HUD);
     if (FlatHUD)
-        FlatHUD->SetPlayer(P);
+        FlatHUD->SetPlayer(Player);
     else
         UE_LOG(LogTemp, Warning, TEXT("Unable to initialize DReyeVR HUD!"));
     // make sure to disable the flat hud when in VR (not supported, only displays on half of one eye screen)

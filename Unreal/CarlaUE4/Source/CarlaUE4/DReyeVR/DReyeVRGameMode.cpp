@@ -1,40 +1,74 @@
-#include "LevelScript.h"
-#include "Carla/Game/CarlaStatics.h"           // UCarlaStatics::GetRecorder
+#include "DReyeVRGameMode.h"
+#include "Carla/AI/AIControllerFactory.h"      // AAIControllerFactory
+#include "Carla/Actor/StaticMeshFactory.h"     // AStaticMeshFactory
+#include "Carla/Game/CarlaStatics.h"           // GetRecorder, GetEpisode
 #include "Carla/Sensor/DReyeVRSensor.h"        // ADReyeVRSensor
+#include "Carla/Sensor/SensorFactory.h"        // ASensorFactory
+#include "Carla/Trigger/TriggerFactory.h"      // TriggerFactory
 #include "Carla/Vehicle/CarlaWheeledVehicle.h" // ACarlaWheeledVehicle
+#include "Carla/Weather/Weather.h"             // AWeather
 #include "Components/AudioComponent.h"         // UAudioComponent
 #include "DReyeVRPawn.h"                       // ADReyeVRPawn
 #include "EgoVehicle.h"                        // AEgoVehicle
+#include "FlatHUD.h"                           // ADReyeVRHUD
 #include "HeadMountedDisplayFunctionLibrary.h" // IsHeadMountedDisplayAvailable
 #include "Kismet/GameplayStatics.h"            // GetPlayerController
 #include "UObject/UObjectIterator.h"           // TObjectInterator
 
-ADReyeVRLevel::ADReyeVRLevel(FObjectInitializer const &FO) : Super(FO)
+ADReyeVRGameMode::ADReyeVRGameMode(FObjectInitializer const &FO) : Super(FO)
 {
     // initialize stuff here
     PrimaryActorTick.bCanEverTick = false;
     PrimaryActorTick.bStartWithTickEnabled = false;
 
+    // initialize default classes
+    this->HUDClass = ADReyeVRHUD::StaticClass();
+    static ConstructorHelpers::FObjectFinder<UBlueprint> WeatherBP(
+        TEXT("Blueprint'/Game/Carla/Blueprints/Weather/BP_Weather.BP_Weather'"));
+    this->WeatherClass = WeatherBP.Object->GeneratedClass;
+
+    // initialize actor factories
+    // https://forums.unrealengine.com/t/what-is-the-right-syntax-of-fclassfinder-and-how-could-i-generaly-use-it-to-find-a-specific-blueprint/363884
+    static ConstructorHelpers::FClassFinder<ACarlaActorFactory> VehicleFactoryBP(
+        TEXT("Blueprint'/Game/Carla/Blueprints/Vehicles/VehicleFactory'"));
+    static ConstructorHelpers::FClassFinder<ACarlaActorFactory> WalkerFactoryBP(
+        TEXT("Blueprint'/Game/Carla/Blueprints/Walkers/WalkerFactory'"));
+    static ConstructorHelpers::FClassFinder<ACarlaActorFactory> PropFactoryBP(
+        TEXT("Blueprint'/Game/Carla/Blueprints/Props/PropFactory'"));
+
+    this->ActorFactories = TSet<TSubclassOf<ACarlaActorFactory>>{
+        VehicleFactoryBP.Class,
+        ASensorFactory::StaticClass(),
+        WalkerFactoryBP.Class,
+        PropFactoryBP.Class,
+        ATriggerFactory::StaticClass(),
+        AAIControllerFactory::StaticClass(),
+        AStaticMeshFactory::StaticClass(),
+    };
+
+    // read config variables
     ReadConfigValue("Level", "EgoVolumePercent", EgoVolumePercent);
     ReadConfigValue("Level", "NonEgoVolumePercent", NonEgoVolumePercent);
     ReadConfigValue("Level", "AmbientVolumePercent", AmbientVolumePercent);
 
     // Recorder/replayer
     ReadConfigValue("Replayer", "RunSyncReplay", bReplaySync);
+
+    // get ego vehicle bp
+    static ConstructorHelpers::FObjectFinder<UBlueprint> EgoVehicleBP(
+        TEXT("Blueprint'/Game/Carla/Blueprints/Vehicles/DReyeVR/BP_EgoVehicle_DReyeVR.BP_EgoVehicle_DReyeVR'"));
+    EgoVehicleBPClass = static_cast<UClass *>(EgoVehicleBP.Object->GeneratedClass);
 }
 
-void ADReyeVRLevel::BeginPlay()
+void ADReyeVRGameMode::BeginPlay()
 {
-    Super::ReceiveBeginPlay();
+    Super::BeginPlay();
 
     // Initialize player
     Player = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 
     // Can we tick?
     SetActorTickEnabled(false); // make sure we do not tick ourselves
-
-    // enable input tracking
-    InputEnabled();
 
     // set all the volumes (ego, non-ego, ambient/world)
     SetVolume();
@@ -47,7 +81,7 @@ void ADReyeVRLevel::BeginPlay()
 
     // Find the ego vehicle in the world
     /// TODO: optionally, spawn ego-vehicle here with parametrized inputs
-    FindEgoVehicle();
+    SetupEgoVehicle();
 
     // Initialize DReyeVR spectator
     SetupSpectator();
@@ -56,7 +90,7 @@ void ADReyeVRLevel::BeginPlay()
     ControlMode = DRIVER::HUMAN;
 }
 
-void ADReyeVRLevel::StartDReyeVRPawn()
+void ADReyeVRGameMode::StartDReyeVRPawn()
 {
     FActorSpawnParameters S;
     DReyeVR_Pawn = GetWorld()->SpawnActor<ADReyeVRPawn>(FVector::ZeroVector, FRotator::ZeroRotator, S);
@@ -66,32 +100,49 @@ void ADReyeVRLevel::StartDReyeVRPawn()
     ensure(DReyeVR_Pawn != nullptr);
 }
 
-bool ADReyeVRLevel::FindEgoVehicle()
+bool ADReyeVRGameMode::SetupEgoVehicle()
 {
     if (EgoVehiclePtr != nullptr)
         return true;
     ensure(DReyeVR_Pawn);
+
     TArray<AActor *> FoundEgoVehicles;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEgoVehicle::StaticClass(), FoundEgoVehicles);
-    for (AActor *Vehicle : FoundEgoVehicles)
+    if (FoundEgoVehicles.Num() > 0)
     {
-        UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle in world: %s"), *(Vehicle->GetName()));
-        EgoVehiclePtr = CastChecked<AEgoVehicle>(Vehicle);
-        EgoVehiclePtr->SetLevel(this);
-        if (DReyeVR_Pawn)
+        for (AActor *Vehicle : FoundEgoVehicles)
         {
-            // need to assign ego vehicle before possess!
-            DReyeVR_Pawn->BeginEgoVehicle(EgoVehiclePtr, GetWorld(), Player);
-            UE_LOG(LogTemp, Log, TEXT("Created DReyeVR controller pawn"));
+            UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle in world: %s"), *(Vehicle->GetName()));
+            EgoVehiclePtr = CastChecked<AEgoVehicle>(Vehicle);
+            /// TODO: handle multiple ego-vehcles? (we should only ever have one!)
+            break;
         }
-        /// TODO: handle multiple ego-vehcles? (we should only ever have one!)
-        return true;
     }
-    UE_LOG(LogTemp, Error, TEXT("Did not find EgoVehicle"));
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("Did not find EgoVehicle in map... spawning..."));
+        auto World = GetWorld();
+        check(World != nullptr);
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        FTransform SpawnPt = GetSpawnPoint();
+        ensure(EgoVehicleBPClass != nullptr);
+        EgoVehiclePtr =
+            World->SpawnActor<AEgoVehicle>(EgoVehicleBPClass, SpawnPt.GetLocation(), SpawnPt.Rotator(), SpawnParams);
+    }
+    check(EgoVehiclePtr != nullptr);
+    EgoVehiclePtr->SetLevel(this);
+    if (DReyeVR_Pawn)
+    {
+        // need to assign ego vehicle before possess!
+        DReyeVR_Pawn->BeginEgoVehicle(EgoVehiclePtr, GetWorld(), Player);
+        UE_LOG(LogTemp, Log, TEXT("Created DReyeVR controller pawn"));
+    }
     return (EgoVehiclePtr != nullptr);
 }
 
-void ADReyeVRLevel::SetupSpectator()
+void ADReyeVRGameMode::SetupSpectator()
 {
     /// TODO: fix bug where HMD is not detected on package BeginPlay()
     // if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
@@ -128,13 +179,13 @@ void ADReyeVRLevel::SetupSpectator()
     }
 }
 
-void ADReyeVRLevel::BeginDestroy()
+void ADReyeVRGameMode::BeginDestroy()
 {
     Super::BeginDestroy();
     UE_LOG(LogTemp, Log, TEXT("Finished Level"));
 }
 
-void ADReyeVRLevel::Tick(float DeltaSeconds)
+void ADReyeVRGameMode::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     /// TODO: clean up replay init
@@ -144,30 +195,29 @@ void ADReyeVRLevel::Tick(float DeltaSeconds)
         SetupReplayer(); // once this is successfully run, it no longer gets executed
     }
 
-    RefreshActors(DeltaSeconds);
     DrawBBoxes();
 }
 
-void ADReyeVRLevel::SetupPlayerInputComponent()
+void ADReyeVRGameMode::SetupPlayerInputComponent()
 {
     InputComponent = NewObject<UInputComponent>(this);
     InputComponent->RegisterComponent();
     // set up gameplay key bindings
     check(InputComponent);
-    // InputComponent->BindAction("ToggleCamera", IE_Pressed, this, &ADReyeVRLevel::ToggleSpectator);
-    InputComponent->BindAction("PlayPause_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::PlayPause);
-    InputComponent->BindAction("FastForward_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::FastForward);
-    InputComponent->BindAction("Rewind_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::Rewind);
-    InputComponent->BindAction("Restart_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::Restart);
-    InputComponent->BindAction("Incr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::IncrTimestep);
-    InputComponent->BindAction("Decr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::DecrTimestep);
+    // InputComponent->BindAction("ToggleCamera", IE_Pressed, this, &ADReyeVRGameMode::ToggleSpectator);
+    InputComponent->BindAction("PlayPause_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::PlayPause);
+    InputComponent->BindAction("FastForward_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::FastForward);
+    InputComponent->BindAction("Rewind_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::Rewind);
+    InputComponent->BindAction("Restart_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::Restart);
+    InputComponent->BindAction("Incr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::IncrTimestep);
+    InputComponent->BindAction("Decr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::DecrTimestep);
     // Driver Handoff examples
-    InputComponent->BindAction("EgoVehicle_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::PossessEgoVehicle);
-    InputComponent->BindAction("Spectator_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::PossessSpectator);
-    InputComponent->BindAction("AI_DReyeVR", IE_Pressed, this, &ADReyeVRLevel::HandoffDriverToAI);
+    InputComponent->BindAction("EgoVehicle_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::PossessEgoVehicle);
+    InputComponent->BindAction("Spectator_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::PossessSpectator);
+    InputComponent->BindAction("AI_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::HandoffDriverToAI);
 }
 
-void ADReyeVRLevel::PossessEgoVehicle()
+void ADReyeVRGameMode::PossessEgoVehicle()
 {
     if (Player->GetPawn() != DReyeVR_Pawn)
     {
@@ -184,7 +234,7 @@ void ADReyeVRLevel::PossessEgoVehicle()
     this->ControlMode = DRIVER::HUMAN;
 }
 
-void ADReyeVRLevel::PossessSpectator()
+void ADReyeVRGameMode::PossessSpectator()
 {
     // check if already possessing spectator
     if (Player->GetPawn() == SpectatorPtr && ControlMode != DRIVER::AI)
@@ -211,7 +261,7 @@ void ADReyeVRLevel::PossessSpectator()
     this->ControlMode = DRIVER::SPECTATOR;
 }
 
-void ADReyeVRLevel::HandoffDriverToAI()
+void ADReyeVRGameMode::HandoffDriverToAI()
 {
     ensure(EgoVehiclePtr != nullptr);
     if (EgoVehiclePtr)
@@ -222,43 +272,43 @@ void ADReyeVRLevel::HandoffDriverToAI()
     }
 }
 
-void ADReyeVRLevel::PlayPause()
+void ADReyeVRGameMode::PlayPause()
 {
     UE_LOG(LogTemp, Log, TEXT("Toggle Play-Pause"));
     UCarlaStatics::GetRecorder(GetWorld())->RecPlayPause();
 }
 
-void ADReyeVRLevel::FastForward()
+void ADReyeVRGameMode::FastForward()
 {
     UCarlaStatics::GetRecorder(GetWorld())->RecFastForward();
 }
 
-void ADReyeVRLevel::Rewind()
+void ADReyeVRGameMode::Rewind()
 {
     if (UCarlaStatics::GetRecorder(GetWorld()))
         UCarlaStatics::GetRecorder(GetWorld())->RecRewind();
 }
 
-void ADReyeVRLevel::Restart()
+void ADReyeVRGameMode::Restart()
 {
     UE_LOG(LogTemp, Log, TEXT("Restarting recording"));
     if (UCarlaStatics::GetRecorder(GetWorld()))
         UCarlaStatics::GetRecorder(GetWorld())->RecRestart();
 }
 
-void ADReyeVRLevel::IncrTimestep()
+void ADReyeVRGameMode::IncrTimestep()
 {
     if (UCarlaStatics::GetRecorder(GetWorld()))
         UCarlaStatics::GetRecorder(GetWorld())->IncrTimeFactor(0.1);
 }
 
-void ADReyeVRLevel::DecrTimestep()
+void ADReyeVRGameMode::DecrTimestep()
 {
     if (UCarlaStatics::GetRecorder(GetWorld()))
         UCarlaStatics::GetRecorder(GetWorld())->IncrTimeFactor(-0.1);
 }
 
-void ADReyeVRLevel::SetupReplayer()
+void ADReyeVRGameMode::SetupReplayer()
 {
     if (UCarlaStatics::GetRecorder(GetWorld()) && UCarlaStatics::GetRecorder(GetWorld())->GetReplayer())
     {
@@ -267,116 +317,53 @@ void ADReyeVRLevel::SetupReplayer()
     }
 }
 
-void ADReyeVRLevel::RefreshActors(float DeltaSeconds)
+void ADReyeVRGameMode::DrawBBoxes()
 {
-    // only update the AllActors container on refresh ticks
-    if (TimeSinceLastActorRefresh == 0.f)
+#if 0
+    TArray<AActor *> FoundActors;
+    if (GetWorld() != nullptr)
     {
-        // this is expensive so make sure RefreshActorSearchTick is reasonable!
-        TArray<AActor *> FoundActors;
-        if (GetWorld() != nullptr)
-        {
-            UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACarlaWheeledVehicle::StaticClass(), FoundActors);
-        }
-        // force "delete" for these elements
-        for (auto &bbox_key_value : BBoxes)
-        {
-            bbox_key_value.second->Deactivate(); // value (second) is ADReyeVRCustomActor*
-            bbox_key_value.second->Destroy();    // try to delete this actor in UE4 terms
-        }
-        BBoxes.clear();
-
-        // add all the new actors (and delete old ones) to container
-        std::unordered_map<std::string, ActorAndMetadata> AllActorsTmp = {};
-        for (AActor *A : FoundActors)
-        {
-            std::string name = TCHAR_TO_UTF8(*A->GetName());
-
-            // compute bounds for the axis-aligned bounding box
-            FVector BBox_Offset, BBox_Extent;
-            A->GetActorBounds(true, BBox_Offset, BBox_Extent, false);
-
-            ActorAndMetadata ActorData;
-            ActorData.Actor = A;
-            /// TODO: ensure the rotation of the BBOX extent works as expected (axis aligned tightest bound)
-            ActorData.BBox_Extent = A->GetActorRotation().RotateVector(BBox_Extent);
-            if (AllActors.find(name) != AllActors.end() && AllActors[name].BBox_Extent.Size() < BBox_Extent.Size())
-            {
-                // keep these bounds (tightest) from before
-                ActorData.BBox_Extent = AllActors[name].BBox_Extent;
-            }
-            ActorData.BBox_Offset = BBox_Offset - A->GetActorLocation(); // only offset to static mesh
-            AllActorsTmp[name] = ActorData;
-        }
-        // reset & update the AllActors container
-        AllActors.clear();
-        AllActors = AllActorsTmp;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACarlaWheeledVehicle::StaticClass(), FoundActors);
     }
-
-    if (TimeSinceLastActorRefresh < RefreshActorSearchTick)
+    for (AActor *A : FoundActors)
     {
-        // keep incrementing the time since last refresh as long as the threshold has not been met
-        TimeSinceLastActorRefresh += DeltaSeconds;
-    }
-    else
-    {
-        // reset the time since last actor was refreshed if beyond the tick threshold
-        TimeSinceLastActorRefresh = 0.f;
-    }
-}
-
-void ADReyeVRLevel::DrawBBoxes()
-{
-    const FString &EyeFocusActorName = EgoVehiclePtr->GetSensor()->GetData()->GetFocusActorName();
-    for (auto &pair : AllActors)
-    {
-        const std::string &name = pair.first;
-        const ActorAndMetadata &AaMd = pair.second;
-        const AActor *A = AaMd.Actor;
-        const FVector &BBox_Offset = AaMd.BBox_Offset;
-        const FVector &BBox_Extent = AaMd.BBox_Extent;
-
-        if (A == nullptr || A == EgoVehiclePtr)
-            continue; // skip bbox overlay for null or EgoVehicle actors
-
-        const auto OverlayTag = FName("Overlay"); // also defined in CarlaActor.cpp::SetActorEnableOverlay
-        if (!A->ActorHasTag(OverlayTag))
-        {
-            continue; // skip bbox overlay for actors without the bbox tag
-        }
-
-        ensure(A != nullptr);
-
-        // find the bbox in the container
+        std::string name = TCHAR_TO_UTF8(*A->GetName());
+        if (A->GetName().Contains("DReyeVR"))
+            continue; // skip drawing a bbox over the EgoVehicle
         if (BBoxes.find(name) == BBoxes.end())
         {
             BBoxes[name] = ADReyeVRCustomActor::CreateNew(SM_CUBE, MAT_TRANSLUCENT, GetWorld(), "BBox" + A->GetName());
         }
+        const float DistThresh = 20.f; // meters before nearby bounding boxes become red
         ADReyeVRCustomActor *BBox = BBoxes[name];
         ensure(BBox != nullptr);
-
-        // here define the logic for when/how/why to draw a bbox overlay
         if (BBox != nullptr)
         {
             BBox->Activate();
             BBox->MaterialParams.Opacity = 0.1f;
             FLinearColor Col = FLinearColor::Green;
-            if (EyeFocusActorName.Equals(A->GetName()))
+            if (FVector::Distance(EgoVehiclePtr->GetActorLocation(), A->GetActorLocation()) < DistThresh * 100.f)
             {
                 Col = FLinearColor::Red;
             }
             BBox->MaterialParams.BaseColor = Col;
             BBox->MaterialParams.Emissive = 0.1 * Col;
 
+            FVector Origin;
+            FVector BoxExtent;
+            A->GetActorBounds(true, Origin, BoxExtent, false);
+            // UE_LOG(LogTemp, Log, TEXT("Origin: %s Extent %s"), *Origin.ToString(), *BoxExtent.ToString());
             // divide by 100 to get from m to cm, multiply by 2 bc the cube is scaled in both X and Y
-            BBox->SetActorScale3D(2 * BBox_Extent / 100.f);
-            BBox->SetActorLocation(A->GetActorLocation() + BBox_Offset);
-            BBox->SetActorRotation(A->GetActorRotation());
+            BBox->SetActorScale3D(2 * BoxExtent / 100.f);
+            BBox->SetActorLocation(Origin);
+            // extent already covers the rotation aspect since the bbox is dynamic and axis aligned
+            // BBox->SetActorRotation(A->GetActorRotation());
         }
     }
+#endif
 }
 
-void ADReyeVRLevel::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderData, const double Per)
+void ADReyeVRGameMode::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderData, const double Per)
 {
     // first spawn the actor if not currently active
     const std::string ActorName = TCHAR_TO_UTF8(*RecorderData.Name);
@@ -401,7 +388,7 @@ void ADReyeVRLevel::ReplayCustomActor(const DReyeVR::CustomActorData &RecorderDa
     }
 }
 
-void ADReyeVRLevel::SetVolume()
+void ADReyeVRGameMode::SetVolume()
 {
     // update the non-ego volume percent
     ACarlaWheeledVehicle::Volume = NonEgoVolumePercent / 100.f;
@@ -432,7 +419,7 @@ void ADReyeVRLevel::SetVolume()
     }
 }
 
-FTransform ADReyeVRLevel::GetSpawnPoint(int SpawnPointIndex) const
+FTransform ADReyeVRGameMode::GetSpawnPoint(int SpawnPointIndex) const
 {
     ACarlaGameModeBase *GM = UCarlaStatics::GetGameMode(GetWorld());
     if (GM != nullptr)
