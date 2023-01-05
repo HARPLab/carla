@@ -104,7 +104,7 @@ public:
   {
     bReplaySync = bSyncModeIn;
     if (bReplaySync)
-      UE_LOG(LogTemp, Warning, TEXT("Replay operating in frame-wise sync mode"));
+      DReyeVR_LOG_WARN("Replay operating in frame-wise (1:1) synchronous mode (no replay interpolation)");
   }
   
 private:

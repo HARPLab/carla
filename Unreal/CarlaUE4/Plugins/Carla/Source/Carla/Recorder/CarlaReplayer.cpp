@@ -827,7 +827,7 @@ void CarlaReplayer::ProcessFrameByFrame()
     // have the vehicle camera take a screenshot to record the replay
     ADReyeVRSensor::GetDReyeVRSensor()->TakeScreenshot();
   else
-    UE_LOG(LogTemp, Error, TEXT("No DReyeVR sensor available!"));
+    DReyeVR_LOG_ERROR("No DReyeVR sensor available!");
 
   // progress to the next frame
   if (SyncCurrentFrameId < FrameStartTimes.size() - 1)
@@ -894,6 +894,6 @@ void CarlaReplayer::Advance(const float Amnt)
 void CarlaReplayer::IncrTimeFactor(const float Amnt_s)
 {
   double NewTimeFactor = FMath::Clamp(TimeFactor + Amnt_s, 0.0, 4.0); // min of paused, max of 4x
-  UE_LOG(LogTemp, Log, TEXT("Time factor: %.3fx -> %.3fx"), TimeFactor, NewTimeFactor);
+  DReyeVR_LOG("Time factor: %.3fx -> %.3fx", TimeFactor, NewTimeFactor);
   SetTimeFactor(NewTimeFactor);
 }
