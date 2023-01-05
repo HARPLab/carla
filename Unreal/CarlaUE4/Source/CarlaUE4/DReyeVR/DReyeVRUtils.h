@@ -31,7 +31,7 @@ static std::string CreateVariableName(const FString &Section, const FString &Var
 static void ReadDReyeVRConfig()
 {
     /// TODO: add feature to "hot-reload" new params during runtime
-    UE_LOG(LogDReyeVR, Warning, TEXT("Reading config from %s"), *ConfigFilePath);
+    LOG_WARN("Reading config from %s", *ConfigFilePath);
     /// performs a single pass over the config file to collect all variables into Params
     std::ifstream ConfigFile(TCHAR_TO_ANSI(*ConfigFilePath));
     if (ConfigFile)
@@ -65,10 +65,10 @@ static void ReadDReyeVRConfig()
     }
     else
     {
-        UE_LOG(LogDReyeVR, Error, TEXT("Unable to open the config file %s"), *ConfigFilePath);
+        LOG_ERROR("Unable to open the config file %s", *ConfigFilePath);
     }
     // for (auto &e : Params){
-    //     UE_LOG(LogDReyeVR, Warning, TEXT("%s: %s"), *FString(e.first.c_str()), *e.second);
+    //     LOG_WARN("%s: %s", *FString(e.first.c_str()), *e.second);
     // }
 }
 
@@ -86,7 +86,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, boo
     if (Params.find(VariableName) != Params.end())
         Value = Params[VariableName].ToBool();
     else
-        UE_LOG(LogDReyeVR, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, int &Value)
 {
@@ -95,7 +95,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, int
     if (Params.find(VariableName) != Params.end())
         Value = FCString::Atoi(*Params[VariableName]);
     else
-        UE_LOG(LogDReyeVR, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, float &Value)
 {
@@ -104,7 +104,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, flo
     if (Params.find(VariableName) != Params.end())
         Value = FCString::Atof(*Params[VariableName]);
     else
-        UE_LOG(LogDReyeVR, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FVector &Value)
 {
@@ -114,12 +114,12 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FVe
     {
         if (Value.InitFromString(Params[VariableName]) == false)
         {
-            UE_LOG(LogDReyeVR, Error, TEXT("Unable to construct FVector for %s from %s"),
-                   *FString(VariableName.c_str()), *(Params[VariableName]));
+            LOG_ERROR("Unable to construct FVector for %s from %s", *FString(VariableName.c_str()),
+                      *(Params[VariableName]));
         }
     }
     else
-        UE_LOG(LogDReyeVR, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FVector2D &Value)
 {
@@ -129,12 +129,12 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FVe
     {
         if (Value.InitFromString(Params[VariableName]) == false)
         {
-            UE_LOG(LogDReyeVR, Error, TEXT("Unable to construct FVector2D for %s from %s"),
-                   *FString(VariableName.c_str()), *(Params[VariableName]));
+            LOG_ERROR("Unable to construct FVector2D for %s from %s", *FString(VariableName.c_str()),
+                      *(Params[VariableName]));
         }
     }
     else
-        UE_LOG(LogDReyeVR, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FLinearColor &Value)
 {
@@ -144,12 +144,12 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FLi
     {
         if (Value.InitFromString(Params[VariableName]) == false)
         {
-            UE_LOG(LogDReyeVR, Error, TEXT("Unable to construct FLinearColor for %s from %s"),
-                   *FString(VariableName.c_str()), *(Params[VariableName]));
+            LOG_ERROR("Unable to construct FLinearColor for %s from %s", *FString(VariableName.c_str()),
+                      *(Params[VariableName]));
         }
     }
     else
-        UE_LOG(LogDReyeVR, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FRotator &Value)
 {
@@ -159,12 +159,12 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FRo
     {
         if (Value.InitFromString(Params[VariableName]) == false)
         {
-            UE_LOG(LogDReyeVR, Error, TEXT("Unable to construct FRotator for %s from %s"),
-                   *FString(VariableName.c_str()), *(Params[VariableName]));
+            LOG_ERROR("Unable to construct FRotator for %s from %s", *FString(VariableName.c_str()),
+                      *(Params[VariableName]));
         }
     }
     else
-        UE_LOG(LogDReyeVR, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
 }
 static void ReadConfigValue(const FString &Section, const FString &Variable, FString &Value)
 {
@@ -173,7 +173,7 @@ static void ReadConfigValue(const FString &Section, const FString &Variable, FSt
     if (Params.find(VariableName) != Params.end())
         Value = Params[VariableName];
     else
-        UE_LOG(LogDReyeVR, Error, TEXT("No variable matching %s found"), *FString(VariableName.c_str()));
+        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
 }
 
 static void ReadConfigValue(const FString &Section, const FString &Variable, FName &Value)
@@ -330,11 +330,11 @@ static void SaveFrameToDisk(UTextureRenderTarget2D &RenderTarget, const FString 
     ReadPixelFlags.SetLinearToGamma(true);
     if (RTResource == nullptr)
     {
-        UE_LOG(LogDReyeVR, Error, TEXT("Missing render target!"));
+        LOG_ERROR("Missing render target!");
         return;
     }
     if (!RTResource->ReadPixels(Pixels, ReadPixelFlags))
-        UE_LOG(LogDReyeVR, Error, TEXT("Unable to read pixels!"));
+        LOG_ERROR("Unable to read pixels!");
 
     // dump pixel array to disk
     PixelData.Pixels = Pixels;

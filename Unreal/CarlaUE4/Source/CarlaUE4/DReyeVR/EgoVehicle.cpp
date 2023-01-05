@@ -394,7 +394,7 @@ void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
     ensure(EgoSensor != nullptr);
     if (EgoSensor == nullptr)
     {
-        UE_LOG(LogDReyeVR, Warning, TEXT("EgoSensor initialization failed!"));
+        LOG_WARN("EgoSensor initialization failed!");
         return;
     }
 

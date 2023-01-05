@@ -6,7 +6,7 @@ void ADReyeVRHUD::SetPlayer(APlayerController *P)
     // Player = GetOwningPlayerController();
     if (Player == nullptr)
     {
-        UE_LOG(LogDReyeVR, Error, TEXT("Can't find player controller!"));
+        LOG_ERROR("Can't find player controller!");
     }
     check(Player != nullptr);
 }

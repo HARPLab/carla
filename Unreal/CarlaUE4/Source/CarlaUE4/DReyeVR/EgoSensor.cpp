@@ -122,7 +122,7 @@ void AEgoSensor::InitEyeTracker()
 #if USE_SRANIPAL_PLUGIN
     bSRanipalEnabled = false;
     // initialize SRanipal framework for eye tracking
-    UE_LOG(LogDReyeVR, Warning, TEXT("Attempting to use SRanipal eye tracking"));
+    LOG("Attempting to use SRanipal eye tracking");
     // Initialize the SRanipal eye tracker (WINDOWS ONLY)
     SRanipalFramework = SRanipalEye_Framework::Instance();
     SRanipal = SRanipalEye_Core::Instance();
@@ -132,7 +132,7 @@ void AEgoSensor::InitEyeTracker()
     if (Status == SRanipalEye_Framework::FrameworkStatus::ERROR_SRANIPAL || // matches the patch_sranipal.sh script
         Status == SRanipalEye_Framework::FrameworkStatus::NOT_SUPPORT)
     {
-        UE_LOG(LogDReyeVR, Error, TEXT("Unable to start SRanipal framework!"));
+        LOG_ERROR("Unable to start SRanipal framework!");
         return;
     }
     // SRanipal->SetEyeParameter_() // can set the eye gaze jitter parameter
@@ -141,7 +141,7 @@ void AEgoSensor::InitEyeTracker()
     LOG("Successfully started SRanipal framework");
     bSRanipalEnabled = true;
 #else
-    UE_LOG(LogDReyeVR, Warning, TEXT("Not using SRanipal eye tracking"));
+    LOG("Not using SRanipal eye tracking");
 #endif
 }
 

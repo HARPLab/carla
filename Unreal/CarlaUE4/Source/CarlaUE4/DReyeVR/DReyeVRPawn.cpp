@@ -133,7 +133,7 @@ void ADReyeVRPawn::InitSteamVR()
     }
     else
     {
-        UE_LOG(LogDReyeVR, Warning, TEXT("No head mounted device enabled!"));
+        LOG_WARN("No head mounted device enabled!");
     }
 }
 
@@ -244,7 +244,7 @@ void ADReyeVRPawn::InitFlatHUD()
     if (FlatHUD)
         FlatHUD->SetPlayer(Player);
     else
-        UE_LOG(LogDReyeVR, Warning, TEXT("Unable to initialize DReyeVR HUD!"));
+        LOG_WARN("Unable to initialize DReyeVR HUD!");
     // make sure to disable the flat hud when in VR (not supported, only displays on half of one eye screen)
     if (bIsHMDConnected)
     {
@@ -303,7 +303,7 @@ void ADReyeVRPawn::InitLogiWheel()
         wchar_t *NameBuffer = (wchar_t *)malloc(n * sizeof(wchar_t));
         if (LogiGetFriendlyProductName(WheelDeviceIdx, NameBuffer, n) == false)
         {
-            UE_LOG(LogDReyeVR, Warning, TEXT("Unable to get Logi friendly name!"));
+            LOG_WARN("Unable to get Logi friendly name!");
             NameBuffer = L"Unknown";
         }
         std::wstring wNameStr(NameBuffer, n);
@@ -321,7 +321,7 @@ void ADReyeVRPawn::InitLogiWheel()
         const FLinearColor MsgColour = FLinearColor(1, 0, 0, 1); // RED
         UKismetSystemLibrary::PrintString(World, LogiError, PrintToScreen, PrintToLog, MsgColour, ScreenDurationSec);
         if (PrintToLog)
-            UE_LOG(LogDReyeVR, Warning, TEXT("%s"), *LogiError); // Error is RED
+            LOG_ERROR("%s", *LogiError); // Error is RED
     }
 #endif
 }
@@ -444,7 +444,7 @@ void ADReyeVRPawn::LogitechWheelUpdate()
 
     // only execute this in Windows, the Logitech plugin is incompatible with Linux
     if (LogiUpdate() == false) // update the logitech wheel
-        UE_LOG(LogDReyeVR, Warning, TEXT("Logitech wheel %d failed to update!"), WheelDeviceIdx);
+        LOG_WARN("Logitech wheel %d failed to update!", WheelDeviceIdx);
     DIJOYSTATE2 *WheelState = LogiGetState(WheelDeviceIdx);
     if (bLogLogitechWheel)
         LogLogitechPluginStruct(WheelState);
@@ -625,7 +625,7 @@ void ADReyeVRPawn::SetupEgoVehicleInputComponent(UInputComponent *PlayerInputCom
     if (EgoVehicle)                                                                                                    \
         FUNCTION;                                                                                                      \
     else                                                                                                               \
-        UE_LOG(LogDReyeVR, Error, TEXT("EgoVehicle is NULL!"));
+        LOG_ERROR("EgoVehicle is NULL!");
 
 void ADReyeVRPawn::SetThrottleKbd(const float ThrottleInput)
 {

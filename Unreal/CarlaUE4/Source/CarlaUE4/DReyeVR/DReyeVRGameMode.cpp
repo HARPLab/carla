@@ -241,7 +241,7 @@ void ADReyeVRGameMode::PossessSpectator()
         return;
     if (!SpectatorPtr)
     {
-        UE_LOG(LogDReyeVR, Error, TEXT("No spectator to possess"));
+        LOG_ERROR("No spectator to possess");
         SetupSpectator();
         if (SpectatorPtr == nullptr)
         {
