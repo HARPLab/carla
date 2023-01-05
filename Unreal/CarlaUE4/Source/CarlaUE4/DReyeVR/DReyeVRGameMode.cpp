@@ -112,7 +112,7 @@ bool ADReyeVRGameMode::SetupEgoVehicle()
     {
         for (AActor *Vehicle : FoundEgoVehicles)
         {
-            UE_LOG(LogTemp, Log, TEXT("Found EgoVehicle in world: %s"), *(Vehicle->GetName()));
+            LOG("Found EgoVehicle in world: %s", *(Vehicle->GetName()));
             EgoVehiclePtr = CastChecked<AEgoVehicle>(Vehicle);
             /// TODO: handle multiple ego-vehcles? (we should only ever have one!)
             break;
@@ -120,7 +120,7 @@ bool ADReyeVRGameMode::SetupEgoVehicle()
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("Did not find EgoVehicle in map... spawning..."));
+        LOG("Did not find EgoVehicle in map... spawning...");
         auto World = GetWorld();
         check(World != nullptr);
         FActorSpawnParameters SpawnParams;
@@ -137,7 +137,7 @@ bool ADReyeVRGameMode::SetupEgoVehicle()
     {
         // need to assign ego vehicle before possess!
         DReyeVR_Pawn->BeginEgoVehicle(EgoVehiclePtr, GetWorld(), Player);
-        UE_LOG(LogTemp, Log, TEXT("Created DReyeVR controller pawn"));
+        LOG("Created DReyeVR controller pawn");
     }
     return (EgoVehiclePtr != nullptr);
 }
@@ -182,7 +182,7 @@ void ADReyeVRGameMode::SetupSpectator()
 void ADReyeVRGameMode::BeginDestroy()
 {
     Super::BeginDestroy();
-    UE_LOG(LogTemp, Log, TEXT("Finished Level"));
+    LOG("Finished Level");
 }
 
 void ADReyeVRGameMode::Tick(float DeltaSeconds)
@@ -221,14 +221,14 @@ void ADReyeVRGameMode::PossessEgoVehicle()
 {
     if (Player->GetPawn() != DReyeVR_Pawn)
     {
-        UE_LOG(LogTemp, Log, TEXT("Possessing DReyeVR EgoVehicle"));
+        LOG("Possessing DReyeVR EgoVehicle");
         Player->Possess(DReyeVR_Pawn);
     }
     ensure(EgoVehiclePtr != nullptr);
     if (EgoVehiclePtr)
     {
         EgoVehiclePtr->SetAutopilot(false);
-        UE_LOG(LogTemp, Log, TEXT("Disabling EgoVehicle Autopilot"));
+        LOG("Disabling EgoVehicle Autopilot");
         this->ControlMode = DRIVER::AI;
     }
     this->ControlMode = DRIVER::HUMAN;
@@ -241,7 +241,7 @@ void ADReyeVRGameMode::PossessSpectator()
         return;
     if (!SpectatorPtr)
     {
-        UE_LOG(LogTemp, Error, TEXT("No spectator to possess"));
+        UE_LOG(LogDReyeVR, Error, TEXT("No spectator to possess"));
         SetupSpectator();
         if (SpectatorPtr == nullptr)
         {
@@ -257,7 +257,7 @@ void ADReyeVRGameMode::PossessSpectator()
     }
     // repossess the ego vehicle
     Player->Possess(SpectatorPtr);
-    UE_LOG(LogTemp, Log, TEXT("Possessing spectator player"));
+    LOG("Possessing spectator player");
     this->ControlMode = DRIVER::SPECTATOR;
 }
 
@@ -267,14 +267,14 @@ void ADReyeVRGameMode::HandoffDriverToAI()
     if (EgoVehiclePtr)
     {
         EgoVehiclePtr->SetAutopilot(true);
-        UE_LOG(LogTemp, Log, TEXT("Enabling EgoVehicle Autopilot"));
+        LOG("Enabling EgoVehicle Autopilot");
         this->ControlMode = DRIVER::AI;
     }
 }
 
 void ADReyeVRGameMode::PlayPause()
 {
-    UE_LOG(LogTemp, Log, TEXT("Toggle Play-Pause"));
+    LOG("Toggle Play-Pause");
     UCarlaStatics::GetRecorder(GetWorld())->RecPlayPause();
 }
 
@@ -291,7 +291,7 @@ void ADReyeVRGameMode::Rewind()
 
 void ADReyeVRGameMode::Restart()
 {
-    UE_LOG(LogTemp, Log, TEXT("Restarting recording"));
+    LOG("Restarting recording");
     if (UCarlaStatics::GetRecorder(GetWorld()))
         UCarlaStatics::GetRecorder(GetWorld())->RecRestart();
 }
@@ -352,7 +352,7 @@ void ADReyeVRGameMode::DrawBBoxes()
             FVector Origin;
             FVector BoxExtent;
             A->GetActorBounds(true, Origin, BoxExtent, false);
-            // UE_LOG(LogTemp, Log, TEXT("Origin: %s Extent %s"), *Origin.ToString(), *BoxExtent.ToString());
+            // LOG("Origin: %s Extent %s"), *Origin.ToString(), *BoxExtent.ToString());
             // divide by 100 to get from m to cm, multiply by 2 bc the cube is scaled in both X and Y
             BBox->SetActorScale3D(2 * BoxExtent / 100.f);
             BBox->SetActorLocation(Origin);
