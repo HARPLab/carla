@@ -18,7 +18,50 @@
 static const FString ConfigFilePath =
     FPaths::Combine(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()), TEXT("Config"), TEXT("DReyeVRConfig.ini"));
 
-static std::unordered_map<std::string, FString> Params = {};
+struct ParamString
+{
+    ParamString() = default;
+
+    FString DataStr = ""; // string representation of the data to parse into primitives
+    bool bIsDirty = true; // whether or not the data has been read (clean) or not (dirty)
+
+    template <typename T> inline T DecipherToType() const
+    {
+        // supports FVector, FVector2D, FLinearColor, FQuat, and FRotator,
+        // basically any UE4 type that has a ::InitFromString method
+        T Ret;
+        if (Ret.InitFromString(DataStr) == false)
+            LOG_ERROR("Unable to decipher \"%s\" to a type", *DataStr);
+        return Ret;
+    }
+
+    template <> inline bool DecipherToType<bool>() const
+    {
+        return DataStr.ToBool();
+    }
+
+    template <> inline int DecipherToType<int>() const
+    {
+        return FCString::Atoi(*DataStr);
+    }
+
+    template <> inline float DecipherToType<float>() const
+    {
+        return FCString::Atof(*DataStr);
+    }
+
+    template <> inline FString DecipherToType<FString>() const
+    {
+        return DataStr;
+    }
+
+    template <> inline FName DecipherToType<FName>() const
+    {
+        return FName(*DataStr);
+    }
+};
+
+static std::unordered_map<std::string, ParamString> Params = {};
 
 static std::string CreateVariableName(const std::string &Section, const std::string &Variable)
 {
@@ -58,8 +101,7 @@ static void ReadDReyeVRConfig()
                 if (std::getline(iss_Line, Value, ';')) // gets left side of ';' for comments
                 {
                     std::string VariableName = CreateVariableName(Section, Key);
-                    FString VariableValue = FString(Value.c_str());
-                    Params[VariableName] = VariableValue;
+                    Params[VariableName].DataStr = FString(Value.c_str());
                 }
             }
         }
@@ -80,41 +122,6 @@ static void EnsureConfigsUpdated()
         ReadDReyeVRConfig();
 }
 
-template <typename T> inline T DecipherToType(const FString &Var)
-{
-    // supports FVector, FVector2D, FLinearColor, FQuat, and FRotator,
-    // basically any UE4 type that has a ::InitFromString method
-    T Ret;
-    if (Ret.InitFromString(Var) == false)
-        LOG_ERROR("Unable to decipher \"%s\" to a type", *Var);
-    return Ret;
-}
-
-template <> inline bool DecipherToType<bool>(const FString &Var)
-{
-    return Var.ToBool();
-}
-
-template <> inline int DecipherToType<int>(const FString &Var)
-{
-    return FCString::Atoi(*Var);
-}
-
-template <> inline float DecipherToType<float>(const FString &Var)
-{
-    return FCString::Atof(*Var);
-}
-
-template <> inline FString DecipherToType<FString>(const FString &Var)
-{
-    return Var;
-}
-
-template <> inline FName DecipherToType<FName>(const FString &Var)
-{
-    return FName(*Var);
-}
-
 template <typename T> static void ReadConfigValue(const FString &Section, const FString &Variable, T &Value)
 {
     EnsureConfigsUpdated();
@@ -124,8 +131,14 @@ template <typename T> static void ReadConfigValue(const FString &Section, const 
         LOG_ERROR("No variable matching \"%s\" found for type", *FString(VariableName.c_str()));
         return;
     }
-    Value = DecipherToType<T>(Params[VariableName]);
-    LOG("Read \"%s\" => %s", *FString(VariableName.c_str()), *Params[VariableName]);
+    auto &Param = Params[VariableName];
+    Value = Param.DecipherToType<T>();
+
+    if (Param.bIsDirty)
+    {
+        LOG("Read \"%s\" => %s", *FString(VariableName.c_str()), *Param.DataStr);
+    }
+    Param.bIsDirty = false; // has just been read
 }
 
 static FVector ComputeClosestToRayIntersection(const FVector &L0, const FVector &LDir, const FVector &R0,
