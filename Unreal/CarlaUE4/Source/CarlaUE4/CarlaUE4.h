@@ -11,15 +11,18 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDReyeVR, Log, All);
 
 constexpr inline const char *file_name(const char *path)
 {
-    const char *file = path;
+#ifdef _WIN32
+    constexpr char os_sep = '\\';
+#else
+    constexpr char os_sep = '/';
+#endif
+    const char *filename_start = path;
     while (*path)
     {
-        if (*path++ == '/')
-        {
-            file = path;
-        }
+        if (*path++ == os_sep) // keep searching until found last os sep
+            filename_start = path;
     }
-    return file;
+    return filename_start; // includes extension
 }
 
 #define LOG(msg, ...)                                                                                                  \
