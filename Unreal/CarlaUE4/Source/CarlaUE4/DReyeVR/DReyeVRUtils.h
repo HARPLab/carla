@@ -86,7 +86,7 @@ template <typename T> inline T DecipherToType(const FString &Var)
     // basically any UE4 type that has a ::InitFromString method
     T Ret;
     if (Ret.InitFromString(Var) == false)
-        LOG_ERROR("Unable to decipher \"%s\" to type \"%s\"", *Var, UTF8_TO_TCHAR(typeid(T).name()));
+        LOG_ERROR("Unable to decipher \"%s\" to a type", *Var);
     return Ret;
 }
 
@@ -121,13 +121,11 @@ template <typename T> static void ReadConfigValue(const FString &Section, const 
     const std::string VariableName = CreateVariableName(Section, Variable);
     if (Params.find(VariableName) == Params.end())
     {
-        LOG_ERROR("No variable matching \"%s\" found for type %s", *FString(VariableName.c_str()),
-                  UTF8_TO_TCHAR(typeid(T).name()));
+        LOG_ERROR("No variable matching \"%s\" found for type", *FString(VariableName.c_str()));
         return;
     }
     Value = DecipherToType<T>(Params[VariableName]);
-    LOG("Read \"%s\" (%s) => %s", *FString(VariableName.c_str()), UTF8_TO_TCHAR(typeid(T).name()),
-        *Params[VariableName]);
+    LOG("Read \"%s\" => %s", *FString(VariableName.c_str()), *Params[VariableName]);
 }
 
 static FVector ComputeClosestToRayIntersection(const FVector &L0, const FVector &LDir, const FVector &R0,
