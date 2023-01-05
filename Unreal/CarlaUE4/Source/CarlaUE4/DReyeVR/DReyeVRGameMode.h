@@ -77,6 +77,9 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
     float NonEgoVolumePercent;
     float AmbientVolumePercent;
 
+    bool bDoSpawnEgoVehicleTransform = false; // whether or not to use provided SpawnEgoVehicleTransform
+    FTransform SpawnEgoVehicleTransform;
+
     // for recorder/replayer params
     bool bReplaySync = false;        // false allows for interpolation
     bool bRecorderInitiated = false; // allows tick-wise checking for replayer/recorder

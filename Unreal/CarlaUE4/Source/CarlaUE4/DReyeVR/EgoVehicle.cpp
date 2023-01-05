@@ -152,7 +152,7 @@ void AEgoVehicle::Tick(float DeltaSeconds)
     }
 
     // Update the world level
-    TickLevel(DeltaSeconds);
+    TickGame(DeltaSeconds);
 
     // Play sound that requires constant ticking
     TickSounds();
@@ -334,8 +334,8 @@ void AEgoVehicle::InitSensor()
     // Attach the EgoSensor as a child to the EgoVehicle
     EgoSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
     EgoSensor->SetEgoVehicle(this);
-    if (DReyeVRLevel)
-        EgoSensor->SetLevel(DReyeVRLevel);
+    if (DReyeVRGame)
+        EgoSensor->SetGame(DReyeVRGame);
 }
 
 void AEgoVehicle::ReplayTick()
@@ -715,16 +715,16 @@ void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
 /// -----------------:LEVEL:------------------ ///
 /// ========================================== ///
 
-void AEgoVehicle::SetLevel(ADReyeVRGameMode *Level)
+void AEgoVehicle::SetGame(ADReyeVRGameMode *Game)
 {
-    this->DReyeVRLevel = Level;
-    check(DReyeVRLevel != nullptr);
+    this->DReyeVRGame = Game;
+    check(DReyeVRGame != nullptr);
 }
 
-void AEgoVehicle::TickLevel(float DeltaSeconds)
+void AEgoVehicle::TickGame(float DeltaSeconds)
 {
-    if (this->DReyeVRLevel != nullptr)
-        DReyeVRLevel->Tick(DeltaSeconds);
+    if (this->DReyeVRGame != nullptr)
+        DReyeVRGame->Tick(DeltaSeconds);
 }
 
 /// ========================================== ///

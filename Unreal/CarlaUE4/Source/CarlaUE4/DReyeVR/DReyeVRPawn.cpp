@@ -128,7 +128,7 @@ void ADReyeVRPawn::InitSteamVR()
         LOG("HMD enabled: %s, version %s", *HMD_Name, *HMD_Version);
         // Now we'll begin with setting up the VR Origin logic
         // this tracking origin is what moves the HMD camera to the right position
-        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Level
+        UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Game
         InitSpectator();
     }
     else
