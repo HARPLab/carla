@@ -11,6 +11,7 @@
 #include <fstream>                         // std::ifstream
 #include <sstream>                         // std::istringstream
 #include <string>
+#include <type_traits> // std::is_same
 #include <unordered_map>
 
 /// this is the file where we'll read all DReyeVR specific configs
@@ -79,108 +80,54 @@ static void EnsureConfigsUpdated()
         ReadDReyeVRConfig();
 }
 
-static void ReadConfigValue(const FString &Section, const FString &Variable, bool &Value)
+template <typename T> inline T DecipherToType(const FString &Var)
 {
-    EnsureConfigsUpdated();
-    std::string VariableName = CreateVariableName(Section, Variable);
-    if (Params.find(VariableName) != Params.end())
-        Value = Params[VariableName].ToBool();
-    else
-        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
-}
-static void ReadConfigValue(const FString &Section, const FString &Variable, int &Value)
-{
-    EnsureConfigsUpdated();
-    std::string VariableName = CreateVariableName(Section, Variable);
-    if (Params.find(VariableName) != Params.end())
-        Value = FCString::Atoi(*Params[VariableName]);
-    else
-        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
-}
-static void ReadConfigValue(const FString &Section, const FString &Variable, float &Value)
-{
-    EnsureConfigsUpdated();
-    std::string VariableName = CreateVariableName(Section, Variable);
-    if (Params.find(VariableName) != Params.end())
-        Value = FCString::Atof(*Params[VariableName]);
-    else
-        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
-}
-static void ReadConfigValue(const FString &Section, const FString &Variable, FVector &Value)
-{
-    EnsureConfigsUpdated();
-    std::string VariableName = CreateVariableName(Section, Variable);
-    if (Params.find(VariableName) != Params.end())
-    {
-        if (Value.InitFromString(Params[VariableName]) == false)
-        {
-            LOG_ERROR("Unable to construct FVector for %s from %s", *FString(VariableName.c_str()),
-                      *(Params[VariableName]));
-        }
-    }
-    else
-        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
-}
-static void ReadConfigValue(const FString &Section, const FString &Variable, FVector2D &Value)
-{
-    EnsureConfigsUpdated();
-    std::string VariableName = CreateVariableName(Section, Variable);
-    if (Params.find(VariableName) != Params.end())
-    {
-        if (Value.InitFromString(Params[VariableName]) == false)
-        {
-            LOG_ERROR("Unable to construct FVector2D for %s from %s", *FString(VariableName.c_str()),
-                      *(Params[VariableName]));
-        }
-    }
-    else
-        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
-}
-static void ReadConfigValue(const FString &Section, const FString &Variable, FLinearColor &Value)
-{
-    EnsureConfigsUpdated();
-    std::string VariableName = CreateVariableName(Section, Variable);
-    if (Params.find(VariableName) != Params.end())
-    {
-        if (Value.InitFromString(Params[VariableName]) == false)
-        {
-            LOG_ERROR("Unable to construct FLinearColor for %s from %s", *FString(VariableName.c_str()),
-                      *(Params[VariableName]));
-        }
-    }
-    else
-        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
-}
-static void ReadConfigValue(const FString &Section, const FString &Variable, FRotator &Value)
-{
-    EnsureConfigsUpdated();
-    std::string VariableName = CreateVariableName(Section, Variable);
-    if (Params.find(VariableName) != Params.end())
-    {
-        if (Value.InitFromString(Params[VariableName]) == false)
-        {
-            LOG_ERROR("Unable to construct FRotator for %s from %s", *FString(VariableName.c_str()),
-                      *(Params[VariableName]));
-        }
-    }
-    else
-        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
-}
-static void ReadConfigValue(const FString &Section, const FString &Variable, FString &Value)
-{
-    EnsureConfigsUpdated();
-    std::string VariableName = CreateVariableName(Section, Variable);
-    if (Params.find(VariableName) != Params.end())
-        Value = Params[VariableName];
-    else
-        LOG_ERROR("No variable matching %s found", *FString(VariableName.c_str()));
+    // supports FVector, FVector2D, FLinearColor, FQuat, and FRotator,
+    // basically any UE4 type that has a ::InitFromString method
+    T Ret;
+    if (Ret.InitFromString(Var) == false)
+        LOG_ERROR("Unable to decipher \"%s\" to type \"%s\"", *Var, UTF8_TO_TCHAR(typeid(T).name()));
+    return Ret;
 }
 
-static void ReadConfigValue(const FString &Section, const FString &Variable, FName &Value)
+template <> inline bool DecipherToType<bool>(const FString &Var)
 {
-    FString TmpValueString;
-    ReadConfigValue(Section, Variable, TmpValueString);
-    Value = FName(*TmpValueString);
+    return Var.ToBool();
+}
+
+template <> inline int DecipherToType<int>(const FString &Var)
+{
+    return FCString::Atoi(*Var);
+}
+
+template <> inline float DecipherToType<float>(const FString &Var)
+{
+    return FCString::Atof(*Var);
+}
+
+template <> inline FString DecipherToType<FString>(const FString &Var)
+{
+    return Var;
+}
+
+template <> inline FName DecipherToType<FName>(const FString &Var)
+{
+    return FName(*Var);
+}
+
+template <typename T> static void ReadConfigValue(const FString &Section, const FString &Variable, T &Value)
+{
+    EnsureConfigsUpdated();
+    const std::string VariableName = CreateVariableName(Section, Variable);
+    if (Params.find(VariableName) == Params.end())
+    {
+        LOG_ERROR("No variable matching \"%s\" found for type %s", *FString(VariableName.c_str()),
+                  UTF8_TO_TCHAR(typeid(T).name()));
+        return;
+    }
+    Value = DecipherToType<T>(Params[VariableName]);
+    LOG("Read \"%s\" (%s) => %s", *FString(VariableName.c_str()), UTF8_TO_TCHAR(typeid(T).name()),
+        *Params[VariableName]);
 }
 
 static FVector ComputeClosestToRayIntersection(const FVector &L0, const FVector &LDir, const FVector &R0,
