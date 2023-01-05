@@ -23,9 +23,11 @@ ADReyeVRGameMode::ADReyeVRGameMode(FObjectInitializer const &FO) : Super(FO)
 
     // initialize default classes
     this->HUDClass = ADReyeVRHUD::StaticClass();
-    static ConstructorHelpers::FObjectFinder<UBlueprint> WeatherBP(
-        TEXT("Blueprint'/Game/Carla/Blueprints/Weather/BP_Weather.BP_Weather'"));
-    this->WeatherClass = WeatherBP.Object->GeneratedClass;
+    // find object UClass rather than UBlueprint
+    // https://forums.unrealengine.com/t/cdo-constructor-failed-to-find-thirdperson-c-template-mannequin-animbp/99003
+    static ConstructorHelpers::FObjectFinder<UClass> WeatherBP(
+        TEXT("/Game/Carla/Blueprints/Weather/BP_Weather.BP_Weather_C"));
+    this->WeatherClass = WeatherBP.Object;
 
     // initialize actor factories
     // https://forums.unrealengine.com/t/what-is-the-right-syntax-of-fclassfinder-and-how-could-i-generaly-use-it-to-find-a-specific-blueprint/363884
@@ -57,9 +59,9 @@ ADReyeVRGameMode::ADReyeVRGameMode(FObjectInitializer const &FO) : Super(FO)
     ReadConfigValue("Replayer", "RunSyncReplay", bReplaySync);
 
     // get ego vehicle bp
-    static ConstructorHelpers::FObjectFinder<UBlueprint> EgoVehicleBP(
-        TEXT("Blueprint'/Game/Carla/Blueprints/Vehicles/DReyeVR/BP_EgoVehicle_DReyeVR.BP_EgoVehicle_DReyeVR'"));
-    EgoVehicleBPClass = static_cast<UClass *>(EgoVehicleBP.Object->GeneratedClass);
+    static ConstructorHelpers::FObjectFinder<UClass> EgoVehicleBP(
+        TEXT("/Game/Carla/Blueprints/Vehicles/DReyeVR/BP_EgoVehicle_DReyeVR.BP_EgoVehicle_DReyeVR_C"));
+    EgoVehicleBPClass = static_cast<UClass *>(EgoVehicleBP.Object);
 }
 
 void ADReyeVRGameMode::BeginPlay()
