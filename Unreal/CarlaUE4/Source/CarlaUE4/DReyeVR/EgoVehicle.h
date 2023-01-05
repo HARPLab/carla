@@ -112,8 +112,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     struct MirrorParams
     {
         bool Enabled;
-        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
-        FRotator MirrorRot, ReflectionRot;
+        FTransform MirrorTransform, ReflectionTransform;
         float ScreenPercentage;
         FString Name;
         void Initialize(class UStaticMeshComponent *SM, class UPlanarReflectionComponent *Reflection,
@@ -135,8 +134,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     // rear mirror chassis (dynamic)
     UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UStaticMeshComponent *RearMirrorChassisSM;
-    FVector RearMirrorChassisPos, RearMirrorChassisScale;
-    FRotator RearMirrorChassisRot;
+    FTransform RearMirrorChassisTransform;
 
     ////////////////:AICONTROLLER:////////////////
     class AWheeledVehicleAIController *AI_Player = nullptr;
