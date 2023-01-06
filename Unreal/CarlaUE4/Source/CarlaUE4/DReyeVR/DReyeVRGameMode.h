@@ -40,13 +40,14 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
     void PossessSpectator();
     void HandoffDriverToAI();
 
-    // Recorder media functions
-    void PlayPause();
-    void FastForward();
-    void Rewind();
-    void Restart();
-    void IncrTimestep();
-    void DecrTimestep();
+    // Replay media functions
+    void ChangeTimestep(UWorld *World, double AmntChangeSeconds);
+    void ReplayPlayPause();
+    void ReplayFastForward();
+    void ReplayRewind();
+    void ReplayRestart();
+    void ReplaySpeedUp();
+    void ReplaySlowDown();
 
     // Replayer
     void SetupReplayer();
@@ -81,6 +82,10 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
     FTransform SpawnEgoVehicleTransform;
 
     // for recorder/replayer params
-    bool bReplaySync = false;        // false allows for interpolation
-    bool bRecorderInitiated = false; // allows tick-wise checking for replayer/recorder
+    const double AmntPlaybackIncr = 0.1; // how much the playback speed changes (seconds)
+    double ReplayTimeFactor = 1.0;       // same as CarlaReplayer.h::TimeFactor (but local)
+    double ReplayTimeFactorMin = 0.0;    // minimum playback of 0 (paused)
+    double ReplayTimeFactorMax = 10.0;   // maximum of 10x playback
+    bool bReplaySync = false;            // false allows for interpolation
+    bool bRecorderInitiated = false;     // allows tick-wise checking for replayer/recorder
 };

@@ -95,16 +95,18 @@ public:
   void Tick(float Time);
 
   // DReyeVR replayer functions
-  void PlayPause();
-  void Restart();
-  void Advance(const float Amnt);
-  void IncrTimeFactor(const float Amnt_s);
+  void PlayPause()
+  {
+    Paused = !Paused;
+  }
+
+  void Restart(); // calls ReplayFile which is implemented in .cpp
+
+  void Advance(const float Amnt); // long function implemented in .cpp file
 
   void SetSyncMode(bool bSyncModeIn)
   {
     bReplaySync = bSyncModeIn;
-    if (bReplaySync)
-      DReyeVR_LOG_WARN("Replay operating in frame-wise (1:1) synchronous mode (no replay interpolation)");
   }
   
 private:

@@ -1,7 +1,8 @@
 #include "DReyeVRGameMode.h"
 #include "Carla/AI/AIControllerFactory.h"      // AAIControllerFactory
 #include "Carla/Actor/StaticMeshFactory.h"     // AStaticMeshFactory
-#include "Carla/Game/CarlaStatics.h"           // GetRecorder, GetEpisode
+#include "Carla/Game/CarlaStatics.h"           // GetReplayer, GetEpisode
+#include "Carla/Recorder/CarlaReplayer.h"      // ACarlaReplayer
 #include "Carla/Sensor/DReyeVRSensor.h"        // ADReyeVRSensor
 #include "Carla/Sensor/SensorFactory.h"        // ASensorFactory
 #include "Carla/Trigger/TriggerFactory.h"      // TriggerFactory
@@ -220,12 +221,12 @@ void ADReyeVRGameMode::SetupPlayerInputComponent()
     check(InputComponent);
     Player->PushInputComponent(InputComponent); // enable this InputComponent with the PlayerController
     // InputComponent->BindAction("ToggleCamera", IE_Pressed, this, &ADReyeVRGameMode::ToggleSpectator);
-    InputComponent->BindAction("PlayPause_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::PlayPause);
-    InputComponent->BindAction("FastForward_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::FastForward);
-    InputComponent->BindAction("Rewind_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::Rewind);
-    InputComponent->BindAction("Restart_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::Restart);
-    InputComponent->BindAction("Incr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::IncrTimestep);
-    InputComponent->BindAction("Decr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::DecrTimestep);
+    InputComponent->BindAction("PlayPause_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::ReplayPlayPause);
+    InputComponent->BindAction("FastForward_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::ReplayFastForward);
+    InputComponent->BindAction("Rewind_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::ReplayRewind);
+    InputComponent->BindAction("Restart_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::ReplayRestart);
+    InputComponent->BindAction("Incr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::ReplaySpeedUp);
+    InputComponent->BindAction("Decr_Timestep_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::ReplaySlowDown);
     // Driver Handoff examples
     InputComponent->BindAction("EgoVehicle_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::PossessEgoVehicle);
     InputComponent->BindAction("Spectator_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::PossessSpectator);
@@ -287,47 +288,113 @@ void ADReyeVRGameMode::HandoffDriverToAI()
     }
 }
 
-void ADReyeVRGameMode::PlayPause()
+void ADReyeVRGameMode::ReplayPlayPause()
 {
-    LOG("Toggle Play-Pause");
-    UCarlaStatics::GetRecorder(GetWorld())->RecPlayPause();
+    auto *Replayer = UCarlaStatics::GetReplayer(GetWorld());
+    if (Replayer != nullptr && Replayer->IsEnabled())
+    {
+        LOG("Toggle Replayer Play-Pause");
+        Replayer->PlayPause();
+    }
 }
 
-void ADReyeVRGameMode::FastForward()
+ACarlaRecorder *GetLiveRecorder(UWorld *World)
 {
-    UCarlaStatics::GetRecorder(GetWorld())->RecFastForward();
+    ensure(World);
+    /// NOTE: this is quite ugly but otherwise (if we call directly to Replayer) causes linker errors with CarlaReplayer
+    auto *Recorder = UCarlaStatics::GetRecorder(World);
+    if (Recorder != nullptr && Recorder->GetReplayer() && Recorder->GetReplayer()->IsEnabled())
+        return Recorder;
+    return nullptr;
 }
 
-void ADReyeVRGameMode::Rewind()
+void ADReyeVRGameMode::ReplayFastForward()
 {
-    if (UCarlaStatics::GetRecorder(GetWorld()))
-        UCarlaStatics::GetRecorder(GetWorld())->RecRewind();
+    auto *Recorder = GetLiveRecorder(GetWorld());
+    if (Recorder)
+    {
+        LOG("Advance replay by +1.0s");
+        Recorder->ReplayJumpAmnt(1.0);
+    }
 }
 
-void ADReyeVRGameMode::Restart()
+void ADReyeVRGameMode::ReplayRewind()
 {
-    LOG("Restarting recording");
-    if (UCarlaStatics::GetRecorder(GetWorld()))
-        UCarlaStatics::GetRecorder(GetWorld())->RecRestart();
+    auto *Recorder = GetLiveRecorder(GetWorld());
+    if (Recorder)
+    {
+        LOG("Advance replay by -1.0s");
+        Recorder->ReplayJumpAmnt(-1.0);
+    }
 }
 
-void ADReyeVRGameMode::IncrTimestep()
+void ADReyeVRGameMode::ReplayRestart()
 {
-    if (UCarlaStatics::GetRecorder(GetWorld()))
-        UCarlaStatics::GetRecorder(GetWorld())->IncrTimeFactor(0.1);
+    auto *Recorder = GetLiveRecorder(GetWorld());
+    if (Recorder)
+    {
+        LOG("Restarting recording replay...");
+        Recorder->RestartReplay();
+    }
 }
 
-void ADReyeVRGameMode::DecrTimestep()
+void ADReyeVRGameMode::ChangeTimestep(UWorld *World, double AmntChangeSeconds)
 {
-    if (UCarlaStatics::GetRecorder(GetWorld()))
-        UCarlaStatics::GetRecorder(GetWorld())->IncrTimeFactor(-0.1);
+    ensure(World != nullptr);
+    auto *Replayer = UCarlaStatics::GetReplayer(World);
+    if (Replayer != nullptr && Replayer->IsEnabled())
+    {
+        double NewFactor = ReplayTimeFactor + AmntChangeSeconds;
+        if (AmntChangeSeconds > 0)
+        {
+            if (NewFactor < ReplayTimeFactorMax)
+            {
+                LOG("Increase replay time factor: %.3fx -> %.3fx", ReplayTimeFactor, NewFactor);
+                Replayer->SetTimeFactor(NewFactor);
+            }
+            else
+            {
+                LOG("Unable to increase replay time factor (%.3f) beyond %.3fx", ReplayTimeFactor, ReplayTimeFactorMax);
+                Replayer->SetTimeFactor(ReplayTimeFactorMax);
+            }
+        }
+        else
+        {
+            if (NewFactor > ReplayTimeFactorMin)
+            {
+                LOG("Decrease replay time factor: %.3fx -> %.3fx", ReplayTimeFactor, NewFactor);
+                Replayer->SetTimeFactor(NewFactor);
+            }
+            else
+            {
+                LOG("Unable to decrease replay time factor (%.3f) below %.3fx", ReplayTimeFactor, ReplayTimeFactorMin);
+                Replayer->SetTimeFactor(ReplayTimeFactorMin);
+            }
+        }
+        ReplayTimeFactor = NewFactor;
+    }
+}
+
+void ADReyeVRGameMode::ReplaySpeedUp()
+{
+    ChangeTimestep(GetWorld(), AmntPlaybackIncr);
+}
+
+void ADReyeVRGameMode::ReplaySlowDown()
+{
+    ChangeTimestep(GetWorld(), -AmntPlaybackIncr);
 }
 
 void ADReyeVRGameMode::SetupReplayer()
 {
-    if (UCarlaStatics::GetRecorder(GetWorld()) && UCarlaStatics::GetRecorder(GetWorld())->GetReplayer())
+    auto *Replayer = UCarlaStatics::GetReplayer(GetWorld());
+    if (Replayer != nullptr)
     {
-        UCarlaStatics::GetRecorder(GetWorld())->GetReplayer()->SetSyncMode(bReplaySync);
+        Replayer->SetSyncMode(bReplaySync);
+        if (bReplaySync)
+        {
+            LOG_WARN("Replay operating in frame-wise (1:1) synchronous mode (no replay interpolation)");
+        }
         bRecorderInitiated = true;
     }
 }
