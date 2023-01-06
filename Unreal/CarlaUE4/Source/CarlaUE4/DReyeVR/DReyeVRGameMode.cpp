@@ -150,11 +150,24 @@ bool ADReyeVRGameMode::SetupEgoVehicle()
 
 void ADReyeVRGameMode::SetupSpectator()
 {
-    /// TODO: fix bug where HMD is not detected on package BeginPlay()
-    // if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
-    const bool bEnableVRSpectator = false;
-    if (bEnableVRSpectator)
+    { // look for existing spectator in world
+        UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(GetWorld());
+        if (Episode != nullptr)
+            SpectatorPtr = Episode->GetSpectatorPawn();
+        else if (Player != nullptr)
+        {
+            SpectatorPtr = Player->GetPawn();
+        }
+    }
+
+    // spawn if necessary
+    if (SpectatorPtr != nullptr)
     {
+        LOG("Found available spectator in world");
+    }
+    else
+    {
+        LOG_WARN("No available spectator actor in world... spawning one");
         FVector SpawnLocn;
         FRotator SpawnRotn;
         if (EgoVehiclePtr != nullptr)
@@ -170,30 +183,13 @@ void ADReyeVRGameMode::SetupSpectator()
         SpectatorPtr = GetWorld()->SpawnActor<ASpectatorPawn>(ASpectatorPawn::StaticClass(), // spectator
                                                               SpawnLocn, SpawnRotn, SpawnParams);
     }
-    else
+
+    if (SpectatorPtr)
     {
-        UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(GetWorld());
-        if (Episode != nullptr)
-            SpectatorPtr = Episode->GetSpectatorPawn();
-        else
-        {
-            if (Player != nullptr)
-            {
-                SpectatorPtr = Player->GetPawn();
-            }
-        }
         SpectatorPtr->SetActorHiddenInGame(true);                // make spectator invisible
         SpectatorPtr->GetRootComponent()->DestroyPhysicsState(); // no physics (just no-clip)
         SpectatorPtr->SetActorEnableCollision(false);            // no collisions
-    }
-
-    if (SpectatorPtr != nullptr)
-    {
-        LOG("Found available spectator in world");
-    }
-    else
-    {
-        LOG_WARN("No available spectator actor in world");
+        LOG("Successfully initiated spectator actor");
     }
 }
 
