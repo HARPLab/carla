@@ -42,6 +42,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // Setters from external classes
     void SetGame(ADReyeVRGameMode *Game);
+    ADReyeVRGameMode *GetGame();
     void SetPawn(ADReyeVRPawn *Pawn);
     void SetVolume(const float VolumeIn);
 

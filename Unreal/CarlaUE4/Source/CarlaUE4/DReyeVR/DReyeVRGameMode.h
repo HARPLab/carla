@@ -24,7 +24,7 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
 
     virtual void Tick(float DeltaSeconds) override;
 
-    // input handling
+    // input & world handling
     void SetupPlayerInputComponent();
     void SetupSpectator();
     bool SetupEgoVehicle();

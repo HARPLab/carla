@@ -715,6 +715,11 @@ void AEgoVehicle::SetGame(ADReyeVRGameMode *Game)
     check(DReyeVRGame != nullptr);
 }
 
+ADReyeVRGameMode *AEgoVehicle::GetGame()
+{
+    return DReyeVRGame;
+}
+
 void AEgoVehicle::TickGame(float DeltaSeconds)
 {
     if (this->DReyeVRGame != nullptr)

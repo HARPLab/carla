@@ -61,7 +61,7 @@ ADReyeVRGameMode::ADReyeVRGameMode(FObjectInitializer const &FO) : Super(FO)
     // get ego vehicle bp
     static ConstructorHelpers::FObjectFinder<UClass> EgoVehicleBP(
         TEXT("/Game/Carla/Blueprints/Vehicles/DReyeVR/BP_EgoVehicle_DReyeVR.BP_EgoVehicle_DReyeVR_C"));
-    EgoVehicleBPClass = static_cast<UClass *>(EgoVehicleBP.Object);
+    EgoVehicleBPClass = EgoVehicleBP.Object;
 }
 
 void ADReyeVRGameMode::BeginPlay()
@@ -182,6 +182,9 @@ void ADReyeVRGameMode::SetupSpectator()
                 SpectatorPtr = Player->GetPawn();
             }
         }
+        SpectatorPtr->SetActorHiddenInGame(true);                // make spectator invisible
+        SpectatorPtr->GetRootComponent()->DestroyPhysicsState(); // no physics (just no-clip)
+        SpectatorPtr->SetActorEnableCollision(false);            // no collisions
     }
 
     if (SpectatorPtr != nullptr)
@@ -219,6 +222,7 @@ void ADReyeVRGameMode::SetupPlayerInputComponent()
     InputComponent->RegisterComponent();
     // set up gameplay key bindings
     check(InputComponent);
+    Player->PushInputComponent(InputComponent); // enable this InputComponent with the PlayerController
     // InputComponent->BindAction("ToggleCamera", IE_Pressed, this, &ADReyeVRGameMode::ToggleSpectator);
     InputComponent->BindAction("PlayPause_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::PlayPause);
     InputComponent->BindAction("FastForward_DReyeVR", IE_Pressed, this, &ADReyeVRGameMode::FastForward);
