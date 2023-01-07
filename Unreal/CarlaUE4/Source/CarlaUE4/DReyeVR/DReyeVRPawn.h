@@ -28,7 +28,8 @@ class ADReyeVRPawn : public APawn
     virtual void SetupPlayerInputComponent(UInputComponent *PlayerInputComponent) override;
     virtual void Tick(float DeltaSeconds) override;
 
-    void BeginEgoVehicle(AEgoVehicle *Vehicle, UWorld *World, APlayerController *PlayerIn);
+    void BeginPlayer(APlayerController *PlayerIn);
+    void BeginEgoVehicle(AEgoVehicle *Vehicle, UWorld *World);
 
     APlayerController *GetPlayer()
     {

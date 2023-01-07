@@ -24,10 +24,8 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
 
     virtual void Tick(float DeltaSeconds) override;
 
-    // input & world handling
+    // input handling
     void SetupPlayerInputComponent();
-    void SetupSpectator();
-    bool SetupEgoVehicle();
 
     // EgoVehicle functions
     enum DRIVER
@@ -62,8 +60,12 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
     std::unordered_map<std::string, ADReyeVRCustomActor *> BBoxes;
 
   private:
+    bool bDoSpawnEgoVehicle = true; // spawn Ego on BeginPlay or not
+
     // for handling inputs and possessions
-    void StartDReyeVRPawn();
+    void SetupDReyeVRPawn();
+    void SetupSpectator();
+    bool SetupEgoVehicle();
     class APlayerController *Player = nullptr;
     class ADReyeVRPawn *DReyeVR_Pawn = nullptr;
     class UClass *EgoVehicleBPClass = nullptr;

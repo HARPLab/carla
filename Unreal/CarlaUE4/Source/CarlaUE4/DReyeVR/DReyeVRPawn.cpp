@@ -73,7 +73,16 @@ void ADReyeVRPawn::BeginPlay()
     ensure(World != nullptr);
 }
 
-void ADReyeVRPawn::BeginEgoVehicle(AEgoVehicle *Vehicle, UWorld *World, APlayerController *PlayerIn)
+void ADReyeVRPawn::BeginPlayer(APlayerController *PlayerIn)
+{
+    Player = PlayerIn;
+    ensure(Player != nullptr);
+
+    // Setup the HUD
+    InitFlatHUD();
+}
+
+void ADReyeVRPawn::BeginEgoVehicle(AEgoVehicle *Vehicle, UWorld *World)
 {
     /// NOTE: this should be run very early!
     // before anything that needs the EgoVehicle pointer (since this initializes it!)
@@ -82,17 +91,12 @@ void ADReyeVRPawn::BeginEgoVehicle(AEgoVehicle *Vehicle, UWorld *World, APlayerC
     ensure(EgoVehicle != nullptr);
     EgoVehicle->SetPawn(this);
 
-    Player = PlayerIn;
-    ensure(Player != nullptr);
-
     // register inputs that require EgoVehicle
     ensure(InputComponent != nullptr);
     SetupEgoVehicleInputComponent(InputComponent, EgoVehicle);
 
+    check(World != nullptr);
     FirstPersonCam->RegisterComponentWithWorld(World);
-
-    // Setup the HUD
-    InitFlatHUD();
 }
 
 void ADReyeVRPawn::BeginDestroy()
@@ -125,7 +129,7 @@ void ADReyeVRPawn::InitSteamVR()
     {
         FString HMD_Name = UHeadMountedDisplayFunctionLibrary::GetHMDDeviceName().ToString();
         FString HMD_Version = UHeadMountedDisplayFunctionLibrary::GetVersionString();
-        LOG("HMD enabled: %s, version %s", *HMD_Name, *HMD_Version);
+        LOG("SteamVR HMD enabled: %s, version %s", *HMD_Name, *HMD_Version);
         // Now we'll begin with setting up the VR Origin logic
         // this tracking origin is what moves the HMD camera to the right position
         UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye); // Also have Floor & Stage Game
@@ -133,7 +137,7 @@ void ADReyeVRPawn::InitSteamVR()
     }
     else
     {
-        LOG_WARN("No head mounted device enabled!");
+        LOG_WARN("No SteamVR head mounted device enabled!");
     }
 }
 
@@ -655,8 +659,8 @@ void ADReyeVRPawn::SetSteeringKbd(const float SteeringInput)
     else
     {
         // so the steering wheel does go to 0 when letting go
-        ensure(EgoVehicle != nullptr);
-        EgoVehicle->VehicleInputs.Steering = 0;
+        if (EgoVehicle != nullptr)
+            EgoVehicle->VehicleInputs.Steering = 0;
     }
 }
 
