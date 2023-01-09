@@ -152,7 +152,7 @@ bool ADReyeVRGameMode::SetupEgoVehicle()
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
         // use the provided transform if requested, else generate a spawn point
         FTransform SpawnPt = bDoSpawnEgoVehicleTransform ? SpawnEgoVehicleTransform : GetSpawnPoint();
-        LOG("Spawning EgoVehicle at: %s (%s)", *SpawnPt.ToString(), bDoSpawnEgoVehicleTransform ? "Manual" : "Carla");
+        LOG("Spawning EgoVehicle at: %s (%d)", *SpawnPt.ToString(), bDoSpawnEgoVehicleTransform);
         ensure(EgoVehicleBPClass != nullptr);
         EgoVehiclePtr =
             World->SpawnActor<AEgoVehicle>(EgoVehicleBPClass, SpawnPt.GetLocation(), SpawnPt.Rotator(), SpawnParams);
