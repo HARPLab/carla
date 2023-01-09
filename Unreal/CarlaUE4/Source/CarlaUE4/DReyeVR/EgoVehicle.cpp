@@ -735,7 +735,7 @@ void AEgoVehicle::Register()
     FCarlaActor::IdType ID = EgoVehicleID;
     FActorDescription Description;
     Description.Class = ACarlaWheeledVehicle::StaticClass();
-    Description.Id = "vehicle.dreyevr.egovehicle";
+    Description.Id = "vehicle.dreyevr.model3";
     Description.UId = ID;
     // ensure this vehicle is denoted by the 'hero' attribute
     FActorAttribute HeroRole;
@@ -749,7 +749,7 @@ void AEgoVehicle::Register()
     NumWheels.Type = EActorAttributeType::Int;
     NumWheels.Value = "4";
     Description.Variations.Add(NumWheels.Id, std::move(NumWheels));
-    FString RegistryTags = "EgoVehicle,DReyeVR";
+    FString RegistryTags = "EgoVehicle,DReyeVR,Model3";
     Episode->RegisterActor(*this, Description, RegistryTags, ID);
 }
 

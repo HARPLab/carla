@@ -543,7 +543,7 @@ void AEgoSensor::Register()
     // Register EgoSensor with ActorRegistry
     FCarlaActor::IdType ID = EgoSensorID;
     FActorDescription SensorDescr;
-    SensorDescr.Id = "sensor.dreyevr.dreyevrsensor";
+    SensorDescr.Id = "sensor.dreyevr.ego_sensor";
     FString RegistryTags = "EgoSensor,DReyeVR";
     UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, RegistryTags, ID);
 }
