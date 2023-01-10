@@ -112,5 +112,5 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
 
     ////////////////:OTHER:////////////////
     int EgoSensorID;
-    void Register();
+    // void Register();
 };

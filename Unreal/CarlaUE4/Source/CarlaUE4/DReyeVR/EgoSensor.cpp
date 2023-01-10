@@ -74,7 +74,7 @@ void AEgoSensor::BeginPlay()
     InitEyeTracker();
 
     // Register EgoSensor with the CarlaActorRegistry
-    Register();
+    // Register();
 
 #if USE_FOVEATED_RENDER
     // Initialize VRS plugin (using our VRS fork!)
@@ -538,12 +538,12 @@ void AEgoSensor::UpdateData(const DReyeVR::CustomActorData &RecorderData, const 
 /// -----------------:OTHER:------------------ ///
 /// ========================================== ///
 
-void AEgoSensor::Register()
-{
-    // Register EgoSensor with ActorRegistry
-    FCarlaActor::IdType ID = EgoSensorID;
-    FActorDescription SensorDescr;
-    SensorDescr.Id = "sensor.dreyevr.ego_sensor";
-    FString RegistryTags = "EgoSensor,DReyeVR";
-    UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, RegistryTags, ID);
-}
+// void AEgoSensor::Register()
+// {
+//     // Register EgoSensor with ActorRegistry
+//     FCarlaActor::IdType ID = EgoSensorID;
+//     FActorDescription SensorDescr;
+//     SensorDescr.Id = "sensor.dreyevr.ego_sensor";
+//     FString RegistryTags = "EgoSensor,DReyeVR";
+//     UCarlaStatics::GetCurrentEpisode(World)->RegisterActor(*this, SensorDescr, RegistryTags, ID);
+// }

@@ -97,9 +97,6 @@ void AEgoVehicle::BeginPlay()
     // Bug-workaround for initial delay on throttle; see https://github.com/carla-simulator/carla/issues/1640
     this->GetVehicleMovementComponent()->SetTargetGear(1, true);
 
-    // Register Ego Vehicle with ActorRegistry
-    Register();
-
     LOG("Initialized DReyeVR EgoVehicle");
 }
 
@@ -724,33 +721,6 @@ void AEgoVehicle::TickGame(float DeltaSeconds)
 {
     if (this->DReyeVRGame != nullptr)
         DReyeVRGame->Tick(DeltaSeconds);
-}
-
-/// ========================================== ///
-/// -----------------:OTHER:------------------ ///
-/// ========================================== ///
-
-void AEgoVehicle::Register()
-{
-    FCarlaActor::IdType ID = EgoVehicleID;
-    FActorDescription Description;
-    Description.Class = ACarlaWheeledVehicle::StaticClass();
-    Description.Id = "vehicle.dreyevr.model3";
-    Description.UId = ID;
-    // ensure this vehicle is denoted by the 'hero' attribute
-    FActorAttribute HeroRole;
-    HeroRole.Id = "role_name";
-    HeroRole.Type = EActorAttributeType::String;
-    HeroRole.Value = "hero";
-    Description.Variations.Add(HeroRole.Id, std::move(HeroRole));
-    // ensure the vehicle has attributes denoting number of wheels
-    FActorAttribute NumWheels;
-    NumWheels.Id = "number_of_wheels";
-    NumWheels.Type = EActorAttributeType::Int;
-    NumWheels.Value = "4";
-    Description.Variations.Add(NumWheels.Id, std::move(NumWheels));
-    FString RegistryTags = "EgoVehicle,DReyeVR,Model3";
-    Episode->RegisterActor(*this, Description, RegistryTags, ID);
 }
 
 /// ========================================== ///

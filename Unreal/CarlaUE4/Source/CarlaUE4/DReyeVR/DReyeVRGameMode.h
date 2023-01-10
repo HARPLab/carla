@@ -68,7 +68,6 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
     bool SetupEgoVehicle();
     class APlayerController *Player = nullptr;
     class ADReyeVRPawn *DReyeVR_Pawn = nullptr;
-    class UClass *EgoVehicleBPClass = nullptr;
 
     // for toggling bw spectator mode
     bool bIsSpectating = true;
