@@ -234,12 +234,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float SteeringAnimScale;
 
     ////////////////:OTHER:////////////////
-
-    // Actor registry
-    int EgoVehicleID;
-    UCarlaEpisode *Episode = nullptr;
-
-    // Other
     void DebugLines() const;
     bool bDrawDebugEditor = false;
 };

@@ -66,6 +66,7 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
     void SetupDReyeVRPawn();
     void SetupSpectator();
     bool SetupEgoVehicle();
+    void SpawnEgoVehicle(const FTransform &SpawnPt);
     class APlayerController *Player = nullptr;
     class ADReyeVRPawn *DReyeVR_Pawn = nullptr;
 

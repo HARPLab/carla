@@ -11,6 +11,7 @@
 #include "Components/AudioComponent.h"         // UAudioComponent
 #include "DReyeVRFactory.h"                    // ADReyeVRFactory
 #include "DReyeVRPawn.h"                       // ADReyeVRPawn
+#include "DReyeVRUtils.h"                      // FindDefnInRegistry
 #include "EgoVehicle.h"                        // AEgoVehicle
 #include "FlatHUD.h"                           // ADReyeVRHUD
 #include "HeadMountedDisplayFunctionLibrary.h" // IsHeadMountedDisplayAvailable
@@ -144,48 +145,7 @@ bool ADReyeVRGameMode::SetupEgoVehicle()
         LOG("Did not find EgoVehicle in map... spawning...");
         // use the provided transform if requested, else generate a spawn point
         FTransform SpawnPt = bDoSpawnEgoVehicleTransform ? SpawnEgoVehicleTransform : GetSpawnPoint();
-        UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(GetWorld());
-        check(Episode != nullptr);
-        FActorDefinition EgoVehicleDefn;
-        { // get the DReyeVR EgoVehicle definition
-            const TArray<FActorDefinition> &Defs = Episode->GetActorDefinitions();
-            bool bFoundEgoDef = false;
-            for (auto &Defn : Defs)
-            {
-                if (Defn.Class == AEgoVehicle::StaticClass())
-                {
-                    LOG("Found EgoVehicle definition registered at UId: %d as \"%s\"", Defn.UId, *Defn.Id);
-                    EgoVehicleDefn = Defn;
-                    bFoundEgoDef = true;
-                    break;
-                }
-            }
-            if (!bFoundEgoDef)
-            {
-                LOG_ERROR("Unable to find EgoVehicle definition in registry!");
-            }
-        }
-        FActorDescription DReyeVRDescr; // create a Description from the Definition to spawn the actor
-        {
-            DReyeVRDescr.UId = EgoVehicleDefn.UId;
-            DReyeVRDescr.Id = EgoVehicleDefn.Id;
-            DReyeVRDescr.Class = EgoVehicleDefn.Class;
-            // ensure this vehicle is denoted by the 'hero' attribute
-            FActorAttribute HeroRole;
-            HeroRole.Id = "role_name";
-            HeroRole.Type = EActorAttributeType::String;
-            HeroRole.Value = "hero";
-            DReyeVRDescr.Variations.Add(HeroRole.Id, std::move(HeroRole));
-        }
-        if (Episode != nullptr)
-        {
-            // calls Episode::SpawnActor => SpawnActorWithInfo => ActorDispatcher->SpawnActor => SpawnFunctions[UId]
-            EgoVehiclePtr = static_cast<AEgoVehicle *>(Episode->SpawnActor(SpawnPt, DReyeVRDescr));
-        }
-        else
-        {
-            LOG_ERROR("Null Episode in world!");
-        }
+        SpawnEgoVehicle(SpawnPt); // constructs and assigns EgoVehiclePtr
     }
 
     // finalize the EgoVehicle by installing the DReyeVR_Pawn to control it
@@ -574,6 +534,32 @@ void ADReyeVRGameMode::SetVolume()
             Vehicle->SetVolume(NewVolume);
         }
     }
+}
+
+void ADReyeVRGameMode::SpawnEgoVehicle(const FTransform &SpawnPt)
+{
+    UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(GetWorld());
+    check(Episode != nullptr);
+    FActorDefinition EgoVehicleDefn = FindDefnInRegistry(Episode, AEgoVehicle::StaticClass());
+    FActorDescription DReyeVRDescr;
+    { // create a Description from the Definition to spawn the actor
+        DReyeVRDescr.UId = EgoVehicleDefn.UId;
+        DReyeVRDescr.Id = EgoVehicleDefn.Id;
+        DReyeVRDescr.Class = EgoVehicleDefn.Class;
+        // ensure this vehicle is denoted by the 'hero' attribute
+        FActorAttribute HeroRole;
+        HeroRole.Id = "role_name";
+        HeroRole.Type = EActorAttributeType::String;
+        HeroRole.Value = "hero";
+        DReyeVRDescr.Variations.Add(HeroRole.Id, std::move(HeroRole));
+    }
+
+    if (Episode == nullptr)
+    {
+        LOG_ERROR("Null Episode in world!");
+    }
+    // calls Episode::SpawnActor => SpawnActorWithInfo => ActorDispatcher->SpawnActor => SpawnFunctions[UId]
+    EgoVehiclePtr = static_cast<AEgoVehicle *>(Episode->SpawnActor(SpawnPt, DReyeVRDescr));
 }
 
 FTransform ADReyeVRGameMode::GetSpawnPoint(int SpawnPointIndex) const
