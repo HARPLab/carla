@@ -3,6 +3,7 @@
 #include "Carla/Actor/ActorBlueprintFunctionLibrary.h" // UActorBlueprintFunctionLibrary
 #include "Carla/Actor/VehicleParameters.h"             // FVehicleParameters
 #include "Carla/Game/CarlaEpisode.h"                   // UCarlaEpisode
+#include "EgoSensor.h"                                 // AEgoSensor
 #include "EgoVehicle.h"                                // AEgoVehicle
 
 #define EgoVehicleBP_Str "/Game/Carla/Blueprints/Vehicles/DReyeVR/BP_EgoVehicle_DReyeVR.BP_EgoVehicle_DReyeVR_C"
@@ -17,22 +18,33 @@ ADReyeVRFactory::ADReyeVRFactory(const FObjectInitializer &ObjectInitializer) : 
 
 TArray<FActorDefinition> ADReyeVRFactory::GetDefinitions()
 {
-    FVehicleParameters Parameters;
-    Parameters.Make = "DReyeVR";
-    Parameters.Model = "Model3";
-    Parameters.ObjectType = EgoVehicleBP_Str;
-    Parameters.Class = AEgoVehicle::StaticClass();
-
-    // need to create an FActorDefinition from our FActorDescription for some reason -_-
-    FActorDefinition Definition;
-    bool Success = false;
-    UActorBlueprintFunctionLibrary::MakeVehicleDefinition(Parameters, Success, Definition);
-    if (!Success)
+    FActorDefinition EgoVehicleDef;
     {
-        LOG_ERROR("Unable to create DReyeVR vehicle definition!");
+        FVehicleParameters Parameters;
+        Parameters.Make = "DReyeVR";
+        Parameters.Model = "Model3";
+        Parameters.ObjectType = EgoVehicleBP_Str;
+        Parameters.Class = AEgoVehicle::StaticClass();
+
+        // need to create an FActorDefinition from our FActorDescription for some reason -_-
+        bool Success = false;
+        UActorBlueprintFunctionLibrary::MakeVehicleDefinition(Parameters, Success, EgoVehicleDef);
+        if (!Success)
+        {
+            LOG_ERROR("Unable to create DReyeVR vehicle definition!");
+        }
+        EgoVehicleDef.Class = Parameters.Class;
     }
-    Definition.Class = Parameters.Class;
-    return {Definition};
+
+    FActorDefinition EgoSensorDef;
+    {
+        const FString Type = "DReyeVR";
+        const FString Id = "Ego_Sensor";
+        EgoSensorDef = UActorBlueprintFunctionLibrary::MakeGenericSensorDefinition(Type, Id);
+        EgoSensorDef.Class = AEgoSensor::StaticClass();
+    }
+
+    return {EgoVehicleDef, EgoSensorDef};
 }
 
 FActorSpawnResult ADReyeVRFactory::SpawnActor(const FTransform &SpawnAtTransform,
@@ -45,9 +57,23 @@ FActorSpawnResult ADReyeVRFactory::SpawnActor(const FTransform &SpawnAtTransform
         return {};
     }
 
+    AActor *SpawnedActor = nullptr;
+
     FActorSpawnParameters SpawnParameters;
     SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    LOG("Spawning EgoVehicle (\"%s\") at: %s", *ActorDescription.Id, *SpawnAtTransform.ToString());
-    auto *EgoVehicleActor = World->SpawnActor<AEgoVehicle>(EgoVehicleBPClass, SpawnAtTransform, SpawnParameters);
-    return FActorSpawnResult(EgoVehicleActor);
+    if (ActorDescription.Class == AEgoVehicle::StaticClass())
+    {
+        LOG("Spawning EgoVehicle (\"%s\") at: %s", *ActorDescription.Id, *SpawnAtTransform.ToString());
+        SpawnedActor = World->SpawnActor<AEgoVehicle>(EgoVehicleBPClass, SpawnAtTransform, SpawnParameters);
+    }
+    else if (ActorDescription.Class == AEgoSensor::StaticClass())
+    {
+        LOG("Spawning EgoSensor (\"%s\") at: %s", *ActorDescription.Id, *SpawnAtTransform.ToString());
+        SpawnedActor = World->SpawnActor<AEgoSensor>(ActorDescription.Class, SpawnAtTransform, SpawnParameters);
+    }
+    else
+    {
+        LOG_ERROR("Unknown actor class in DReyeVR factory!");
+    }
+    return FActorSpawnResult(SpawnedActor);
 }

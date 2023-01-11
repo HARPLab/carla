@@ -24,7 +24,7 @@ import carla
 
 def find_ego_vehicle(world: carla.libcarla.World) -> Optional[carla.libcarla.Vehicle]:
     DReyeVR_vehicle = None
-    ego_vehicles = world.get_actors().filter("vehicle.dreyevr.egovehicle")
+    ego_vehicles = world.get_actors().filter("vehicle.dreyevr.*")
     try:
         DReyeVR_vehicle = ego_vehicles[0]  # TODO: support for multiple ego vehicles?
     except IndexError:
@@ -34,9 +34,9 @@ def find_ego_vehicle(world: carla.libcarla.World) -> Optional[carla.libcarla.Veh
 
 def find_ego_sensor(world: carla.libcarla.World) -> Optional[carla.libcarla.Sensor]:
     sensor = None
-    ego_sensors = world.get_actors().filter("sensor.dreyevr.dreyevrsensor")
+    ego_sensors = world.get_actors().filter("sensor.dreyevr.*")
     try:
-        sensor = ego_sensors[0]  # TODO: support for multiple eye trackers?
+        sensor = ego_sensors[0]  # TODO: support for multiple ego sensors?
     except IndexError:
         print("Unable to find DReyeVR ego sensor in world!")
     return sensor

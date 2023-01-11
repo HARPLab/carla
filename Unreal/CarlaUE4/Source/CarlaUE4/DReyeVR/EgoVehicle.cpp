@@ -1,6 +1,7 @@
 #include "EgoVehicle.h"
 #include "Carla/Actor/ActorAttribute.h"             // FActorAttribute
 #include "Carla/Actor/ActorRegistry.h"              // Register
+#include "Carla/Game/CarlaStatics.h"                // GetCurrentEpisode
 #include "Carla/Vehicle/CarlaWheeledVehicleState.h" // ECarlaWheeledVehicleState
 #include "DReyeVRPawn.h"                            // ADReyeVRPawn
 #include "DrawDebugHelpers.h"                       // Debug Line/Sphere
@@ -314,12 +315,28 @@ void AEgoVehicle::InitSensor()
     World = GetWorld();
     check(World != nullptr);
     // Spawn the EyeTracker Carla sensor and attach to Ego-Vehicle:
-    FActorSpawnParameters EyeTrackerSpawnInfo;
-    EyeTrackerSpawnInfo.Owner = this;
-    EyeTrackerSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    EgoSensor = World->SpawnActor<AEgoSensor>(GetCameraPosn(), FRotator::ZeroRotator, EyeTrackerSpawnInfo);
+    {
+        UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(World);
+        check(Episode != nullptr);
+        FActorDefinition EgoSensorDef = FindDefnInRegistry(Episode, AEgoSensor::StaticClass());
+        FActorDescription Description;
+        { // create a Description from the Definition to spawn the actor
+            Description.UId = EgoSensorDef.UId;
+            Description.Id = EgoSensorDef.Id;
+            Description.Class = EgoSensorDef.Class;
+        }
+
+        if (Episode == nullptr)
+        {
+            LOG_ERROR("Null Episode in world!");
+        }
+        // calls Episode::SpawnActor => SpawnActorWithInfo => ActorDispatcher->SpawnActor => SpawnFunctions[UId]
+        FTransform SpawnPt = FTransform(FRotator::ZeroRotator, GetCameraPosn(), FVector::OneVector);
+        EgoSensor = static_cast<AEgoSensor *>(Episode->SpawnActor(SpawnPt, Description));
+    }
     check(EgoSensor != nullptr);
     // Attach the EgoSensor as a child to the EgoVehicle
+    EgoSensor->SetOwner(this);
     EgoSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
     EgoSensor->SetEgoVehicle(this);
     if (DReyeVRGame)

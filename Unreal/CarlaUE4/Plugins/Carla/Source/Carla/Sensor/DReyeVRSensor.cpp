@@ -43,11 +43,13 @@ void ADReyeVRSensor::Set(const FActorDescription &Description)
 
 void ADReyeVRSensor::SetOwner(AActor *Owner)
 {
-    check(Owner != nullptr);
     Super::SetOwner(Owner);
-    // Set Transform to the same as the Owner
-    SetActorLocation(Owner->GetActorLocation());
-    SetActorRotation(Owner->GetActorRotation());
+    if (Owner != nullptr)
+    {
+        // Set Transform to the same as the Owner
+        SetActorLocation(Owner->GetActorLocation());
+        SetActorRotation(Owner->GetActorRotation());
+    }
 }
 
 void ADReyeVRSensor::BeginPlay()
