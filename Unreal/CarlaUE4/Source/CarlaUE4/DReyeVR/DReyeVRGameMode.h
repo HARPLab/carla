@@ -24,16 +24,20 @@ class ADReyeVRGameMode : public ACarlaGameModeBase
 
     virtual void Tick(float DeltaSeconds) override;
 
+    ADReyeVRPawn *GetPawn()
+    {
+        return DReyeVR_Pawn;
+    }
+
+    void SetEgoVehicle(AEgoVehicle *Vehicle)
+    {
+        EgoVehiclePtr = Vehicle;
+    }
+
     // input handling
     void SetupPlayerInputComponent();
 
     // EgoVehicle functions
-    enum DRIVER
-    {
-        HUMAN,
-        SPECTATOR,
-        AI,
-    } ControlMode;
     void PossessEgoVehicle();
     void PossessSpectator();
     void HandoffDriverToAI();

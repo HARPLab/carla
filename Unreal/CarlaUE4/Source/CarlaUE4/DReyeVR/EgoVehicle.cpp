@@ -88,12 +88,16 @@ void AEgoVehicle::BeginPlay()
 
     // Get information about the world
     World = GetWorld();
+    ensure(World != nullptr);
 
     // initialize
     InitAIPlayer();
 
     // Bug-workaround for initial delay on throttle; see https://github.com/carla-simulator/carla/issues/1640
     this->GetVehicleMovementComponent()->SetTargetGear(1, true);
+
+    // get the GameMode script
+    SetGame(Cast<ADReyeVRGameMode>(UGameplayStatics::GetGameMode(World)));
 
     LOG("Initialized DReyeVR EgoVehicle");
 }
@@ -722,8 +726,12 @@ void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
 
 void AEgoVehicle::SetGame(ADReyeVRGameMode *Game)
 {
-    this->DReyeVRGame = Game;
+    DReyeVRGame = Game;
     check(DReyeVRGame != nullptr);
+    DReyeVRGame->SetEgoVehicle(this);
+
+    DReyeVRGame->GetPawn()->BeginEgoVehicle(this, World);
+    LOG("Successfully assigned GameMode & controller pawn");
 }
 
 ADReyeVRGameMode *AEgoVehicle::GetGame()

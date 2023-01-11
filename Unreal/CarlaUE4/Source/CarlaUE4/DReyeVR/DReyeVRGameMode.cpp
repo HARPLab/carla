@@ -86,12 +86,8 @@ void ADReyeVRGameMode::BeginPlay()
     // Initialize DReyeVR spectator
     SetupSpectator();
 
-    // Find the ego vehicle in the world
-    /// TODO: optionally, spawn ego-vehicle here with parametrized inputs
+    // Initialize the DReyeVR EgoVehicle (and Sensor)
     SetupEgoVehicle();
-
-    // Initialize control mode
-    ControlMode = DRIVER::HUMAN;
 }
 
 void ADReyeVRGameMode::SetupDReyeVRPawn()
@@ -150,13 +146,6 @@ bool ADReyeVRGameMode::SetupEgoVehicle()
 
     // finalize the EgoVehicle by installing the DReyeVR_Pawn to control it
     check(EgoVehiclePtr != nullptr);
-    EgoVehiclePtr->SetGame(this);
-    if (DReyeVR_Pawn)
-    {
-        // need to assign ego vehicle before possess!
-        DReyeVR_Pawn->BeginEgoVehicle(EgoVehiclePtr, GetWorld());
-        LOG("Created DReyeVR controller pawn");
-    }
     return (EgoVehiclePtr != nullptr);
 }
 
@@ -248,9 +237,15 @@ void ADReyeVRGameMode::PossessEgoVehicle()
 {
     if (EgoVehiclePtr == nullptr)
     {
-        LOG_WARN("No EgoVehicle to possess!");
-        return;
+        LOG_WARN("No EgoVehicle to possess! Attempting to remedy...");
+        SetupEgoVehicle();
+        if (EgoVehiclePtr == nullptr)
+        {
+            LOG_ERROR("Remedy failed, unable to possess EgoVehicle");
+            return;
+        }
     }
+    EgoVehiclePtr->SetAutopilot(false);
 
     if (DReyeVR_Pawn == nullptr)
     {
@@ -267,12 +262,14 @@ void ADReyeVRGameMode::PossessEgoVehicle()
     { // check if already possessing EgoVehicle (DReyeVRPawn)
         ensure(Player != nullptr);
         if (Player->GetPawn() == DReyeVR_Pawn)
+        {
+            LOG("Currently possessing EgoVehicle");
             return;
+        }
     }
 
     LOG("Possessing DReyeVR EgoVehicle");
     Player->Possess(DReyeVR_Pawn);
-    EgoVehiclePtr->SetAutopilot(false);
 }
 
 void ADReyeVRGameMode::PossessSpectator()
@@ -291,7 +288,10 @@ void ADReyeVRGameMode::PossessSpectator()
     { // check if already possessing spectator
         ensure(Player != nullptr);
         if (Player->GetPawn() == SpectatorPtr)
+        {
+            LOG("Already possessing Spectator");
             return;
+        }
     }
 
     if (EgoVehiclePtr)
@@ -310,13 +310,21 @@ void ADReyeVRGameMode::HandoffDriverToAI()
 {
     if (EgoVehiclePtr == nullptr)
     {
-        LOG_ERROR("No EgoVehicle to handoff AI control");
-        return;
+        LOG_WARN("No EgoVehicle to handoff AI control! Attempting to remedy...");
+        SetupEgoVehicle();
+        if (EgoVehiclePtr == nullptr)
+        {
+            LOG_ERROR("Remedy failed, unable to access EgoVehicle");
+            return;
+        }
     }
 
     { // check if autopilot already enabled
         if (EgoVehiclePtr->GetAutopilotStatus() == true)
+        {
+            LOG("EgoVehicle autopilot already on");
             return;
+        }
     }
     EgoVehiclePtr->SetAutopilot(true);
     LOG("Enabling EgoVehicle Autopilot");
