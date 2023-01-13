@@ -50,6 +50,7 @@ public:
 
   /// Update the day night cycle
   void SetDayNightCycle(const bool &active);
+  static AWeather *FindWeatherInstance(UWorld *World);
 
 protected:
 
@@ -59,6 +60,7 @@ protected:
 private:
 
   void CheckWeatherPostProcessEffects();
+  void AddWeatherToRecorder() const;
 
   UPROPERTY(VisibleAnywhere)
   FWeatherParameters Weather;

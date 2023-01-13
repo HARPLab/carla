@@ -25,6 +25,8 @@
 #include "CarlaRecorderPosition.h"
 #include "CarlaRecorderState.h"
 #include "CarlaRecorderWalkerBones.h"
+#include "CarlaRecorderWeather.h"
+#include "DReyeVRRecorder.h"
 
 class CarlaRecorderQuery
 {
@@ -68,6 +70,10 @@ private:
   CarlaRecorderPhysicsControl PhysicsControl;
   CarlaRecorderTrafficLightTime TrafficLightTime;
   CarlaRecorderWalkerBones WalkerBones;
+  CarlaRecorderWeather Weather;
+  // custom DReyeVR packets
+  DReyeVRDataRecorder<DReyeVR::AggregateData> DReyeVRAggDataInstance;
+  DReyeVRDataRecorder<DReyeVR::CustomActorData> DReyeVRCustomActorDataInstance;
 
   // read next header packet
   bool ReadHeader(void);

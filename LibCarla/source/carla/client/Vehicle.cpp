@@ -36,6 +36,7 @@ namespace client {
       _is_control_sticky(GetControlIsSticky(GetAttributes())) {}
 
   void Vehicle::SetAutopilot(bool enabled, uint16_t tm_port) {
+    GetEpisode().Lock()->SetVehicleAutopilot(*this, enabled); 
     TM tm(GetEpisode(), tm_port);
     if (enabled) {
       tm.RegisterVehicles({shared_from_this()});

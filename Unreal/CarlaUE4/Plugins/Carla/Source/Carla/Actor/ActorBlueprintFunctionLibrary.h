@@ -24,7 +24,7 @@ class AShaderBasedSensor;
 struct FLidarDescription;
 
 UCLASS()
-class UActorBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
+class CARLA_API UActorBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
   GENERATED_BODY()
 

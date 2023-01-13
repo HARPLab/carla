@@ -6,6 +6,7 @@
 
 #include "Carla.h"
 #include "Carla/Weather/Weather.h"
+#include "Carla/Game/CarlaStatics.h"
 #include "Carla/Sensor/SceneCaptureCamera.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Kismet/GameplayStatics.h"
@@ -93,10 +94,48 @@ void AWeather::NotifyWeather(ASensor* Sensor)
 
 void AWeather::SetWeather(const FWeatherParameters& InWeather)
 {
+  // check if weather has changed (else, do nothing)
+  if (InWeather != Weather)
+  {
     Weather = InWeather;
+
+    // Record the weather update
+    AddWeatherToRecorder();
+  }
 }
 
 void AWeather::SetDayNightCycle(const bool& active)
 {
     DayNightCycle = active;
+}
+
+void AWeather::AddWeatherToRecorder() const
+{
+  auto *Recorder = UCarlaStatics::GetRecorder(GetWorld());
+  if (Recorder && Recorder->IsEnabled())
+  {
+    Recorder->AddWeather(GetCurrentWeather());
+  }
+}
+
+AWeather *AWeather::FindWeatherInstance(UWorld *World)
+{
+  if(World)
+  {
+    // find the Weather actor in the world (TODO: spawn if necessary)
+    TArray<AActor*> FoundWeathers;
+    UGameplayStatics::GetAllActorsOfClass(World, AWeather::StaticClass(), FoundWeathers);
+    if (FoundWeathers.Num() > 0)
+    {
+      /// TODO: check for more than one weather(s)
+      return CastChecked<AWeather>(FoundWeathers[0]);
+    }
+    else
+    {
+      UE_LOG(LogCarla, Error, TEXT("No Weather actor found in world"));
+      return nullptr;
+    }
+  }
+  UE_LOG(LogCarla, Error, TEXT("UWorld unavailable for finding weather"));
+  return nullptr;
 }

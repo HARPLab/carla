@@ -2,6 +2,7 @@
 #include "Carla/Settings/CarlaSettingsDelegate.h"
 
 #include "Carla/Settings/CarlaSettings.h"
+#include "Carla/Game/CarlaGameInstance.h" // UCarlaGameInstance
 
 #include "Async.h"
 #include "Components/StaticMeshComponent.h"
@@ -93,9 +94,10 @@ void UCarlaSettingsDelegate::ApplyQualityLevelPostRestart()
       SetAllLights(InWorld, CarlaSettings->LowLightFadeDistance, false, true);
       // Set all the roads the low quality materials
       SetAllRoads(InWorld, CarlaSettings->LowRoadPieceMeshMaxDrawDistance, CarlaSettings->LowRoadMaterials);
-      // Set all actors with static meshes a max disntace configured in the
+      // Set all actors with static meshes a max distance configured in the
       // global settings for the low quality
-      SetAllActorsDrawDistance(InWorld, CarlaSettings->LowStaticMeshMaxDrawDistance);
+      // SetAllActorsDrawDistance(InWorld, CarlaSettings->LowStaticMeshMaxDrawDistance);
+      SetAllActorsDrawDistance(InWorld, 0); // full render distance
       // Disable all post process volumes
       SetPostProcessEffectsEnabled(InWorld, false);
       break;

@@ -41,6 +41,30 @@ void WriteFVector(std::ostream &OutFile, const FVector &InObj)
   WriteValue<float>(OutFile, InObj.Z);
 }
 
+// write binary data from FRotator
+void WriteFRotator(std::ostream &OutFile, const FRotator &InObj)
+{
+  WriteValue<float>(OutFile, InObj.Pitch);
+  WriteValue<float>(OutFile, InObj.Roll);
+  WriteValue<float>(OutFile, InObj.Yaw);
+}
+
+// write binary data from FVector2D
+void WriteFVector2D(std::ostream &OutFile, const FVector2D &InObj)
+{
+  WriteValue<float>(OutFile, InObj.X);
+  WriteValue<float>(OutFile, InObj.Y);
+}
+
+// write binary data to FLinearColor
+void WriteFLinearColor(std::ostream &InFile, const FLinearColor &InObj)
+{
+  WriteValue<float>(InFile, InObj.A);
+  WriteValue<float>(InFile, InObj.B);
+  WriteValue<float>(InFile, InObj.G);
+  WriteValue<float>(InFile, InObj.R);
+}
+
 // write binary data from FTransform
 void WriteFTransform(std::ofstream &OutFile, const FTransform &InObj)
 {
@@ -69,6 +93,30 @@ void ReadFVector(std::istream &InFile, FVector &OutObj)
   ReadValue<float>(InFile, OutObj.X);
   ReadValue<float>(InFile, OutObj.Y);
   ReadValue<float>(InFile, OutObj.Z);
+}
+
+// read binary data to FRotator
+void ReadFRotator(std::istream &InFile, FRotator &OutObj)
+{
+  ReadValue<float>(InFile, OutObj.Pitch);
+  ReadValue<float>(InFile, OutObj.Roll);
+  ReadValue<float>(InFile, OutObj.Yaw);
+}
+
+// read binary data to FVector2D
+void ReadFVector2D(std::istream &InFile, FVector2D &OutObj)
+{
+  ReadValue<float>(InFile, OutObj.X);
+  ReadValue<float>(InFile, OutObj.Y);
+}
+
+// read binary data to FLinearColor
+void ReadFLinearColor(std::istream &InFile, FLinearColor &OutObj)
+{
+  ReadValue<float>(InFile, OutObj.A);
+  ReadValue<float>(InFile, OutObj.B);
+  ReadValue<float>(InFile, OutObj.G);
+  ReadValue<float>(InFile, OutObj.R);
 }
 
 // read binary data to FTransform

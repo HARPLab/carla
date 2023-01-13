@@ -17,6 +17,7 @@
 #include "Carla/Walker/WalkerControl.h"
 #include "Carla/Walker/WalkerController.h"
 #include "Components/BoxComponent.h"
+#include "Carla/Weather/Weather.h"
 
 #include <compiler/disable-ue4-macros.h>
 #include "carla/rpc/VehicleLightState.h"
@@ -24,6 +25,13 @@
 
 #include "CarlaRecorder.h"
 #include "CarlaReplayerHelper.h"
+
+// DReyeVR include
+#include "Carla/Actor/DReyeVRCustomActor.h"
+#include "Carla/Game/CarlaStatics.h"
+#include "Carla/Lights/CarlaLightSubsystem.h"
+#include "Carla/Sensor/DReyeVRSensor.h"
+#include "DReyeVRRecorder.h"
 
 #include <ctime>
 #include <sstream>
@@ -134,6 +142,8 @@ void ACarlaRecorder::Ticking(float DeltaSeconds)
           break;
       }
     }
+    // Add the DReyeVR data
+    AddDReyeVRData();
 
     // write all data for this frame
     Write(DeltaSeconds);
@@ -274,6 +284,26 @@ void ACarlaRecorder::AddActorBoundingBox(FCarlaActor *CarlaActor)
   AddBoundingBox(BoundingBox);
 }
 
+void ACarlaRecorder::AddDReyeVRData()
+{
+  // Add the latest instance of the DReyeVR snapshot to our data
+  DReyeVRAggData.Add(DReyeVRDataRecorder<DReyeVR::AggregateData>(ADReyeVRSensor::Data));
+
+  TArray<AActor *> FoundActors;
+  if (Episode != nullptr && Episode->GetWorld() != nullptr)
+  {
+      UGameplayStatics::GetAllActorsOfClass(Episode->GetWorld(), ADReyeVRCustomActor::StaticClass(), FoundActors);
+  }
+  for (AActor *A : FoundActors)
+  {
+    ADReyeVRCustomActor *CustomActor = Cast<ADReyeVRCustomActor>(A);
+    if (CustomActor != nullptr && CustomActor->IsActive())
+    {
+      DReyeVRCustomActorData.Add(DReyeVRDataRecorder<DReyeVR::CustomActorData>(&(CustomActor->GetInternals())));
+    }
+  }
+}
+
 void ACarlaRecorder::AddTriggerVolume(const ATrafficSignBase &TrafficSign)
 {
   if (bAdditionalData)
@@ -343,6 +373,13 @@ void ACarlaRecorder::AddActorBones(FCarlaActor *CarlaActor)
   WalkersBones.Add(std::move(Walker));
 }
 
+void ACarlaRecorder::AddWeather(const FWeatherParameters& WeatherParams)
+{
+  CarlaRecorderWeather Weather;
+  Weather.Params = WeatherParams;
+  Weathers.Add(Weather);
+}
+
 std::string ACarlaRecorder::Start(std::string Name, FString MapName, bool AdditionalData)
 {
   // stop replayer if any in course
@@ -384,6 +421,9 @@ std::string ACarlaRecorder::Start(std::string Name, FString MapName, bool Additi
   // add all existing actors
   AddExistingActors();
 
+  // add current weather for start of recording
+  AddStartingWeather();
+
   return std::string(Filename);
 }
 
@@ -417,6 +457,9 @@ void ACarlaRecorder::Clear(void)
   PhysicsControls.Clear();
   TrafficLightTimes.Clear();
   WalkersBones.Clear();
+  DReyeVRAggData.Clear();
+  DReyeVRCustomActorData.Clear();
+  Weathers.Clear();
 }
 
 void ACarlaRecorder::Write(double DeltaSeconds)
@@ -455,6 +498,14 @@ void ACarlaRecorder::Write(double DeltaSeconds)
     TrafficLightTimes.Write(File);
     WalkersBones.Write(File);
   }
+  // custom DReyeVR data
+  DReyeVRAggData.Write(File);
+
+  // custom DReyeVR Actor data write
+  DReyeVRCustomActorData.Write(File);
+
+  // weather state
+  Weathers.Write(File);
 
   // end
   Frames.WriteEnd(File);
@@ -634,6 +685,15 @@ void ACarlaRecorder::AddExistingActors(void)
     }
   }
 
+}
+
+void ACarlaRecorder::AddStartingWeather(void)
+{
+  AWeather *Weather = AWeather::FindWeatherInstance(Episode->GetWorld());
+  if (Weather)
+  {
+    AddWeather(Weather->GetCurrentWeather());
+  }
 }
 
 void ACarlaRecorder::CreateRecorderEventAdd(

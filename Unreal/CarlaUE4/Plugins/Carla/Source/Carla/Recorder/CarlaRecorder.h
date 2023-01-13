@@ -31,7 +31,12 @@
 #include "CarlaRecorderState.h"
 #include "CarlaRecorderVisualTime.h"
 #include "CarlaRecorderWalkerBones.h"
+#include "CarlaRecorderWeather.h"
 #include "CarlaReplayer.h"
+
+// DReyeVR includes
+#include "DReyeVRRecorder.h"
+#include "Carla/Sensor/DReyeVRData.h"
 
 #include "CarlaRecorder.generated.h"
 
@@ -41,6 +46,9 @@ class ACarlaWheeledVehicle;
 class UCarlaLight;
 class ATrafficSignBase;
 class ATrafficLightBase;
+
+#define DREYEVR_PACKET_ID 139
+#define DREYEVR_CUSTOM_ACTOR_PACKET_ID 140
 
 enum class CarlaRecorderPacketId : uint8_t
 {
@@ -64,7 +72,11 @@ enum class CarlaRecorderPacketId : uint8_t
   TriggerVolume,
   FrameCounter,
   WalkerBones,
-  VisualTime
+  VisualTime,
+  Weather,
+  // "We suggest to use id over 100 for user custom packets, because this list will keep growing in the future"
+  DReyeVR = DREYEVR_PACKET_ID,                        // our custom DReyeVR packet (for raw sensor data)
+  DReyeVRCustomActor = DREYEVR_CUSTOM_ACTOR_PACKET_ID // custom DReyeVR actors (not raw sensor data)
 };
 
 /// Recorder for the simulation
@@ -128,6 +140,8 @@ public:
   void AddTrafficLightTime(const ATrafficLightBase& TrafficLight);
 
   void AddActorBones(FCarlaActor *CarlaActor);
+
+  void AddWeather(const FWeatherParameters& WeatherParams);
 
   // set episode
   void SetEpisode(UCarlaEpisode *ThisEpisode)
@@ -197,6 +211,9 @@ private:
   CarlaRecorderTrafficLightTimes TrafficLightTimes;
   CarlaRecorderWalkersBones WalkersBones;
   CarlaRecorderVisualTime VisualTime;
+  CarlaRecorderWeathers Weathers;
+  DReyeVRDataRecorders<DReyeVR::AggregateData, DREYEVR_PACKET_ID> DReyeVRAggData;
+  DReyeVRDataRecorders<DReyeVR::CustomActorData, DREYEVR_CUSTOM_ACTOR_PACKET_ID> DReyeVRCustomActorData;
 
   // replayer
   CarlaReplayer Replayer;
@@ -205,6 +222,7 @@ private:
   CarlaRecorderQuery Query;
 
   void AddExistingActors(void);
+  void AddStartingWeather(void);
   void AddActorPosition(FCarlaActor *CarlaActor);
   void AddWalkerAnimation(FCarlaActor *CarlaActor);
   void AddVehicleAnimation(FCarlaActor *CarlaActor);
@@ -212,4 +230,5 @@ private:
   void AddVehicleLight(FCarlaActor *CarlaActor);
   void AddActorKinematics(FCarlaActor *CarlaActor);
   void AddActorBoundingBox(FCarlaActor *CarlaActor);
+  void AddDReyeVRData();
 };
