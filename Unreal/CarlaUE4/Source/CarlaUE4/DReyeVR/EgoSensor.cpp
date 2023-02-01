@@ -78,7 +78,9 @@ void AEgoSensor::BeginPlay()
 #if USE_FOVEATED_RENDER
     // Initialize VRS plugin (using our VRS fork!)
     UVariableRateShadingFunctionLibrary::EnableVRS(bEnableFovRender);
-    UVariableRateShadingFunctionLibrary::EnableEyeTracking(bEnableFovRender);
+    bool bUseFixedFoveatedRendering = false; // fixed does not use eye tracking!
+    UVariableRateShadingFunctionLibrary::EnableEyeTracking(!bUseFixedFoveatedRendering);
+    LOG("Initializing foveated rendering (variable rate shading");
 #endif
 
     LOG("Initialized DReyeVR EgoSensor");
@@ -518,8 +520,8 @@ void AEgoSensor::TickFoveatedRender()
     F.LeftEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::LEFT);
     ConvertToEyeTrackerSpace(F.LeftEyeDirection);
     F.RightEyeOrigin = GetData()->GetGazeOrigin(DReyeVR::Gaze::RIGHT);
-    ConvertToEyeTrackerSpace(F.RightEyeDirection);
     F.RightEyeDirection = GetData()->GetGazeDir(DReyeVR::Gaze::RIGHT);
+    ConvertToEyeTrackerSpace(F.RightEyeDirection);
     F.FixationPoint = GetData()->GetFocusActorPoint();
     F.ConfidenceValue = 0.99f;
     UVariableRateShadingFunctionLibrary::UpdateStereoGazeDataToFoveatedRendering(F);
