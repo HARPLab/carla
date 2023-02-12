@@ -125,19 +125,18 @@ void AEgoSensor::InitEyeTracker()
     const FString SR_Version(SR_Version_chars);
     {
         // we found that these versions work great, other versions may cause random crashes
-        const std::vector<std::string> SupportedVersions = {"1.3.1.1", "1.3.2.0", "1.3.3.0"};
-        auto FoundVersion = std::find(SupportedVersions.begin(), SupportedVersions.end(), std::string(SR_Version_chars));
-        bool bIsCompatible = (FoundVersion != SupportedVersions.end());
+        const std::vector<std::string> SupportedVers = {"1.3.1.1", "1.3.2.0", "1.3.3.0"};
+        auto FoundVersion = std::find(SupportedVers.begin(), SupportedVers.end(), std::string(SR_Version_chars));
+        bool bIsCompatible = (FoundVersion != SupportedVers.end());
         if (!bIsCompatible)
         {
-            std::string SupportedVersionsStr = "";
-            for (const auto &Ver : SupportedVersions)
-                SupportedVersionsStr += Ver + ", ";
+            std::string SupportedVersStr = "";
+            for (const auto &Ver : SupportedVers)
+                SupportedVersStr += Ver + ", ";
             LOG_ERROR("Detected incompatible SRanipal version: %s", *SR_Version);
-            LOG_WARN("Please use a compatible SRanipal version such as: {%s}", *FString(SupportedVersionsStr.c_str()));
+            LOG_WARN("Please use a compatible SRanipal version such as: {%s}", *FString(SupportedVersStr.c_str()));
             LOG("Check out the DReyeVR documentation to download a supported version.");
-            LOG("Disabling SRanipal for now").
-            bSRanipalEnabled = false;
+            LOG("Disabling SRanipal for now").bSRanipalEnabled = false;
             return;
         }
 
