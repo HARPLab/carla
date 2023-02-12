@@ -135,8 +135,8 @@ void AEgoSensor::InitEyeTracker()
                 SupportedVersStr += Ver + ", ";
             LOG_ERROR("Detected incompatible SRanipal version: %s", *SR_Version);
             LOG_WARN("Please use a compatible SRanipal version such as: {%s}", *FString(SupportedVersStr.c_str()));
-            LOG("Check out the DReyeVR documentation to download a supported version.");
-            LOG("Disabling SRanipal for now");
+            LOG_WARN("Check out the DReyeVR documentation to download a supported version.");
+            LOG_WARN("Disabling SRanipal for now...");
             bSRanipalEnabled = false;
             return;
         }
