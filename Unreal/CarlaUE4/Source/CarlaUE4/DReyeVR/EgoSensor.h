@@ -103,6 +103,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void TickFoveatedRender();
     void ConvertToEyeTrackerSpace(FVector &inVec) const;
     bool bEnableFovRender = false;
+    bool bUseEyeTrackingVRS = true;
 
     ////////////////:REPLAY:////////////////
     class ADReyeVRGameMode *DReyeVRGame = nullptr;

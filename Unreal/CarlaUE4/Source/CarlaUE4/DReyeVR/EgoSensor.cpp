@@ -58,8 +58,11 @@ void AEgoSensor::ReadConfigVariables()
     ReadConfigValue("Replayer", "FrameDir", FrameCapLocation);
     ReadConfigValue("Replayer", "FrameName", FrameCapFilename);
 
+#if USE_FOVEATED_RENDER
     // foveated rendering variables
-    ReadConfigValue("FoveatedRender", "Enabled", bEnableFovRender);
+    ReadConfigValue("VariableRateShading", "Enabled", bEnableFovRender);
+    ReadConfigValue("VariableRateShading", "UsingEyeTracking", bUseEyeTrackingVRS);
+#endif
 }
 
 void AEgoSensor::BeginPlay()
@@ -75,8 +78,7 @@ void AEgoSensor::BeginPlay()
 #if USE_FOVEATED_RENDER
     // Initialize VRS plugin (using our VRS fork!)
     UVariableRateShadingFunctionLibrary::EnableVRS(bEnableFovRender);
-    bool bUseFixedFoveatedRendering = false; // fixed does not use eye tracking!
-    UVariableRateShadingFunctionLibrary::EnableEyeTracking(!bUseFixedFoveatedRendering);
+    UVariableRateShadingFunctionLibrary::EnableEyeTracking(bUseEyeTrackingVRS);
     LOG("Initialized Variable Rate Shading (VRS) plugin");
 #endif
 
