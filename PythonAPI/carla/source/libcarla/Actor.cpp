@@ -125,6 +125,7 @@ void export_actor() {
       .def("add_torque", &cc::Actor::AddTorque, (arg("torque")))
       .def("set_simulate_physics", &cc::Actor::SetSimulatePhysics, (arg("enabled") = true))
       .def("set_enable_gravity", &cc::Actor::SetEnableGravity, (arg("enabled") = true))
+      .def("enable_overlay", &cc::Actor::SetEnableOverlay, (arg("enabled") = true))
       .def("destroy", CALL_WITHOUT_GIL(cc::Actor, Destroy))
       .def(self_ns::str(self_ns::self))
   ;

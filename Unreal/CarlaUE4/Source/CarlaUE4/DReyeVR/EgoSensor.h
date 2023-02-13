@@ -3,20 +3,16 @@
 #include "Carla/Sensor/DReyeVRData.h"           // DReyeVR namespace
 #include "Carla/Sensor/DReyeVRSensor.h"         // ADReyeVRSensor
 #include "Components/SceneCaptureComponent2D.h" // USceneCaptureComponent2D
-#include "EgoVehicle.h"                         // AEgoVehicle;
 #include <chrono>                               // timing threads
 #include <cstdint>
 
-// #define USE_SRANIPAL_PLUGIN true // handled in .Build.cs file
-#define SRANIPAL_EYE_SWAP_FIXED false // as of v1.3.1.1 this bug is unfortunately still present
+#if USE_SRANIPAL_PLUGIN
 
-#ifndef _WIN32
-// unset the #define if on anything other than Windows bc the SRanipal libraries only work on Windows :(
-#undef USE_SRANIPAL_PLUGIN
-#define USE_SRANIPAL_PLUGIN false
+// avoid macro conflict since SRanipal uses "ERROR" often
+#ifdef ERROR
+#undef ERROR
 #endif
 
-#if USE_SRANIPAL_PLUGIN
 /// NOTE: Can only use SRanipal on Windows machines
 #include "SRanipalEye.h"      // SRanipal Module Framework
 #include "SRanipalEye_Core.h" // SRanipal Eye Tracker
@@ -28,6 +24,7 @@
 #include "EgoSensor.generated.h"
 
 class AEgoVehicle;
+class ADReyeVRGameMode;
 
 UCLASS()
 class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
@@ -40,6 +37,14 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void ManualTick(float DeltaSeconds); // Tick called explicitly from DReyeVR EgoVehicle
 
     void SetEgoVehicle(class AEgoVehicle *EgoVehicle); // provide access to EgoVehicle (and by extension its camera)
+    void SetGame(class ADReyeVRGameMode *Game);        // provides access to ADReyeVRGameMode
+
+    void UpdateData(const DReyeVR::AggregateData &RecorderData, const double Per) override;
+    void UpdateData(const DReyeVR::CustomActorData &RecorderData, const double Per) override;
+
+    // function where replayer requests a screenshot
+    void TakeScreenshot() override;
+    bool ComputeGazeTrace(FHitResult &Hit, const ECollisionChannel TraceChannel, float TraceRadius = 0.f) const;
 
   protected:
     void BeginPlay();
@@ -56,6 +61,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     void DestroyEyeTracker();
     void ComputeDummyEyeData(); // when no hardware sensor is present
     void TickEyeTracker();      // tick hardware sensor
+    void ComputeFocusInfo();
     void ComputeTraceFocusInfo(const ECollisionChannel TraceChannel, float TraceRadius = 0.f);
     float MaxTraceLenM = 100.f;        // maximum trace length in m
     bool bDrawDebugFocusTrace = false; // draw the trace ray and hit point or not
@@ -78,7 +84,7 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     ////////////////:FRAMECAPTURE:////////////////
     void ConstructFrameCapture(); // needs to be called in the constructor
     void InitFrameCapture();      // needs to be called in BeginPlay
-    void TickFrameCapture();
+    size_t ScreenshotCount = 0;
     class UCameraComponent *Camera; // for frame capture views
     class UTextureRenderTarget2D *CaptureRenderTarget = nullptr;
     class USceneCaptureComponent2D *FrameCap = nullptr;
@@ -87,8 +93,18 @@ class CARLAUE4_API AEgoSensor : public ADReyeVRSensor
     int FrameCapWidth;
     int FrameCapHeight;
     bool bCaptureFrameData;
+    bool bRecordAllShaders;
+    bool bRecordAllPoses;
+    bool bCreatedDirectory = false;
+    bool bFileFormatJPG = true;
+    bool bFrameCapForceLinearGamma = true;
 
-    ////////////////:OTHER:////////////////
-    int EgoSensorID;
-    void Register();
+    ////////////////:FOVEATEDRENDER:////////////////
+    void TickFoveatedRender();
+    void ConvertToEyeTrackerSpace(FVector &inVec) const;
+    bool bEnableFovRender = false;
+    bool bUseEyeTrackingVRS = true;
+
+    ////////////////:REPLAY:////////////////
+    class ADReyeVRGameMode *DReyeVRGame = nullptr;
 };

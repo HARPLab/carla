@@ -166,13 +166,23 @@ public:
   template<typename T>
   T* GetActorData()
   {
+#ifdef __APPLE__
+    // static cast is fine because there are no null checks
+    return static_cast<T*>(ActorData.Get());
+#else
     return dynamic_cast<T*>(ActorData.Get());
+#endif
   }
 
   template<typename T>
   const T* GetActorData() const
   {
+#ifdef __APPLE__
+    // static cast is fine because there are no null checks
+    return static_cast<T*>(ActorData.Get());
+#else
     return dynamic_cast<T*>(ActorData.Get());
+#endif
   }
 
   // Actor function interface ----------------------
@@ -226,6 +236,8 @@ public:
   virtual ECarlaServerResponse SetActorSimulatePhysics(bool bEnabled);
 
   virtual ECarlaServerResponse SetActorEnableGravity(bool bEnabled);
+
+  virtual ECarlaServerResponse SetActorEnableOverlay(bool bEnabled);
 
   // Vehicle functions
   virtual ECarlaServerResponse EnableActorConstantVelocity(const FVector&)

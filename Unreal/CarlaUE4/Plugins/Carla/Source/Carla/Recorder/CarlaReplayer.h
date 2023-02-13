@@ -9,6 +9,8 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include <functional>
 #include "CarlaRecorderInfo.h"
@@ -24,7 +26,7 @@
 
 class UCarlaEpisode;
 
-class CarlaReplayer
+class CARLA_API CarlaReplayer
 {
   #pragma pack(push, 1)
   struct Header
@@ -93,10 +95,19 @@ public:
   void Tick(float Time);
 
   // DReyeVR replayer functions
-  void PlayPause();
-  void Restart();
-  void Advance(const float Amnt);
-  void IncrTimeFactor(const float Amnt_s);
+  void PlayPause()
+  {
+    Paused = !Paused;
+  }
+
+  void Restart(); // calls ReplayFile which is implemented in .cpp
+
+  void Advance(const float Amnt); // long function implemented in .cpp file
+
+  void SetSyncMode(bool bSyncModeIn)
+  {
+    bReplaySync = bSyncModeIn;
+  }
   
 private:
 
@@ -154,8 +165,12 @@ private:
   void ProcessLightVehicle(void);
   void ProcessLightScene(void);
 
+  void ProcessWeather(void);
+
   // DReyeVR recordings
-  void ProcessDReyeVRData(void);
+  template <typename T> void ProcessDReyeVRData(double Per, double DeltaTime, bool bShouldBeOnlyOne);
+  std::unordered_set<std::string> Visited = {};
+
   // For restarting the recording with the same params
   struct LastReplayStruct
   {
@@ -166,9 +181,11 @@ private:
   };
   LastReplayStruct LastReplay;
 
-  // DReyeVR sensor data
-  DReyeVRDataRecorder DReyeVRDataInstance;
-  void UpdateDReyeVRSensor(double Per, double DeltaTime);
+  bool bReplaySync = false;
+  std::vector<double> FrameStartTimes;
+  size_t SyncCurrentFrameId = 0;
+  void GetFrameStartTimes();
+  void ProcessFrameByFrame();
 
   // positions
   void UpdatePositions(double Per, double DeltaTime);

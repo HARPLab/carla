@@ -435,6 +435,10 @@ namespace detail {
       _client.SetActorEnableGravity(actor.GetId(), enabled);
     }
 
+    void SetActorEnableOverlay(Actor &actor, bool enabled) {
+      _client.SetActorEnableOverlay(actor.GetId(), enabled);
+    }
+
     /// @}
     // =========================================================================
     /// @name Operations with vehicles

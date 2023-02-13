@@ -238,6 +238,10 @@ namespace detail {
         rpc::ActorId actor,
         bool enabled);
 
+    void SetActorEnableOverlay(
+        rpc::ActorId actor,
+        bool enabled);
+
     void SetActorAutopilot(
         rpc::ActorId vehicle,
         bool enabled);

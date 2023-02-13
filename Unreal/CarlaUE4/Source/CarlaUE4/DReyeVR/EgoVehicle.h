@@ -1,43 +1,36 @@
 #pragma once
 
-#include "Camera/CameraComponent.h"               // UCameraComponent
-#include "Carla/Game/CarlaEpisode.h"              // CarlaEpisode
-#include "Carla/Sensor/DReyeVRData.h"             // DReyeVR namespace
-#include "Carla/Vehicle/CarlaWheeledVehicle.h"    // ACarlaWheeledVehicle
-#include "Components/AudioComponent.h"            // UAudioComponent
-#include "Components/InputComponent.h"            // InputComponent
-#include "Components/PlanarReflectionComponent.h" // Planar Reflection
-#include "Components/SceneComponent.h"            // USceneComponent
-#include "CoreMinimal.h"                          // Unreal functions
-#include "DReyeVRUtils.h"                         // ReadConfigValue
-#include "EgoSensor.h"                            // AEgoSensor
-#include "FlatHUD.h"                              // ADReyeVRHUD
-#include "ImageUtils.h"                           // CreateTexture2D
-#include "LevelScript.h"                          // ADReyeVRLevel
-#include "WheeledVehicle.h"                       // VehicleMovementComponent
+#include "Camera/CameraComponent.h"                   // UCameraComponent
+#include "Carla/Actor/DReyeVRCustomActor.h"           // ADReyeVRCustomActor
+#include "Carla/Game/CarlaEpisode.h"                  // CarlaEpisode
+#include "Carla/Sensor/DReyeVRData.h"                 // DReyeVR namespace
+#include "Carla/Vehicle/CarlaWheeledVehicle.h"        // ACarlaWheeledVehicle
+#include "Carla/Vehicle/WheeledVehicleAIController.h" // AWheeledVehicleAIController
+#include "Components/AudioComponent.h"                // UAudioComponent
+#include "Components/InputComponent.h"                // InputComponent
+#include "Components/PlanarReflectionComponent.h"     // Planar Reflection
+#include "Components/SceneComponent.h"                // USceneComponent
+#include "CoreMinimal.h"                              // Unreal functions
+#include "DReyeVRGameMode.h"                          // ADReyeVRGameMode
+#include "DReyeVRUtils.h"                             // ReadConfigValue
+#include "EgoSensor.h"                                // AEgoSensor
+#include "FlatHUD.h"                                  // ADReyeVRHUD
+#include "ImageUtils.h"                               // CreateTexture2D
+#include "WheeledVehicle.h"                           // VehicleMovementComponent
 #include <stdio.h>
 #include <vector>
 
-// #define USE_LOGITECH_PLUGIN true // handled in .Build.cs file
-
-#ifndef _WIN32
-// can only use LogitechWheel plugin on Windows! :(
-#undef USE_LOGITECH_PLUGIN
-#define USE_LOGITECH_PLUGIN false
-#endif
-
-#if USE_LOGITECH_PLUGIN
-#include "LogitechSteeringWheelLib.h" // LogitechWheel plugin for hardware integration & force feedback
-#endif
-
 #include "EgoVehicle.generated.h"
 
-class ADReyeVRLevel;
+class ADReyeVRGameMode;
+class ADReyeVRPawn;
 
 UCLASS()
 class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 {
     GENERATED_BODY()
+
+    friend class ADReyeVRPawn;
 
   public:
     // Sets default values for this pawn's properties
@@ -45,11 +38,12 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     void ReadConfigVariables();
 
-    virtual void Tick(float DeltaTime) override;
-    virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
+    virtual void Tick(float DeltaTime) override; // called automatically
 
     // Setters from external classes
-    void SetLevel(ADReyeVRLevel *Level);
+    void SetGame(ADReyeVRGameMode *Game);
+    ADReyeVRGameMode *GetGame();
+    void SetPawn(ADReyeVRPawn *Pawn);
     void SetVolume(const float VolumeIn);
 
     // Getters
@@ -60,10 +54,25 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     const UCameraComponent *GetCamera() const;
     UCameraComponent *GetCamera();
     const DReyeVR::UserInputs &GetVehicleInputs() const;
+    const class AEgoSensor *GetSensor() const;
+
+    // autopilot API
+    void SetAutopilot(const bool AutopilotOn);
+    bool GetAutopilotStatus() const;
+    /// TODO: add custom routes for autopilot
 
     // Play sounds
     void PlayGearShiftSound(const float DelayBeforePlay = 0.f) const;
     void PlayTurnSignalSound(const float DelayBeforePlay = 0.f) const;
+
+    // Camera view
+    size_t GetNumCameraPoses() const;                // how many diff poses?
+    void SetCameraRootPose(const FTransform &Pose);  // give arbitrary FTransform
+    void SetCameraRootPose(const FString &PoseName); // index into named FTransform
+    void SetCameraRootPose(size_t PoseIdx);          // index into ordered FTransform
+    const FTransform &GetCameraRootPose() const;
+    void NextCameraView();
+    void PrevCameraView();
 
   protected:
     // Called when the game starts (spawned) or ends (destroyed)
@@ -72,37 +81,36 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     // World variables
     class UWorld *World;
-    class APlayerController *Player;
 
   private:
-    void Register(); // function to register the AEgoVehicle with Carla's ActorRegistry
+    void ConstructRigidBody();
 
     ////////////////:CAMERA:////////////////
-    void ConstructCamera(); // needs to be called in the constructor
-    void InitSteamVR();     // Initialize the Head Mounted Display
+    void ConstructCameraRoot(); // needs to be called in the constructor
     UPROPERTY(Category = Camera, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class USceneComponent *VRCameraRoot;
     UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UCameraComponent *FirstPersonCam;
-    FVector CameraLocnInVehicle{21.0f, -40.0f, 120.0f}; // depends on vehicle mesh (units in cm)
-    float FieldOfView = 90.f;                           // in degrees
+    FTransform CameraPose, CameraPoseOffset;                      // camera pose (location & rotation) and manual offset
+    std::vector<std::pair<FString, FTransform>> CameraTransforms; // collection of named transforms from params
+    size_t CurrentCameraTransformIdx = 0;
+    bool bCameraFollowHMD = true; // disable this (in params) to replay without following the player's HMD (replay-only)
 
     ////////////////:SENSOR:////////////////
     void ReplayTick();
     void InitSensor();
     class AEgoSensor *EgoSensor; // custom sensor helper that holds logic for extracting useful data
     void UpdateSensor(const float DeltaTime);
-    FVector CombinedGaze, CombinedOrigin;
-    FVector LeftGaze, LeftOrigin;
-    FVector RightGaze, RightOrigin;
+
+    ///////////////:DREYEVRPAWN://///////////
+    class ADReyeVRPawn *Pawn = nullptr;
 
     ////////////////:MIRRORS:////////////////
     void ConstructMirrors();
     struct MirrorParams
     {
         bool Enabled;
-        FVector MirrorPos, MirrorScale, ReflectionPos, ReflectionScale;
-        FRotator MirrorRot, ReflectionRot;
+        FTransform MirrorTransform, ReflectionTransform;
         float ScreenPercentage;
         FString Name;
         void Initialize(class UStaticMeshComponent *SM, class UPlanarReflectionComponent *Reflection,
@@ -124,8 +132,13 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     // rear mirror chassis (dynamic)
     UPROPERTY(Category = Mirrors, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UStaticMeshComponent *RearMirrorChassisSM;
-    FVector RearMirrorChassisPos, RearMirrorChassisScale;
-    FRotator RearMirrorChassisRot;
+    FTransform RearMirrorChassisTransform;
+
+    ////////////////:AICONTROLLER:////////////////
+    class AWheeledVehicleAIController *AI_Player = nullptr;
+    void InitAIPlayer();
+    bool bAutopilotEnabled = false;
+    void TickAutopilot();
 
     ////////////////:INPUTS:////////////////
     /// NOTE: since there are so many functions here, they are defined in EgoInputs.cpp
@@ -134,11 +147,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void SetSteering(const float SteeringInput);
     void SetThrottle(const float ThrottleInput);
     void SetBrake(const float BrakeInput);
-    // keyboard mechanisms to access Axis vehicle control (steering, throttle, brake)
-    void SetSteeringKbd(const float SteeringInput);
-    void SetThrottleKbd(const float ThrottleInput);
-    void SetBrakeKbd(const float BrakeInput);
     bool bReverse;
+
     // "button presses" should have both a "Press" and "Release" function
     // And, if using the logitech plugin, should also have an "is rising edge" bool so they can only
     // be pressed after being released (cant double press w/ no release)
@@ -146,6 +156,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void PressReverse();
     void ReleaseReverse();
     bool bCanPressReverse = true;
+    // turn signals
+    bool bEnableTurnSignalAction = true; // tune with "EnableTurnSignalAction" in config
     // left turn signal
     void PressTurnSignalL();
     void ReleaseTurnSignalL();
@@ -160,12 +172,9 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void PressHandbrake();
     void ReleaseHandbrake();
     bool bCanPressHandbrake = true;
-    // mouse controls
-    void MouseLookUp(const float mY_Input);
-    void MouseTurn(const float mX_Input);
 
     // Camera control functions (offset by some amount)
-    void CameraPositionAdjust(const FVector &displacement);
+    void CameraPositionAdjust(const FVector &Disp);
     void CameraFwd();
     void CameraBack();
     void CameraLeft();
@@ -173,27 +182,18 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void CameraUp();
     void CameraDown();
 
-    void PressResetCamera();
-    void ReleaseResetCamera();
-    void ResetCamera();
-    bool bCanResetCamera = true;
+    // changing camera views
+    void PressNextCameraView();
+    void ReleaseNextCameraView();
+    bool bCanPressNextCameraView = true;
+    void PressPrevCameraView();
+    void ReleasePrevCameraView();
+    bool bCanPressPrevCameraView = true;
 
     // Vehicle parameters
     float ScaleSteeringInput;
     float ScaleThrottleInput;
     float ScaleBrakeInput;
-    bool InvertMouseY;
-    float ScaleMouseY;
-    float ScaleMouseX;
-
-    void InitLogiWheel();
-    void TickLogiWheel();
-#if USE_LOGITECH_PLUGIN
-    DIJOYSTATE2 *Old = nullptr; // global "old" struct for the last state
-    void LogLogitechPluginStruct(const DIJOYSTATE2 *Now);
-    void LogitechWheelUpdate();      // for logitech wheel integration
-    void ApplyForceFeedback() const; // for logitech wheel integration
-#endif
 
     ////////////////:SOUNDS:////////////////
     void ConstructEgoSounds(); // needs to be called in the constructor
@@ -203,30 +203,8 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     class UAudioComponent *TurnSignalSound; // good for turn signals
 
     ////////////////:LEVEL:////////////////
-    void TickLevel(float DeltaSeconds);
-    class ADReyeVRLevel *DReyeVRLevel;
-
-    ////////////////:SPECTATOR:////////////////
-    void InitSpectator();
-    void InitReticleTexture();  // initializes the spectator-reticle texture
-    void DrawSpectatorScreen(); // called on every tick
-    UTexture2D *ReticleTexture; // UE4 texture for eye reticle
-    float HUDScaleVR;           // How much to scale the HUD in VR
-
-    ////////////////:FLATHUD:////////////////
-    // (Flat) HUD (NOTE: ONLY FOR NON VR)
-    void InitFlatHUD();
-    UPROPERTY(Category = HUD, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-    class ADReyeVRHUD *FlatHUD;
-    void DrawFlatHUD(float DeltaSeconds);
-    int ReticleSize = 100;               // diameter of reticle (line thickness is 10% of this)
-    bool bDrawFlatHud = true;            // whether to draw the flat hud at all (default true, but false in VR)
-    bool bDrawFPSCounter = true;         // draw FPS counter in top left corner
-    bool bDrawGaze = false;              // whether or not to draw a line for gaze-ray on HUD
-    bool bDrawSpectatorReticle = true;   // Reticle used in the VR-spectator mode
-    bool bDrawFlatReticle = true;        // Reticle used in the flat mode (uses HUD) (ONLY in non-vr mode)
-    bool bEnableSpectatorScreen = false; // don't spent time rendering the spectator screen
-    bool bRectangularReticle = false;    // draw the reticle texture on the HUD & Spectator (NOT RECOMMENDED)
+    void TickGame(float DeltaSeconds);
+    class ADReyeVRGameMode *DReyeVRGame;
 
     ////////////////:DASH:////////////////
     // Text Render components (Like the HUD but part of the mesh and works in VR)
@@ -255,14 +233,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float SteeringAnimScale;
 
     ////////////////:OTHER:////////////////
-
-    // Actor registry
-    int EgoVehicleID;
-    UCarlaEpisode *Episode = nullptr;
-
-    // Other
     void DebugLines() const;
-    bool bIsHMDConnected = false;  // checks for HMD connection on BeginPlay
-    bool bIsLogiConnected = false; // check if Logi device is connected (on BeginPlay)
     bool bDrawDebugEditor = false;
 };

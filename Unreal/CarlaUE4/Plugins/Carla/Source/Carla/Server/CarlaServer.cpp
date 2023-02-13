@@ -1333,6 +1333,31 @@ void FCarlaServer::FPimpl::BindActions()
     return R<void>::Success();
   };
 
+  BIND_SYNC(set_actor_enable_overlay) << [this](
+      cr::ActorId ActorId,
+      bool bEnabled) -> R<void>
+  {
+    REQUIRE_CARLA_EPISODE();
+    FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+    if (!CarlaActor)
+    {
+      return RespondError(
+          "set_actor_enable_overlay",
+          ECarlaServerResponse::ActorNotFound,
+          " Actor Id: " + FString::FromInt(ActorId));
+    }
+    ECarlaServerResponse Response =
+        CarlaActor->SetActorEnableOverlay(bEnabled);
+    if (Response != ECarlaServerResponse::Success)
+    {
+      return RespondError(
+          "set_actor_enable_overlay",
+          Response,
+          " Actor Id: " + FString::FromInt(ActorId));
+    }
+    return R<void>::Success();
+  };
+
   // ~~ Apply control ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   BIND_SYNC(apply_control_to_vehicle) << [this](
@@ -2061,6 +2086,7 @@ void FCarlaServer::FPimpl::BindActions()
       [=](auto, const C::ApplyTorque &c) {          MAKE_RESULT(add_actor_torque(c.actor, c.torque)); },
       [=](auto, const C::SetSimulatePhysics &c) {   MAKE_RESULT(set_actor_simulate_physics(c.actor, c.enabled)); },
       [=](auto, const C::SetEnableGravity &c) {   MAKE_RESULT(set_actor_enable_gravity(c.actor, c.enabled)); },
+      [=](auto, const C::SetEnableOverlay &c) {   MAKE_RESULT(set_actor_enable_overlay(c.actor, c.enabled)); },
       // TODO: SetAutopilot should be removed. This is the old way to control the vehicles
       [=](auto, const C::SetAutopilot &c) {         MAKE_RESULT(set_actor_autopilot(c.actor, c.enabled)); },
       [=](auto, const C::ShowDebugTelemetry &c) {   MAKE_RESULT(show_vehicle_debug_telemetry(c.actor, c.enabled)); },

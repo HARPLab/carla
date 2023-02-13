@@ -193,7 +193,7 @@ void ACarlaWheeledVehicle::ConstructSounds()
   // add all sounds here
 
   static ConstructorHelpers::FObjectFinder<USoundCue> EngineCueObj(
-    TEXT("SoundCue'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/EngineRev/EngineRev.EngineRev'"));
+    TEXT("SoundCue'/Game/DReyeVR/Sounds/EngineRev/EngineRev.EngineRev'"));
   EngineRevSound = CreateDefaultSubobject<UAudioComponent>(FName("EngineRevSound"));
   EngineRevSound->SetupAttachment(GetRootComponent());       // attach to self
   EngineRevSound->bAutoActivate = true;                      // start playing on begin
@@ -204,7 +204,7 @@ void ACarlaWheeledVehicle::ConstructSounds()
   check(EngineRevSound != nullptr);
 
   static ConstructorHelpers::FObjectFinder<USoundCue> CarCrashCue(
-    TEXT("SoundCue'/Game/Carla/Blueprints/Vehicles/DReyeVR/Sounds/Crash/CrashCue.CrashCue'"));
+    TEXT("SoundCue'/Game/DReyeVR/Sounds/Crash/CrashCue.CrashCue'"));
   CrashSound = CreateDefaultSubobject<UAudioComponent>(TEXT("CarCrash"));
   CrashSound->SetupAttachment(GetRootComponent());
   CrashSound->bAutoActivate = false;
@@ -265,7 +265,7 @@ void ACarlaWheeledVehicle::OnOverlapBegin(UPrimitiveComponent *OverlappedComp, A
   if (OtherActor != nullptr && OtherActor != this)
   {
     FString actor_name = OtherActor->GetName();
-    UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
+    // UE_LOG(LogTemp, Log, TEXT("Collision with \"%s\""), *actor_name);
     // can be more flexible, such as having collisions with static props or people too
     const FString OtherName = OtherActor->GetName().ToLower();
     double Now = FPlatformTime::Seconds();

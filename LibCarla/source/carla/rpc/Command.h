@@ -193,6 +193,16 @@ namespace rpc {
       MSGPACK_DEFINE_ARRAY(actor, enabled);
     };
 
+    struct SetEnableOverlay : CommandBase<SetEnableOverlay> {
+      SetEnableOverlay() = default;
+      SetEnableOverlay(ActorId id, bool value)
+        : actor(id),
+          enabled(value) {}
+      ActorId actor;
+      bool enabled;
+      MSGPACK_DEFINE_ARRAY(actor, enabled);
+    };
+
     struct SetAutopilot : CommandBase<SetAutopilot> {
       SetAutopilot() = default;
       SetAutopilot(
@@ -248,6 +258,7 @@ namespace rpc {
         ApplyTorque,
         SetSimulatePhysics,
         SetEnableGravity,
+        SetEnableOverlay,
         SetAutopilot,
         ShowDebugTelemetry,
         SetVehicleLightState>;

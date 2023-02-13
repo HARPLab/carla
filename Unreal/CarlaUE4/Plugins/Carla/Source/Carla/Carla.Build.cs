@@ -16,8 +16,6 @@ public class Carla : ModuleRules
   public Carla(ReadOnlyTargetRules Target) : base(Target)
   {
     PrivatePCHHeaderFile = "Carla.h";
-    ShadowVariableWarningLevel = WarningLevel.Off; // -Wno-shadow
-    // DeprecationWarningLevel = WarningLevel.Off; // -Wno-deprecated-declarations
 
     if (IsWindows(Target))
     {
