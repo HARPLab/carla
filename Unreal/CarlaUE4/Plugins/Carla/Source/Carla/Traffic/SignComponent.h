@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "Vehicle/CarlaWheeledVehicle.h"
+#include "UObject/ConstructorHelpers.h"
 
 #include <compiler/disable-ue4-macros.h>
 #include <carla/opendrive/OpenDriveParser.h>
