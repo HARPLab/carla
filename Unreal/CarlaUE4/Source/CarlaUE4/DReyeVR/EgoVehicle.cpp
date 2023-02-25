@@ -105,6 +105,26 @@ void AEgoVehicle::BeginPlay()
     LOG("Initialized DReyeVR EgoVehicle");
 }
 
+void AEgoVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    // https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/Engine/EEndPlayReason__Type/
+    if (EndPlayReason == EEndPlayReason::Destroyed)
+    {
+        LOG("DReyeVR EgoVehicle is being destroyed! You'll need to spawn another one!");
+    }
+
+    if (GetGame())
+    {
+        GetGame()->SetEgoVehicle(nullptr);
+        GetGame()->PossessSpectator();
+    }
+
+    if (this->Pawn)
+    {
+        this->Pawn->SetEgoVehicle(nullptr);
+    }
+}
+
 void AEgoVehicle::BeginDestroy()
 {
     Super::BeginDestroy();
@@ -112,6 +132,8 @@ void AEgoVehicle::BeginDestroy()
     // destroy all spawned entities
     if (EgoSensor)
         EgoSensor->Destroy();
+
+    LOG("EgoVehicle has been destroyed");
 }
 
 // Called every frame
