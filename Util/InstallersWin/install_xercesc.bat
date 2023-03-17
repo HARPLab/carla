@@ -51,7 +51,7 @@ set XERCESC_TEMP_FILE=%XERCESC_TEMP_FOLDER%-src.zip
 rem ../xerces-c-x.x.x-src.zip
 set XERCESC_TEMP_FILE_DIR=%BUILD_DIR%%XERCESC_TEMP_FILE%
 
-set XERCESC_REPO=https://downloads.apache.org/xerces/c/3/sources/xerces-c-%XERCESC_VERSION%.zip
+set XERCESC_REPO=https://archive.apache.org/dist/xerces/c/3/sources/xerces-c-%XERCESC_VERSION%.zip
 
 rem ../xerces-c-x.x.x-source/
 set XERCESC_SRC_DIR=%BUILD_DIR%%XERCESC_BASENAME%-%XERCESC_VERSION%-source\
@@ -118,6 +118,7 @@ if not exist "%XERCESC_INSTALL_DIR%include" (
 cmake .. -G "Visual Studio 16 2019" -A x64^
   -DCMAKE_INSTALL_PREFIX="%XERCESC_INSTALL_DIR:\=/%"^
   -DBUILD_SHARED_LIBS=OFF^
+  -Dtranscoder=windows^
   "%BUILD_DIR%%XERCESC_BASENAME%-%XERCESC_VERSION%-source"
 if %errorlevel% neq 0 goto error_cmake
 
