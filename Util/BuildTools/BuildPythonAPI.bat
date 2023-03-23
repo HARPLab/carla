@@ -96,7 +96,14 @@ rem ============================================================================
 rem -- Check for py ------------------------------------------------------------
 rem ============================================================================
 
-where py 1>nul
+rem prefer invoking 'python' (for externally installed, eg conda) over 'py' (built in to Windows)
+rem
+set PYTHON_EXEC=python
+
+where %PYTHON_EXEC%>nul
+if %errorlevel% neq 0 set PYTHON_EXEC=py -3 
+
+where %PYTHON_EXEC%>nul
 if %errorlevel% neq 0 goto error_py
 
 rem Build for Python 2
@@ -109,7 +116,7 @@ rem Build for Python 3
 rem
 if %BUILD_FOR_PYTHON3%==true (
     echo Building Python API for Python 3.
-    python setup.py bdist_egg bdist_wheel
+    %PYTHON_EXEC% setup.py bdist_egg bdist_wheel
     if %errorlevel% neq 0 goto error_build_wheel
 )
 
