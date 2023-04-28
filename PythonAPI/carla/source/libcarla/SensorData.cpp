@@ -20,6 +20,7 @@
 #include <carla/sensor/data/GnssMeasurement.h>
 #include <carla/sensor/data/RadarMeasurement.h>
 #include <carla/sensor/data/DVSEventArray.h>
+#include <carla/sensor/data/DReyeVREvent.h> // DReyeVR sensor event
 
 #include <carla/sensor/data/RadarData.h>
 
@@ -166,6 +167,23 @@ namespace data {
     return out;
   }
 
+  std::ostream &operator<<(std::ostream &out, const DReyeVREvent &event) {
+    // what is used when printing the data streamed to the PythonAPI (converting to string)
+    auto &GazeDir = event.GetGazeDir();
+    auto &GazeOrigin = event.GetGazeOrigin();
+    auto &CameraLocn = event.GetCameraLocation();
+    auto &CameraRotn = event.GetCameraRotation();
+    const std::string sep = ", ";
+    out << "DReyeVR(frame=" << event.GetFrame() << sep
+        << "t=" << event.GetTimestamp() << sep
+        << "GazeDir(" << event.GetGazeValid() << ")={" << GazeDir.x << ", " << GazeDir.y << ", " << GazeDir.z<< "}" << sep
+        << "GazeOrigin={" << GazeOrigin.x << ", " << GazeOrigin.y << ", " << GazeOrigin.z << "}" << sep
+        << "Vergence=" << event.GetGazeVergence() << sep
+        << "CameraLoc={" << CameraLocn.x << ", " << CameraLocn.y << ", " << CameraLocn.z<< "}" << sep
+        << "CameraRot={" << CameraRotn.x << ", " << CameraRotn.y << ", " << CameraRotn.z<< "}" << sep
+        << ')';
+    return out;
+  }
 } // namespace s11n
 } // namespace sensor
 } // namespace carla
@@ -554,5 +572,48 @@ void export_sensor_data() {
     .def("to_array_t", CALL_RETURNING_LIST(csd::DVSEventArray, ToArrayT))
     .def("to_array_pol", CALL_RETURNING_LIST(csd::DVSEventArray, ToArrayPol))
     .def(self_ns::str(self_ns::self))
+  ;
+
+  class_<csd::DReyeVREvent, bases<cs::SensorData>, boost::noncopyable, boost::shared_ptr<csd::DReyeVREvent>>("DReyeVREvent", no_init)
+      .add_property("timestamp_carla", CALL_RETURNING_COPY(csd::DReyeVREvent, GetTimestampCarla))
+      .add_property("timestamp_device", CALL_RETURNING_COPY(csd::DReyeVREvent, GetTimestampDevice))
+      .add_property("framesequence", CALL_RETURNING_COPY(csd::DReyeVREvent, GetFrameSequence))
+      .add_property("timestamp_stream", CALL_RETURNING_COPY(csd::DReyeVREvent, GetTimestamp)) // Stream timestamp
+      .add_property("camera_location", CALL_RETURNING_COPY(csd::DReyeVREvent, GetCameraLocation))
+      .add_property("camera_rotation", CALL_RETURNING_COPY(csd::DReyeVREvent, GetCameraRotation))
+      // combined gaze attributes
+      .add_property("gaze_dir", CALL_RETURNING_COPY(csd::DReyeVREvent, GetGazeDir))
+      .add_property("gaze_origin", CALL_RETURNING_COPY(csd::DReyeVREvent, GetGazeOrigin))
+      .add_property("gaze_valid", CALL_RETURNING_COPY(csd::DReyeVREvent, GetGazeValid))
+      .add_property("gaze_vergence", CALL_RETURNING_COPY(csd::DReyeVREvent, GetGazeVergence))
+      // left gaze attributes
+      .add_property("left_gaze_dir", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLGazeDir))
+      .add_property("left_gaze_origin", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLGazeOrigin))
+      .add_property("left_gaze_valid", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLGazeValid))
+      .add_property("left_eye_openness", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLEyeOpenness))
+      .add_property("left_eye_openness_valid", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLEyeOpenValid))
+      .add_property("left_pupil_posn", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLPupilPos))
+      .add_property("left_pupil_posn_valid", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLPupilPosValid))
+      .add_property("left_pupil_diam", CALL_RETURNING_COPY(csd::DReyeVREvent, GetLPupilDiam))
+      // right gaze attributes
+      .add_property("right_gaze_dir", CALL_RETURNING_COPY(csd::DReyeVREvent, GetRGazeDir))
+      .add_property("right_gaze_origin", CALL_RETURNING_COPY(csd::DReyeVREvent, GetRGazeOrigin))
+      .add_property("right_gaze_valid", CALL_RETURNING_COPY(csd::DReyeVREvent, GetRGazeValid))
+      .add_property("right_eye_openness", CALL_RETURNING_COPY(csd::DReyeVREvent, GetREyeOpenness))
+      .add_property("right_eye_openness_valid", CALL_RETURNING_COPY(csd::DReyeVREvent, GetREyeOpenValid))
+      .add_property("right_pupil_posn", CALL_RETURNING_COPY(csd::DReyeVREvent, GetRPupilPos))
+      .add_property("right_pupil_posn_valid", CALL_RETURNING_COPY(csd::DReyeVREvent, GetRPupilPosValid))
+      .add_property("right_pupil_diam", CALL_RETURNING_COPY(csd::DReyeVREvent, GetRPupilDiam))
+      // focus info attributes
+      .add_property("focus_actor_name", CALL_RETURNING_COPY(csd::DReyeVREvent, GetFocusActorName))
+      .add_property("focus_actor_pt", CALL_RETURNING_COPY(csd::DReyeVREvent, GetFocusActorPoint))
+      .add_property("focus_actor_dist", CALL_RETURNING_COPY(csd::DReyeVREvent, GetFocusActorDist))
+      // user inputs attributes
+      .add_property("throttle_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetThrottle))
+      .add_property("steering_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetSteering))
+      .add_property("brake_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetBrake))
+      .add_property("current_gear_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetToggledReverse))
+      .add_property("handbrake_input", CALL_RETURNING_COPY(csd::DReyeVREvent, GetHandbrake))
+      .def(self_ns::str(self_ns::self))
   ;
 }

@@ -50,8 +50,8 @@ done
 
 source $(dirname "$0")/Environment.sh
 
-export CC=clang-8
-export CXX=clang++-8
+export CC=clang
+export CXX=clang++
 
 if ! { ${REMOVE_INTERMEDIATE} || ${BUILD_PYTHONAPI} ; }; then
   fatal_error "Nothing selected to be done."
@@ -89,7 +89,7 @@ if ${BUILD_PYTHONAPI} ; then
   # Add patchelf to the path. Auditwheel relies on patchelf to repair ELF files.
   export PATH="${LIBCARLA_INSTALL_CLIENT_FOLDER}/bin:${PATH}"
 
-  CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME)
+  CODENAME=$(uname -s)
   if [[ ! -z ${TARGET_WHEEL_PLATFORM} ]] && [[ ${CODENAME#*=} != "bionic" ]] ; then
     log "A target platform has been specified but you are not using a compatible linux distribution. The wheel repair step will be skipped"
     TARGET_WHEEL_PLATFORM=

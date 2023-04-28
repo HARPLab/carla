@@ -46,6 +46,15 @@ void WriteTArray(std::ofstream &OutFile, const TArray<T> &InVec)
 // write binary data from FVector
 void WriteFVector(std::ofstream &OutFile, const FVector &InObj);
 
+// write binary data from FRotator
+void WriteFRotator(std::ofstream &OutFile, const FRotator &InObj);
+
+// write binary data from FVector2D
+void WriteFVector2D(std::ofstream &OutFile, const FVector2D &InObj);
+
+// write binary data from FLinearColor
+void WriteFLinearColor(std::ofstream &OutFile, const FLinearColor &InObj);
+
 // write binary data from FTransform
 // void WriteFTransform(std::ofstream &OutFile, const FTransform &InObj);
 // write binary data from FString (length + text)
@@ -92,6 +101,16 @@ void ReadTArray(std::ifstream &InFile, TArray<T> &OutVec)
 
 // read binary data from FVector
 void ReadFVector(std::ifstream &InFile, FVector &OutObj);
+
+// read binary data from FRotator
+void ReadFRotator(std::ifstream &InFile, FRotator &OutObj);
+
+// read binary data from FVector2D
+void ReadFVector2D(std::ifstream &InFile, FVector2D &OutObj);
+
+// read binary data from FLinearColor
+void ReadFLinearColor(std::ifstream &OutFile, FLinearColor &OutObj);
+
 
 // read binary data from FTransform
 // void ReadTransform(std::ifstream &InFile, FTransform &OutObj);

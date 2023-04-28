@@ -85,6 +85,10 @@ namespace detail {
       return MakeActorImpl<ServerSideSensor>(std::move(init), gc);
     } else if (StringUtil::StartsWith(description.description.id, "vehicle.")) {
       return MakeActorImpl<Vehicle>(std::move(init), gc);
+    } else if (StringUtil::StartsWith(description.description.id, "harplab.dreyevr_vehicle.")) {
+      return MakeActorImpl<Vehicle>(std::move(init), gc); // for DReyeVR vehicles!
+    } else if (StringUtil::StartsWith(description.description.id, "harplab.dreyevr_sensor.")) {
+      return MakeActorImpl<ServerSideSensor>(std::move(init), gc); // for DReyeVR sensors!
     } else if (StringUtil::StartsWith(description.description.id, "walker.")) {
       return MakeActorImpl<Walker>(std::move(init), gc);
     } else if (StringUtil::StartsWith(description.description.id, "traffic.traffic_light")) {

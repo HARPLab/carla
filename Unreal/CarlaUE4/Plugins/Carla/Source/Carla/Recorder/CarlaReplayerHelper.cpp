@@ -22,6 +22,10 @@
 #include "Engine/StaticMeshActor.h"
 #include "Carla/Game/CarlaStatics.h"
 #include "Carla/MapGen/LargeMapManager.h"
+#include "Carla/Weather/Weather.h"
+
+// DReyeVR include
+#include "Carla/Sensor/DReyeVRSensor.h" // ADReyeVRSensor
 
 #include <compiler/disable-ue4-macros.h>
 #include <carla/rpc/VehicleLightState.h>
@@ -301,6 +305,14 @@ bool CarlaReplayerHelper::ProcessReplayerPosition(CarlaRecorderPosition Pos1, Ca
     }
     // set new transform
     FTransform Trans(Rotation, Location, FVector(1, 1, 1));
+
+    if (CarlaActor->GetActorInfo()->Description.Id.StartsWith("harplab.dreyevr_vehicle."))
+    {
+      // our DReyeVR vehicle does not get applied its transform here but rather in its ReplayTick()
+      // method so that everything that the EgoVehicle ticks can be synchronized (e.x. camera position, wheels, etc.)
+      return true;
+    }
+
     CarlaActor->SetActorGlobalTransform(Trans, ETeleportType::None);
     return true;
   }
@@ -409,6 +421,16 @@ void CarlaReplayerHelper::ProcessReplayerLightScene(CarlaRecorderLightScene Ligh
   }
 }
 
+void CarlaReplayerHelper::ProcessReplayerWeather(const CarlaRecorderWeather &RecordedWeather)
+{
+  check(Episode != nullptr);
+  AWeather *Weather = AWeather::FindWeatherInstance(Episode->GetWorld());
+  if (Weather)
+  {
+    Weather->ApplyWeather(RecordedWeather.Params);
+  }
+}
+
 // set the animation for walkers
 void CarlaReplayerHelper::ProcessReplayerAnimWalker(CarlaRecorderAnimWalker Walker)
 {
@@ -455,7 +477,20 @@ bool CarlaReplayerHelper::ProcessReplayerFinish(bool bApplyAutopilot, bool bIgno
         break;
     }
   }
+  // tell the DReyeVR sensor to NOT continue replaying
+  if (ADReyeVRSensor::GetDReyeVRSensor(Episode->GetWorld()))
+    ADReyeVRSensor::GetDReyeVRSensor()->StopReplaying();
+  else
+    DReyeVR_LOG_ERROR("No DReyeVR sensor available!");
   return true;
+}
+
+template <typename T> void CarlaReplayerHelper::ProcessReplayerDReyeVRData(const T &DReyeVRDataInstance, const double Per)
+{
+  if (ADReyeVRSensor::GetDReyeVRSensor(Episode->GetWorld()))
+    ADReyeVRSensor::GetDReyeVRSensor()->UpdateData(DReyeVRDataInstance.Data, Per);
+  else
+    DReyeVR_LOG_ERROR("No DReyeVR sensor available!");
 }
 
 void CarlaReplayerHelper::SetActorVelocity(FCarlaActor *CarlaActor, FVector Velocity)
