@@ -110,12 +110,10 @@ void AEgoVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
     if (EndPlayReason == EEndPlayReason::Destroyed)
     {
         LOG("DReyeVR EgoVehicle is being destroyed! You'll need to spawn another one!");
-    }
-
-    if (GetGame())
-    {
-        GetGame()->SetEgoVehicle(nullptr);
-        GetGame()->PossessSpectator();
+        if (GetGame())
+        {
+            GetGame()->PossessSpectator();
+        }
     }
 
     if (this->Pawn)
@@ -129,10 +127,8 @@ void AEgoVehicle::BeginDestroy()
     Super::BeginDestroy();
 
     // destroy all spawned entities
-    if (EgoSensor)
-        EgoSensor->Destroy();
-
-    DestroySteeringWheel();
+    if (EgoSensor.IsValid())
+        EgoSensor.Get()->Destroy();
 
     LOG("EgoVehicle has been destroyed");
 }
@@ -349,10 +345,7 @@ FVector AEgoVehicle::GetCameraOffset() const
 }
 FVector AEgoVehicle::GetCameraPosn() const
 {
-    auto *camera = GetCamera();
-    if (camera != nullptr)
-        return camera->GetComponentLocation();
-    return FVector::ZeroVector;
+    return GetCamera() ? GetCamera()->GetComponentLocation() : FVector::ZeroVector;
 }
 FVector AEgoVehicle::GetNextCameraPosn(const float DeltaSeconds) const
 {
@@ -361,11 +354,18 @@ FVector AEgoVehicle::GetNextCameraPosn(const float DeltaSeconds) const
 }
 FRotator AEgoVehicle::GetCameraRot() const
 {
-    return GetCamera()->GetComponentRotation();
+    return GetCamera() ? GetCamera()->GetComponentRotation() : FRotator::ZeroRotator;
 }
+class AEgoSensor *AEgoVehicle::GetSensor()
+{
+    // tries to return the EgoSensor pointer if it is safe to do so, else re-spawn it
+    return SafePtrGet<AEgoSensor>("EgoSensor", EgoSensor, [&](void) { this->InitSensor(); });
+}
+
 const class AEgoSensor *AEgoVehicle::GetSensor() const
 {
-    return const_cast<const class AEgoSensor *>(EgoSensor);
+    // tries to return the EgoSensor pointer if it is safe to do so, else re-spawn it
+    return const_cast<AEgoSensor *>(const_cast<AEgoVehicle *>(this)->GetSensor());
 }
 
 /// ========================================== ///
@@ -421,28 +421,29 @@ void AEgoVehicle::InitSensor()
             Description.UId = EgoSensorDef.UId;
             Description.Id = EgoSensorDef.Id;
             Description.Class = EgoSensorDef.Class;
-        }
-
-        if (Episode == nullptr)
-        {
-            LOG_ERROR("Null Episode in world!");
+            // add all the attributes from the definition to the description
+            for (FActorAttribute A : EgoSensorDef.Attributes)
+            {
+                Description.Variations.Add(A.Id, std::move(A));
+            }
         }
         // calls Episode::SpawnActor => SpawnActorWithInfo => ActorDispatcher->SpawnActor => SpawnFunctions[UId]
         FTransform SpawnPt = FTransform(FRotator::ZeroRotator, GetCameraPosn(), FVector::OneVector);
         EgoSensor = static_cast<AEgoSensor *>(Episode->SpawnActor(SpawnPt, Description));
     }
-    check(EgoSensor != nullptr);
+    check(EgoSensor.IsValid());
     // Attach the EgoSensor as a child to the EgoVehicle
-    EgoSensor->SetOwner(this);
-    EgoSensor->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
-    EgoSensor->SetEgoVehicle(this);
-    if (DReyeVRGame)
-        EgoSensor->SetGame(DReyeVRGame);
+    EgoSensor.Get()->SetOwner(this);
+    EgoSensor.Get()->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
+    EgoSensor.Get()->SetActorTransform(FTransform::Identity, false, nullptr, ETeleportType::TeleportPhysics);
+    EgoSensor.Get()->SetEgoVehicle(this);
 }
 
 void AEgoVehicle::ReplayTick()
 {
-    const bool bIsReplaying = EgoSensor->IsReplaying();
+    if (!EgoSensor.IsValid())
+        return;
+    const bool bIsReplaying = EgoSensor.Get()->IsReplaying();
     // need to enable/disable VehicleMesh simulation
     class USkeletalMeshComponent *VehicleMesh = GetMesh();
     if (VehicleMesh)
@@ -454,7 +455,7 @@ void AEgoVehicle::ReplayTick()
     if (bIsReplaying)
     {
         // this gets reached when the simulator is replaying data from a carla log
-        const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
+        const DReyeVR::AggregateData *Replay = EgoSensor.Get()->GetData();
 
         // include positional update here, else there is lag/jitter between the camera and the vehicle
         // since the Carla Replayer tick differs from the EgoVehicle tick
@@ -480,22 +481,21 @@ void AEgoVehicle::ReplayTick()
 
 void AEgoVehicle::UpdateSensor(const float DeltaSeconds)
 {
-    if (EgoSensor == nullptr) // Spawn and attach the EgoSensor
+    if (!EgoSensor.IsValid()) // Spawn and attach the EgoSensor
     {
         // unfortunately World->SpawnActor *sometimes* fails if used in BeginPlay so
         // calling it once in the tick is fine to avoid this crash.
         InitSensor();
     }
 
-    ensure(EgoSensor != nullptr);
-    if (EgoSensor == nullptr)
+    if (!EgoSensor.IsValid())
     {
         LOG_WARN("EgoSensor initialization failed!");
         return;
     }
 
     // Explicitly update the EgoSensor here, synchronized with EgoVehicle tick
-    EgoSensor->ManualTick(DeltaSeconds); // Ensures we always get the latest data
+    EgoSensor.Get()->ManualTick(DeltaSeconds); // Ensures we always get the latest data
 }
 
 /// ========================================== ///
@@ -681,9 +681,9 @@ void AEgoVehicle::UpdateDash()
 {
     // Draw text components
     float XPH; // miles-per-hour or km-per-hour
-    if (EgoSensor->IsReplaying())
+    if (EgoSensor.IsValid() && EgoSensor.Get()->IsReplaying())
     {
-        const DReyeVR::AggregateData *Replay = EgoSensor->GetData();
+        const DReyeVR::AggregateData *Replay = EgoSensor.Get()->GetData();
         XPH = Replay->GetVehicleVelocity() * SpeedometerScale; // FwdSpeed is in cm/s
         const auto &ReplayInputs = Replay->GetUserInputs();
         if (ReplayInputs.ToggledReverse)
@@ -868,7 +868,7 @@ void AEgoVehicle::SetGame(ADReyeVRGameMode *Game)
 {
     DReyeVRGame = Game;
     check(DReyeVRGame != nullptr);
-    DReyeVRGame->SetEgoVehicle(this);
+    check(DReyeVRGame->GetEgoVehicle() == this);
 
     DReyeVRGame->GetPawn()->BeginEgoVehicle(this, World);
     LOG("Successfully assigned GameMode & controller pawn");
@@ -893,10 +893,10 @@ void AEgoVehicle::DebugLines() const
 {
 #if WITH_EDITOR
 
-    if (bDrawDebugEditor)
+    if (bDrawDebugEditor && EgoSensor.IsValid())
     {
         // Calculate gaze data (in world space) using eye tracker data
-        const DReyeVR::AggregateData *Data = EgoSensor->GetData();
+        const DReyeVR::AggregateData *Data = EgoSensor.Get()->GetData();
         // Compute World positions and orientations
         const FRotator &WorldRot = FirstPersonCam->GetComponentRotation();
         const FVector &WorldPos = FirstPersonCam->GetComponentLocation();

@@ -119,7 +119,7 @@ void ALSM::IdentifyNewActors(const ActorList &actor_list) {
     ActorPtr actor = *iter;
     ActorId actor_id = actor->GetId();
     // Identify any new hero vehicle
-    if (actor->GetTypeId().front() == 'v' || actor->GetTypeId().rfind("harplab.dreyevr_vehicle.") == 0) { // include DReyeVR vehicle      
+    if (actor->GetTypeId().front() == 'v' || actor->GetTypeId().rfind("harplab.dreyevr_vehicle.") == 0) {
      if (hero_actors.size() == 0u || hero_actors.find(actor_id) == hero_actors.end()) {
       for (auto&& attribute: actor->GetAttributes()) {
         if (attribute.GetId() == "role_name" && attribute.GetValue() == "hero") {
