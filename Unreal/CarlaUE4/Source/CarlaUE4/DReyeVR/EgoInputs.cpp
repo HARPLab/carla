@@ -1,6 +1,5 @@
 #include "EgoVehicle.h"
 #include "Math/NumericLimits.h" // TNumericLimits<float>::Max
-#include "TireConfig.h"         // UTireConfig
 #include <string>               // std::string, std::wstring
 
 ////////////////:INPUTS:////////////////

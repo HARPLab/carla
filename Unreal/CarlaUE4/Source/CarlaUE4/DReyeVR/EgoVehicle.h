@@ -106,9 +106,11 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     bool bCameraFollowHMD = true; // disable this (in params) to replay without following the player's HMD (replay-only)
 
   private: // sensor
+    class AEgoSensor *GetSensor();
     void ReplayTick();
     void InitSensor();
-    class AEgoSensor *EgoSensor; // custom sensor helper that holds logic for extracting useful data
+    // custom sensor helper that holds logic for extracting useful data
+    TWeakObjectPtr<class AEgoSensor> EgoSensor; // EgoVehicle should have exclusive access (TODO: unique ptr?)
     void UpdateSensor(const float DeltaTime);
 
   private: // pawn
@@ -246,6 +248,7 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float MaxSteerAngleDeg;
     float MaxSteerVelocity;
     float SteeringAnimScale;
+    bool bWheelFollowAutopilot = true; // disable steering during autopilot and follow AI
     // wheel face buttons
     void InitWheelButtons();
     void UpdateWheelButton(ADReyeVRCustomActor *Button, bool bEnabled);

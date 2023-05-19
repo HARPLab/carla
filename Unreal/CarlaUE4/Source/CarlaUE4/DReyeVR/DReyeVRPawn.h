@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Camera/CameraComponent.h" // UCameraComponent
-#include "EgoVehicle.h"             // AEgoVehicle
 #include "Engine/Scene.h"           // FPostProcessSettings
 #include "GameFramework/Pawn.h"     // CreatePlayerInputComponent
 
@@ -16,6 +15,8 @@
 #endif
 
 #include "DReyeVRPawn.generated.h"
+
+class AEgoVehicle;
 
 UCLASS()
 class ADReyeVRPawn : public APawn
@@ -125,7 +126,9 @@ class ADReyeVRPawn : public APawn
     void TickLogiWheel();
     void DestroyLogiWheel(bool DestroyModule);
     bool bLogLogitechWheel = false;
-    int WheelDeviceIdx = 0; // usually leaving as 0 is fine, only use 1 if 0 is taken
+    float LogiThresh = 0.02f;      // threshold for change needed to overtake AI controls
+    int SaturationPercentage = 30; // "Level of saturation... comparable to a magnitude"
+    int WheelDeviceIdx = 0;        // usually leaving as 0 is fine, only use 1 if 0 is taken
 #if USE_LOGITECH_PLUGIN
     struct DIJOYSTATE2 *Old = nullptr; // global "old" struct for the last state
     void LogLogitechPluginStruct(const struct DIJOYSTATE2 *Now);

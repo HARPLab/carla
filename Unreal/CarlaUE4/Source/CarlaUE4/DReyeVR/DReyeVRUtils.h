@@ -17,6 +17,24 @@
 // performing filter("vehicle.*") or filter("sensor.*")
 static const FString DReyeVRCategory("HarpLab");
 
+template <typename T>
+T *SafePtrGet(const FString &Name, TWeakObjectPtr<T> &Ptr, const std::function<void(void)> &RemedyFunction)
+{
+    if (Ptr.IsValid())
+        return Ptr.Get();
+    // object was destroyed! possibly by external process (ex. map change)
+    if (!Ptr.IsExplicitlyNull())
+    { // dangling pointer!!
+        LOG_WARN("Dangling pointer \"%s\" (%p) is invalid! Attempting to remedy", Ptr.Get(), *Name);
+    }
+    RemedyFunction();
+    // try to remedy
+    if (Ptr.IsValid())
+        return Ptr.Get();
+    LOG_ERROR("Unable to remedy (%s)", *Name);
+    return nullptr;
+}
+
 static FString UE4RefToClassPath(const FString &UE4ReferencePath)
 {
     // converts (reference) strings of the type "Type'/Game/PATH/asset.asset'" to "/Game/PATH/asset.asset_C"

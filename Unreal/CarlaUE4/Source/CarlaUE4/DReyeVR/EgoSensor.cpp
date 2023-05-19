@@ -89,6 +89,11 @@ void AEgoSensor::BeginDestroy()
 {
     Super::BeginDestroy();
 
+    if (RecordingCF != nullptr)
+    {
+        delete RecordingCF;
+    }
+
     DestroyEyeTracker();
 
     LOG("EgoSensor has been destroyed");
@@ -96,7 +101,7 @@ void AEgoSensor::BeginDestroy()
 
 void AEgoSensor::ManualTick(float DeltaSeconds)
 {
-    if (!bIsReplaying) // only update the sensor with local values if not replaying
+    if (!ADReyeVRSensor::bIsReplaying) // only update the sensor with local values if not replaying
     {
         const float Timestamp = int64_t(1000.f * UGameplayStatics::GetRealTimeSeconds(World));
         /// TODO: query the eye tracker hardware asynchronously (not limited to UE4 tick)
@@ -105,11 +110,12 @@ void AEgoSensor::ManualTick(float DeltaSeconds)
         ComputeEgoVars();   // get all necessary ego-vehicle data
 
         // Update the internal sensor data that gets handed off to Carla (for recording/replaying/PythonAPI)
-        GetData()->Update(Timestamp,                  // TimestampCarla (ms)
-                          EyeSensorData,              // EyeTrackerData
-                          EgoVars,                    // EgoVehicleVariables
-                          FocusInfoData,              // FocusData
-                          Vehicle->GetVehicleInputs() // User inputs
+        const auto &Inputs = Vehicle.IsValid() ? Vehicle.Get()->GetVehicleInputs() : DReyeVR::UserInputs{};
+        GetData()->Update(Timestamp,     // TimestampCarla (ms)
+                          EyeSensorData, // EyeTrackerData
+                          EgoVars,       // EgoVehicleVariables
+                          FocusInfoData, // FocusData
+                          Inputs         // User inputs
         );
         TickFoveatedRender();
     }
@@ -288,7 +294,8 @@ bool AEgoSensor::ComputeGazeTrace(FHitResult &Hit, const ECollisionChannel Trace
     // Create collision information container.
     FCollisionQueryParams TraceParam;
     TraceParam = FCollisionQueryParams(FName("TraceParam"), true);
-    TraceParam.AddIgnoredActor(Vehicle); // don't collide with the vehicle since that would be useless
+    if (Vehicle.IsValid())
+        TraceParam.AddIgnoredActor(Vehicle.Get()); // don't collide with the vehicle since that would be useless
     TraceParam.bTraceComplex = true;
     TraceParam.bReturnPhysicalMaterial = false;
     Hit = FHitResult(EForceInit::ForceInit);
@@ -371,32 +378,40 @@ float AEgoSensor::ComputeVergence(const FVector &L0, const FVector &LDir, const 
 void AEgoSensor::SetEgoVehicle(class AEgoVehicle *NewEgoVehicle)
 {
     Vehicle = NewEgoVehicle;
-    Camera = Vehicle->GetCamera();
-    check(Vehicle);
+    check(Vehicle.IsValid());
 
     // Also check that the ConfigFileData variable can be written to with Vehicle params
-    check(ConfigFile);
-    // track both the VehicleParams and GeneralParams
-    const auto ConfigFileStr = Vehicle->GetVehicleParams().Export() + GeneralParams.Export();
-    ConfigFile->Set(ConfigFileStr); // track this config file once
-}
+    check(ConfigFile); // this is a static variable created in the parent (ADReyeVRSensor)
 
-void AEgoSensor::SetGame(class ADReyeVRGameMode *GameIn)
-{
-    DReyeVRGame = GameIn;
-    check(DReyeVRGame);
+    // track both the VehicleParams and GeneralParams
+    const auto ConfigFileStr = Vehicle.Get()->GetVehicleParams().Export() + GeneralParams.Export();
+    ConfigFile->Set(ConfigFileStr); // track this config file once
+
+    // saved from some previous request to compare, but failed bc no EgoVehicle
+    if (RecordingCF != nullptr)
+    {
+        UpdateData(*RecordingCF, 0.f);
+    }
 }
 
 void AEgoSensor::ComputeEgoVars()
 {
+    if (!Vehicle.IsValid())
+    {
+        LOG_WARN("Invalid EgoVehicle, cannot compute EgoVars");
+        return;
+    }
     // See DReyeVRData::EgoVariables
-    EgoVars.VehicleLocation = Vehicle->GetActorLocation();
-    EgoVars.VehicleRotation = Vehicle->GetActorRotation();
+    auto *Ego = Vehicle.Get();
+    auto *Camera = Ego->GetCamera();
+    check(Camera);
+    EgoVars.VehicleLocation = Ego->GetActorLocation();
+    EgoVars.VehicleRotation = Ego->GetActorRotation();
     EgoVars.CameraLocation = Camera->GetRelativeLocation();
     EgoVars.CameraRotation = Camera->GetRelativeRotation();
     EgoVars.CameraLocationAbs = Camera->GetComponentLocation();
     EgoVars.CameraRotationAbs = Camera->GetComponentRotation();
-    EgoVars.Velocity = Vehicle->GetVehicleForwardSpeed();
+    EgoVars.Velocity = Ego->GetVehicleForwardSpeed();
 }
 
 /// ========================================== ///
@@ -422,7 +437,6 @@ void AEgoSensor::ConstructFrameCapture()
         check(CaptureRenderTarget->GetSurfaceWidth() > 0 && CaptureRenderTarget->GetSurfaceHeight() > 0);
 
         FrameCap = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("FrameCap"));
-        FrameCap->SetupAttachment(Camera);
         FrameCap->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
         FrameCap->bCaptureOnMovement = false;
         FrameCap->bCaptureEveryFrame = false;
@@ -445,10 +459,13 @@ void AEgoSensor::ConstructFrameCapture()
 
 void AEgoSensor::InitFrameCapture()
 {
-    // creates the directory for the frame capture to take place
     if (bCaptureFrameData)
     {
-        // create out dir
+        // initialize frame capture attachment to the ego vehicle
+        if (FrameCap && Vehicle.IsValid())
+            FrameCap->SetupAttachment(Vehicle.Get()->GetCamera());
+
+        // creates the directory for the frame capture to take place
         /// TODO: add check for absolute paths
         FrameCapLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() + FrameCapLocation);
         // The returned string has the following format: yyyy.mm.dd-hh.mm.ss
@@ -486,25 +503,25 @@ void AEgoSensor::TakeScreenshot()
     }
 
     // capture the screenshot to the directory
-    if (bCaptureFrameData && FrameCap && Camera && Vehicle)
+    if (bCaptureFrameData && FrameCap && Vehicle.IsValid())
     {
         for (int i = 0; i < GetNumberOfShaders(); i++)
         {
             // apply the postprocessing effect
             FrameCap->PostProcessSettings = CreatePostProcessingEffect(i);
             // loop through all camera poses
-            for (int j = 0; j < Vehicle->GetNumCameraPoses(); j++)
+            for (int j = 0; j < Vehicle.Get()->GetNumCameraPoses(); j++)
             {
                 // set this pose
-                Vehicle->SetCameraRootPose(j);
+                Vehicle.Get()->SetCameraRootPose(j);
 
                 // using 5 digits to reach frame 99999 ~ 30m (assuming ~50fps frame capture)
                 // suffix is denoted as _s(hader)X_p(ose)Y_Z.png where X is the shader idx, Y is the pose idx, Z is tick
                 const FString Suffix = FString::Printf(TEXT("_s%d_p%d_%05d.png"), i, j, ScreenshotCount);
                 // apply the camera view (position & orientation)
                 FMinimalViewInfo DesiredView;
-                Camera->GetCameraView(0, DesiredView);
-                FrameCap->SetCameraView(DesiredView); // move camera to the Camera view
+                Vehicle.Get()->GetCamera()->GetCameraView(0, DesiredView);
+                FrameCap->SetCameraView(DesiredView); // move camera to the camera view
                 // capture the scene and save the screenshot to disk
                 FrameCap->CaptureScene(); // also available: CaptureSceneDeferred()
                 SaveFrameToDisk(*CaptureRenderTarget, FPaths::Combine(FrameCapLocation, FrameCapFilename + Suffix),
@@ -516,7 +533,7 @@ void AEgoSensor::TakeScreenshot()
                 }
             }
             // set camera pose back to 0
-            Vehicle->SetCameraRootPose(0);
+            Vehicle.Get()->SetCameraRootPose(0);
             if (!bRecordAllShaders)
             {
                 // exit after the first shader (rgb)
@@ -563,21 +580,37 @@ void AEgoSensor::TickFoveatedRender()
 
 void AEgoSensor::UpdateData(const DReyeVR::ConfigFileData &RecordedParams, const double Per)
 {
+    if (!Vehicle.IsValid())
+    {
+        // LOG_WARN("Unable to compare ConfigFile bc EgoVehicle is invalid!");
+        RecordingCF = new DReyeVR::ConfigFileData();
+        (*RecordingCF) = RecordedParams; // save these params for later (ex. SetEgoVehicle)
+        return;
+    }
     // compare the incoming (recording) ConfigFile with our current (live) one
     const std::string RecordingExport = TCHAR_TO_UTF8(*RecordedParams.ToString());
     const struct ConfigFile Recorded = ConfigFile::Import(RecordingExport);
 
     // includes both the vehicle params and general params
     struct ConfigFile LiveConfig;
-    LiveConfig.Insert(Vehicle->GetVehicleParams());
+    LiveConfig.Insert(Vehicle.Get()->GetVehicleParams());
     LiveConfig.Insert(GeneralParams);
 
     bool bPrintWarnings = true;
-    LiveConfig.IsSubset(Recorded, bPrintWarnings); // don't care if Recorded has entries that we dont
+    if (LiveConfig.IsSubset(Recorded, bPrintWarnings)) // don't care if Recorded has entries that we dont
+    {
+        LOG("Config file comparison successful!");
+    }
+    else
+    {
+        LOG_WARN("Config file comparison failed! This means the recording was performed with a different configuration "
+                 "file than what is currently active. You might want to check that this does not affect the validity "
+                 "of your replay.");
+    }
 }
 
 void AEgoSensor::UpdateData(const DReyeVR::CustomActorData &RecorderData, const double Per)
 {
-    if (DReyeVRGame)
-        DReyeVRGame->ReplayCustomActor(RecorderData, Per);
+    if (Vehicle.IsValid() && Vehicle.Get()->GetGame())
+        Vehicle.Get()->GetGame()->ReplayCustomActor(RecorderData, Per);
 }
