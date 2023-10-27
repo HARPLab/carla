@@ -17,6 +17,7 @@
 #include "FlatHUD.h"                                  // ADReyeVRHUD
 #include "ImageUtils.h"                               // CreateTexture2D
 #include "WheeledVehicle.h"                           // VehicleMovementComponent
+#include "AwarenessManager.h"                         // Awareness 
 #include <stdio.h>
 #include <vector>
 
@@ -184,7 +185,17 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     void CameraRight();
     void CameraUp();
     void CameraDown();
-    void CameraPositionAdjust(bool bForward, bool bRight, bool bBackwards, bool bLeft, bool bUp, bool bDown);
+
+    // Awareness input
+    void AwarenessFwdV();
+    void AwarenessBackV();
+    void AwarenessLeftV();
+    void AwarenessRightV();
+    void AwarenessFwdW();
+    void AwarenessBackW();
+    void AwarenessLeftW();
+    void AwarenessRightW();
+    
 
     // changing camera views
     void PressNextCameraView();
@@ -227,7 +238,6 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
 
     ////////////////:STEERINGWHEEL:////////////////
     void ConstructSteeringWheel(); // needs to be called in the constructor
-    void DestroySteeringWheel();
     UPROPERTY(Category = Steering, EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
     class UStaticMeshComponent *SteeringWheel;
     void TickSteeringWheel(const float DeltaTime);
@@ -236,15 +246,21 @@ class CARLAUE4_API AEgoVehicle : public ACarlaWheeledVehicle
     float MaxSteerAngleDeg;
     float MaxSteerVelocity;
     float SteeringAnimScale;
-    void InitWheelButtons();
-    void UpdateWheelButton(ADReyeVRCustomActor *Button, bool bEnabled);
-    class ADReyeVRCustomActor *Button_ABXY_A, *Button_ABXY_B, *Button_ABXY_X, *Button_ABXY_Y;
-    class ADReyeVRCustomActor *Button_DPad_Up, *Button_DPad_Down, *Button_DPad_Left, *Button_DPad_Right;
-    bool bInitializedButtons = false;
-    const FLinearColor ButtonNeutralCol = 0.2f * FLinearColor::White;
-    const FLinearColor ButtonPressedCol = 0.9f * FLinearColor::White;
 
     ////////////////:OTHER:////////////////
+
+    // Actor registry
+    int EgoVehicleID;
+    UCarlaEpisode *Episode = nullptr;
+
+    // Awareness mode
+    FAwarenessManager *AwarenessManager = nullptr;
+    bool AwarenessModeEnabled;
+    bool AwarenessVelMode;
+    bool AwarenessPosMode;
+    void render_info(const DReyeVR::AwarenessInfo AwData, float DeltaTime);
+
+    // Other
     void DebugLines() const;
     bool bDrawDebugEditor = false;
 };

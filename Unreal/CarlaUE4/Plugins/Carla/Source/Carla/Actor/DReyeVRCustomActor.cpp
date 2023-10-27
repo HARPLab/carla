@@ -158,14 +158,9 @@ void ADReyeVRCustomActor::Tick(float DeltaSeconds)
         Internals.Scale3D = this->GetActorScale3D();
         Internals.MaterialParams = MaterialParams;
     }
-    UpdateMaterial();
-    /// TODO: use other string?
-}
-
-void ADReyeVRCustomActor::UpdateMaterial()
-{
     // update the materials according to the params
     MaterialParams.Apply(DynamicMat);
+    /// TODO: use other string?
 }
 
 void ADReyeVRCustomActor::SetInternals(const DReyeVR::CustomActorData &InData)

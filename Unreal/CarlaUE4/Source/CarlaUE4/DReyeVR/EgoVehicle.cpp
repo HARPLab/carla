@@ -46,6 +46,9 @@ AEgoVehicle::AEgoVehicle(const FObjectInitializer &ObjectInitializer) : Super(Ob
     // Initialize the steering wheel
     ConstructSteeringWheel();
 
+    AwarenessManager = new FAwarenessManager(this, AwarenessModeEnabled, 
+                                         AwarenessVelMode, AwarenessPosMode);
+
     LOG("Finished constructing %s", *FString(this->GetName()));
 }
 
@@ -81,6 +84,10 @@ void AEgoVehicle::ReadConfigVariables()
     ReadConfigValue("VehicleInputs", "ScaleBrakeInput", ScaleBrakeInput);
     // replay
     ReadConfigValue("Replayer", "CameraFollowHMD", bCameraFollowHMD);
+    // awareness mode
+    ReadConfigValue("AwarenessMode", "AwarenessModeEnabled", AwarenessModeEnabled);
+    ReadConfigValue("AwarenessMode", "AwarenessVelMode", AwarenessVelMode);
+    ReadConfigValue("AwarenessMode", "AwarenessPosMode", AwarenessPosMode);
 }
 
 void AEgoVehicle::BeginPlay()
@@ -91,6 +98,7 @@ void AEgoVehicle::BeginPlay()
     // Get information about the world
     World = GetWorld();
     ensure(World != nullptr);
+    Episode = UCarlaStatics::GetCurrentEpisode(World);
 
     // initialize
     InitAIPlayer();
@@ -100,6 +108,8 @@ void AEgoVehicle::BeginPlay()
 
     // get the GameMode script
     SetGame(Cast<ADReyeVRGameMode>(UGameplayStatics::GetGameMode(World)));
+
+    if (AwarenessManager) AwarenessManager->SetAwarenessManager(Episode, World, EgoSensor.Get());
 
     LOG("Initialized DReyeVR EgoVehicle");
 }
@@ -129,7 +139,11 @@ void AEgoVehicle::BeginDestroy()
     // destroy all spawned entities
     if (EgoSensor.IsValid())
         EgoSensor.Get()->Destroy();
-
+    
+    // destroy awareness manager
+    if (AwarenessManager) {
+        delete AwarenessManager;
+    }
     LOG("EgoVehicle has been destroyed");
 }
 
@@ -158,6 +172,11 @@ void AEgoVehicle::Tick(float DeltaSeconds)
 
     // Update the world level
     TickGame(DeltaSeconds);
+
+    // Tick awareness manager
+    if (AwarenessManager) {
+        AwarenessManager->Tick(DeltaSeconds);
+    }
 
     // Play sound that requires constant ticking
     TickSounds();
@@ -437,13 +456,21 @@ void AEgoVehicle::InitSensor()
     EgoSensor.Get()->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
     EgoSensor.Get()->SetActorTransform(FTransform::Identity, false, nullptr, ETeleportType::TeleportPhysics);
     EgoSensor.Get()->SetEgoVehicle(this);
+
+    // Awareness
+    EgoSensor->GetData()->AwarenessMode = AwarenessModeEnabled;
 }
 
 void AEgoVehicle::ReplayTick()
 {
     if (!EgoSensor.IsValid())
         return;
+    if (!EgoSensor.IsValid())
+        return;
     const bool bIsReplaying = EgoSensor.Get()->IsReplaying();
+    EgoSensor->GetData()->UpdateReplayStatus(bIsReplaying);
+    // std::cout << "replaying? " << (EgoSensor->GetData()->GetReplayStatus()) << std::endl;
+
     // need to enable/disable VehicleMesh simulation
     class USkeletalMeshComponent *VehicleMesh = GetMesh();
     if (VehicleMesh)
@@ -754,89 +781,8 @@ void AEgoVehicle::ConstructSteeringWheel()
     SteeringWheel->SetVisibility(true);
 }
 
-void AEgoVehicle::InitWheelButtons()
-{
-    if (SteeringWheel == nullptr || World == nullptr)
-        return;
-    // left buttons (dpad)
-    Button_DPad_Up = ADReyeVRCustomActor::CreateNew(SM_CONE, MAT_OPAQUE, World, "DPad_Up");       // top on left
-    Button_DPad_Right = ADReyeVRCustomActor::CreateNew(SM_CONE, MAT_OPAQUE, World, "DPad_Right"); // right on left
-    Button_DPad_Down = ADReyeVRCustomActor::CreateNew(SM_CONE, MAT_OPAQUE, World, "DPad_Down");   // bottom on left
-    Button_DPad_Left = ADReyeVRCustomActor::CreateNew(SM_CONE, MAT_OPAQUE, World, "DPad_Left");   // left on left
-    // right buttons (ABXY)
-    Button_ABXY_Y = ADReyeVRCustomActor::CreateNew(SM_SPHERE, MAT_OPAQUE, World, "ABXY_Y"); // top on right
-    Button_ABXY_B = ADReyeVRCustomActor::CreateNew(SM_SPHERE, MAT_OPAQUE, World, "ABXY_B"); // right on right
-    Button_ABXY_A = ADReyeVRCustomActor::CreateNew(SM_SPHERE, MAT_OPAQUE, World, "ABXY_A"); // bottom on right
-    Button_ABXY_X = ADReyeVRCustomActor::CreateNew(SM_SPHERE, MAT_OPAQUE, World, "ABXY_X"); // left on right
-
-    const FRotator PointLeft(0.f, 0.f, -90.f);
-    const FRotator PointRight(0.f, 0.f, 90.f);
-    const FRotator PointUp(0.f, 0.f, 0.f);
-    const FRotator PointDown(0.f, 0.f, 180.f);
-    const FVector LeftCenter(-7.f, -10.f, 4.f); // where the center of the left 4 buttons is
-    const FVector RightCenter(-7.f, 10.f, 4.f); // where the center of the right 4 buttons is
-
-    const float ButtonDist = 2.f; // increase to separate the buttons more
-    Button_DPad_Up->SetActorLocation(LeftCenter + ButtonDist * FVector::UpVector);
-    Button_DPad_Up->SetActorRotation(PointUp);
-    Button_DPad_Right->SetActorLocation(LeftCenter + ButtonDist * FVector::RightVector);
-    Button_DPad_Right->SetActorRotation(PointRight);
-    Button_DPad_Down->SetActorLocation(LeftCenter + ButtonDist * FVector::DownVector);
-    Button_DPad_Down->SetActorRotation(PointDown);
-    Button_DPad_Left->SetActorLocation(LeftCenter + ButtonDist * FVector::LeftVector);
-    Button_DPad_Left->SetActorRotation(PointLeft);
-
-    // (spheres don't need rotation)
-    Button_ABXY_Y->SetActorLocation(RightCenter + ButtonDist * FVector::UpVector);
-    Button_ABXY_B->SetActorLocation(RightCenter + ButtonDist * FVector::RightVector);
-    Button_ABXY_A->SetActorLocation(RightCenter + ButtonDist * FVector::DownVector);
-    Button_ABXY_X->SetActorLocation(RightCenter + ButtonDist * FVector::LeftVector);
-
-    // for applying the same properties on these actors
-    auto WheelButtons = {Button_ABXY_A,  Button_ABXY_B,    Button_ABXY_X,    Button_ABXY_Y,
-                         Button_DPad_Up, Button_DPad_Down, Button_DPad_Left, Button_DPad_Right};
-    for (auto *Button : WheelButtons)
-    {
-        check(Button != nullptr);
-        Button->Activate();
-        Button->SetActorScale3D(0.015f * FVector::OneVector);
-        Button->AttachToComponent(SteeringWheel, FAttachmentTransformRules::KeepRelativeTransform);
-        Button->MaterialParams.BaseColor = ButtonNeutralCol;
-        Button->MaterialParams.Emissive = ButtonNeutralCol;
-        Button->UpdateMaterial();
-        Button->SetActorTickEnabled(false);   // don't tick these actors (for performance)
-        Button->SetActorRecordEnabled(false); // don't need to record these actors either
-    }
-    bInitializedButtons = true;
-}
-
-void AEgoVehicle::UpdateWheelButton(ADReyeVRCustomActor *Button, bool bEnabled)
-{
-    if (Button == nullptr)
-        return;
-    Button->MaterialParams.BaseColor = bEnabled ? ButtonPressedCol : ButtonNeutralCol;
-    Button->MaterialParams.Emissive = bEnabled ? ButtonPressedCol : ButtonNeutralCol;
-    Button->UpdateMaterial();
-}
-
-void AEgoVehicle::DestroySteeringWheel()
-{
-    auto WheelButtons = {Button_ABXY_A,  Button_ABXY_B,    Button_ABXY_X,    Button_ABXY_Y,
-                         Button_DPad_Up, Button_DPad_Down, Button_DPad_Left, Button_DPad_Right};
-    for (auto *Button : WheelButtons)
-    {
-        if (Button)
-        {
-            Button->Deactivate();
-            Button->Destroy();
-        }
-    }
-}
-
 void AEgoVehicle::TickSteeringWheel(const float DeltaTime)
 {
-    if (!bInitializedButtons)
-        InitWheelButtons();
     const FRotator CurrentRotation = SteeringWheel->GetRelativeRotation();
     const float RawSteering = GetVehicleInputs().Steering; // this is scaled in SetSteering
     const float TargetAngle = (RawSteering / ScaleSteeringInput) * SteeringAnimScale;
@@ -888,6 +834,31 @@ void AEgoVehicle::TickGame(float DeltaSeconds)
 /// ========================================== ///
 /// ---------------:COSMETIC:----------------- ///
 /// ========================================== ///
+
+void AEgoVehicle::render_info(const DReyeVR::AwarenessInfo AwData, float DeltaTime) {
+    std::vector<FCarlaActor*> VisibleRaw = AwData.VisibleRaw;
+    std::cout << "****** *" << VisibleRaw.size() << std::endl;
+    for (int i = 0; i < VisibleRaw.size(); i++) {
+        std::cout << "!!!" << std::endl;
+        FCarlaActor* Actor = VisibleRaw[i];
+        FVector BBox_Offset, BBox_Extent;
+        int64_t id = Actor->GetActorId();
+        FString id_s = FString::Printf(TEXT("%d"), id);
+        Actor->GetActor()->GetActorBounds(true, BBox_Offset, BBox_Extent, false);
+        float Height = 2 * BBox_Extent.Z; // extent is only half the "volume" (extension from center)
+        FVector Pos = Actor->GetActor()->GetActorLocation() - this->GetActorLocation();
+        DrawDebugString(World, Pos, id_s, this, FColor::Blue, DeltaTime * 5);
+
+        FString s = "";
+        int64_t Answer = AwData.Visible[i].Answer;
+        if (Answer & 1) s += 'F';
+        if (Answer & 2) s += 'R';
+        if (Answer & 4) s += 'B';
+        if (Answer & 8) s += 'L';
+        DrawDebugString(World, Pos + Height / 2, s, this, FColor::Red, DeltaTime * 2);
+    }
+}
+
 
 void AEgoVehicle::DebugLines() const
 {

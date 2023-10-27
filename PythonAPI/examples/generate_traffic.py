@@ -175,6 +175,8 @@ def main():
             traffic_manager.set_random_device_seed(args.seed)
 
         settings = world.get_settings()
+        print('HELLOOO')
+        print(args.asynch)
         if not args.asynch:
             traffic_manager.set_synchronous_mode(True)
             if not settings.synchronous_mode:

@@ -493,7 +493,6 @@ void ADReyeVRPawn::LogitechWheelUpdate()
     if (LogiUpdate() == false) // update the logitech wheel
         LOG_WARN("Logitech wheel %d failed to update!", WheelDeviceIdx);
     DIJOYSTATE2 *WheelState = LogiGetState(WheelDeviceIdx);
-    ensure(WheelState != nullptr);
     if (bLogLogitechWheel)
         LogLogitechPluginStruct(WheelState);
     /// NOTE: obtained these from LogitechWheelInputDevice.cpp:~111
@@ -544,15 +543,24 @@ void ADReyeVRPawn::LogitechWheelUpdate()
     AccelerationPedalLast = AccelerationPedal;
     BrakePedalLast = BrakePedal;
 
-    ManageButtonPresses(*WheelState);
-}
-
-void ADReyeVRPawn::ManageButtonPresses(const DIJOYSTATE2 &WheelState)
-{
-    const bool bABXY_A = static_cast<bool>(WheelState.rgbButtons[0]);
-    const bool bABXY_B = static_cast<bool>(WheelState.rgbButtons[2]);
-    const bool bABXY_X = static_cast<bool>(WheelState.rgbButtons[1]);
-    const bool bABXY_Y = static_cast<bool>(WheelState.rgbButtons[3]);
+    // awareness 
+    if (WheelState->rgbButtons[0]) 
+        EgoVehicle->AwarenessFwdV();
+    else if (WheelState->rgbButtons[1]) 
+        EgoVehicle->AwarenessFwdV();
+    else if (WheelState->rgbButtons[2]) 
+        EgoVehicle->AwarenessFwdV();
+    else if (WheelState->rgbButtons[3]) 
+        EgoVehicle->AwarenessFwdV();
+        
+    if (WheelState->rgdwPOV[0] == 0) // positive in X
+        EgoVehicle->AwarenessFwdV();
+    else if (WheelState->rgdwPOV[0] == 18000) // negative in X
+        EgoVehicle->AwarenessBackV();
+    else if (WheelState->rgdwPOV[0] == 9000) // positive in Y
+        EgoVehicle->AwarenessRightV();
+    else if (WheelState->rgdwPOV[0] == 27000) // negative in Y
+        EgoVehicle->AwarenessLeftV();
 
     // if (bABXY_A || bABXY_B || bABXY_X || bABXY_Y)
     //     EgoVehicle->PressReverse();
@@ -572,12 +580,12 @@ void ADReyeVRPawn::ManageButtonPresses(const DIJOYSTATE2 &WheelState)
     else
         EgoVehicle->ReleaseTurnSignalR();
 
-    if (bTurnSignalL)
+    if (WheelState->rgbButtons[5])
         EgoVehicle->PressTurnSignalL();
     else
         EgoVehicle->ReleaseTurnSignalL();
 
-    // if (WheelState.rgbButtons[23]) // big red button on right side of g923
+    // if (WheelState->rgbButtons[23]) // big red button on right side of g923
 
     const bool bDPad_Up = (WheelState.rgdwPOV[0] == 0);
     const bool bDPad_Right = (WheelState.rgdwPOV[0] == 9000);
@@ -682,6 +690,15 @@ void ADReyeVRPawn::SetupEgoVehicleInputComponent(UInputComponent *PlayerInputCom
     PlayerInputComponent->BindAction("CameraRight_DReyeVR", IE_Pressed, EV, &AEgoVehicle::CameraRight);
     PlayerInputComponent->BindAction("CameraUp_DReyeVR", IE_Pressed, EV, &AEgoVehicle::CameraUp);
     PlayerInputComponent->BindAction("CameraDown_DReyeVR", IE_Pressed, EV, &AEgoVehicle::CameraDown);
+    // awareness
+    PlayerInputComponent->BindAction("AwarenessFwdV_DReyeVR", IE_Pressed, EV, &AEgoVehicle::AwarenessFwdV);
+    PlayerInputComponent->BindAction("AwarenessBackV_DReyeVR", IE_Pressed, EV, &AEgoVehicle::AwarenessBackV);
+    PlayerInputComponent->BindAction("AwarenessLeftV_DReyeVR", IE_Pressed, EV, &AEgoVehicle::AwarenessLeftV);
+    PlayerInputComponent->BindAction("AwarenessRightV_DReyeVR", IE_Pressed, EV, &AEgoVehicle::AwarenessRightV);
+    PlayerInputComponent->BindAction("AwarenessFwdW_DReyeVR", IE_Pressed, EV, &AEgoVehicle::AwarenessFwdW);
+    PlayerInputComponent->BindAction("AwarenessBackW_DReyeVR", IE_Pressed, EV, &AEgoVehicle::AwarenessBackW);
+    PlayerInputComponent->BindAction("AwarenessLeftW_DReyeVR", IE_Pressed, EV, &AEgoVehicle::AwarenessLeftW);
+    PlayerInputComponent->BindAction("AwarenessRightW_DReyeVR", IE_Pressed, EV, &AEgoVehicle::AwarenessRightW);
 }
 
 #define CHECK_EGO_VEHICLE(FUNCTION)                                                                                    \

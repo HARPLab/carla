@@ -39,16 +39,6 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
         return bIsActive;
     }
 
-    void SetActorRecordEnabled(const bool bEnabled)
-    {
-        bShouldRecord = bEnabled;
-    }
-
-    const bool GetShouldRecord() const
-    {
-        return bShouldRecord;
-    }
-
     void Initialize(const FString &Name);
 
     void SetInternals(const DReyeVR::CustomActorData &In);
@@ -59,14 +49,12 @@ class CARLA_API ADReyeVRCustomActor : public AActor // abstract class
 
     // function to dynamically change the material params of the object at runtime
     void AssignMat(const FString &Path);
-    void UpdateMaterial();
     struct DReyeVR::CustomActorData::MaterialParamsStruct MaterialParams;
 
   private:
     void BeginPlay() override;
     void BeginDestroy() override;
-    bool bIsActive = false;    // initially deactivated
-    bool bShouldRecord = true; // should record in the Carla Recorder/Replayer
+    bool bIsActive = false; // initially deactivated
 
     bool AssignSM(const FString &Path, UWorld *World);
 
