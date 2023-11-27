@@ -542,6 +542,89 @@ std::string CarlaRecorderQuery::QueryInfo(std::string Filename, bool bShowAll)
           SkipPacket();
         break;
 
+        case static_cast<char>(CarlaRecorderPacketId::Weather):
+        if (bShowAll)
+        {
+          ReadValue<uint16_t>(File, Total);
+          if (Total > 0 && !bFramePrinted)
+          {
+            PrintFrame(Info);
+            bFramePrinted = true;
+          }
+
+          Info << " Weather events: " << Total << std::endl;
+          for (i = 0; i < Total; ++i)
+          {
+            Weather.Read(File);
+            Info << "  " << Weather.Print() << std::endl;
+          }
+        }
+        else
+          SkipPacket();
+        break;
+
+        // DReyeVR data
+        case static_cast<char>(CarlaRecorderPacketId::DReyeVR):
+        if (bShowAll)
+        {
+            ReadValue<uint16_t>(File, Total);
+            if (Total > 0 && !bFramePrinted)
+            {
+                PrintFrame(Info);
+                bFramePrinted = true;
+            }
+            Info << " DReyeVR sensor data: " << Total << std::endl;
+            for (i = 0; i < Total; ++i)
+            {
+                DReyeVRAggDataInstance.Read(File);
+                Info << DReyeVRAggDataInstance.Print() << std::endl;
+            }
+        }
+        else
+            SkipPacket();
+        break;
+
+        // DReyeVR data
+        case static_cast<char>(CarlaRecorderPacketId::DReyeVRCustomActor):
+        if (bShowAll)
+        {
+            ReadValue<uint16_t>(File, Total);
+            if (Total > 0 && !bFramePrinted)
+            {
+                PrintFrame(Info);
+                bFramePrinted = true;
+            }
+            Info << " DReyeVR custom actor data: " << Total << std::endl;
+            for (i = 0; i < Total; ++i)
+            { 
+                DReyeVRCustomActorDataInstance.Read(File);
+                Info << DReyeVRCustomActorDataInstance.Print() << std::endl;
+            }
+        }
+        else
+            SkipPacket();
+        break;
+
+        // DReyeVR data (ConfigFileData)
+        case static_cast<char>(CarlaRecorderPacketId::DReyeVRConfigFile):
+        if (bShowAll)
+        {
+            ReadValue<uint16_t>(File, Total);
+            if (Total > 0 && !bFramePrinted)
+            {
+                PrintFrame(Info);
+                bFramePrinted = true;
+            }
+            Info << " DReyeVR config files: " << Total << std::endl;
+            for (i = 0; i < Total; ++i)
+            { 
+                DReyeVRConfigFileDataInstance.Read(File);
+                Info << DReyeVRConfigFileDataInstance.Print() << std::endl;
+            }
+        }
+        else
+            SkipPacket();
+        break;
         // frame end
         case static_cast<char>(CarlaRecorderPacketId::FrameEnd):
         // do nothing, it is empty

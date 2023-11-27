@@ -8,6 +8,10 @@
 #include "CarlaRecorder.h"
 #include "Carla/Game/CarlaEpisode.h"
 
+// DReyeVR include
+#include "Carla/Actor/DReyeVRCustomActor.h" // ADReyeVRCustomActor::ActiveCustomActors
+#include "Carla/Sensor/DReyeVRSensor.h"     // ADReyeVRSensor
+
 #include <ctime>
 #include <sstream>
 
@@ -28,6 +32,10 @@ void CarlaReplayer::Stop(bool bKeepActors)
 
     // callback
     Helper.ProcessReplayerFinish(bKeepActors, IgnoreHero, IsHeroMap);
+
+    // turn off DReyeVR replay
+    if (GetEgoSensor())
+      GetEgoSensor()->StopReplaying();
   }
 
   File.close();
@@ -102,11 +110,45 @@ double CarlaReplayer::GetTotalTime(void)
   return Frame.Elapsed;
 }
 
+// Read all the frames and collect their start times
+void CarlaReplayer::GetFrameStartTimes()
+{
+  std::streampos Current = File.tellg();
+
+  while (File)
+  {
+    if (!ReadHeader())
+    {
+      break;
+    }
+
+    switch (Header.Id)
+    {
+      case static_cast<char>(CarlaRecorderPacketId::FrameStart):
+        Frame.Read(File);
+        FrameStartTimes.push_back(Frame.Elapsed); // add this time to the global container
+        break;
+      default:
+        SkipPacket();
+        break;
+    }
+  }
+
+  File.clear();
+  File.seekg(Current, std::ios::beg); // return to original position
+}
+
 std::string CarlaReplayer::ReplayFile(std::string Filename, double TimeStart, double Duration,
     uint32_t ThisFollowId, bool ReplaySensors)
 {
   std::stringstream Info;
   std::string s;
+
+  // Capture params in case we restart from the media controls (use same params)
+  LastReplay.Filename = Filename;
+  LastReplay.TimeStart = TimeStart;
+  LastReplay.Duration = Duration;
+  LastReplay.ThisFollowId = ThisFollowId;
 
   // check to stop if we are replaying another
   if (Enabled)
@@ -253,6 +295,85 @@ void CarlaReplayer::CheckPlayAfterMapLoaded(void)
   Enabled = true;
 }
 
+class ADReyeVRSensor *CarlaReplayer::GetEgoSensor()
+{
+  if (EgoSensor.IsValid()) {
+    return EgoSensor.Get();
+  }
+  // not tracked yet, lets find the EgoSensor
+  if (Episode == nullptr) {
+    DReyeVR_LOG_ERROR("No Replayer Episode available!");
+    return nullptr;
+  }
+  EgoSensor = ADReyeVRSensor::GetDReyeVRSensor(Episode->GetWorld());
+  if (!EgoSensor.IsValid()) {
+    DReyeVR_LOG_ERROR("No EgoSensor available!");
+    return nullptr;
+  }
+  return EgoSensor.Get();
+}
+
+template<>
+void CarlaReplayer::ProcessDReyeVR<DReyeVR::AggregateData>(double Per, double DeltaTime)
+{
+  uint16_t Total;
+  // read number of DReyeVR entries
+  ReadValue<uint16_t>(File, Total); // read number of events
+  check(Total == 1); // should be only one Agg data
+  for (uint16_t i = 0; i < Total; ++i)
+  {
+    struct DReyeVRDataRecorder<DReyeVR::AggregateData> Instance;
+    Instance.Read(File);
+    Helper.ProcessReplayerDReyeVR<DReyeVR::AggregateData>(GetEgoSensor(), Instance.Data, Per);
+  }
+}
+
+template<>
+void CarlaReplayer::ProcessDReyeVR<DReyeVR::ConfigFileData>(double Per, double DeltaTime)
+{
+  uint16_t Total;
+  // read number of DReyeVR entries
+  ReadValue<uint16_t>(File, Total); // read number of events
+  check(Total == 1); // should be only one ConfigFile data
+  for (uint16_t i = 0; i < Total; ++i)
+  {
+    struct DReyeVRDataRecorder<DReyeVR::ConfigFileData> Instance;
+    Instance.Read(File);
+    Helper.ProcessReplayerDReyeVR<DReyeVR::ConfigFileData>(GetEgoSensor(), Instance.Data, Per);
+  }
+}
+
+template<>
+void CarlaReplayer::ProcessDReyeVR<DReyeVR::CustomActorData>(double Per, double DeltaTime)
+{
+  uint16_t Total;
+  ReadValue<uint16_t>(File, Total); // read number of events
+  CustomActorsVisited.clear();
+  for (uint16_t i = 0; i < Total; ++i)
+  {
+    struct DReyeVRDataRecorder<DReyeVR::CustomActorData> Instance;
+    Instance.Read(File);
+    Helper.ProcessReplayerDReyeVR<DReyeVR::CustomActorData>(GetEgoSensor(), Instance.Data, Per);
+    auto Name = Instance.GetUniqueName();
+    CustomActorsVisited.insert(Name); // to track lifetime
+  }
+
+  for (auto It = ADReyeVRCustomActor::ActiveCustomActors.begin(); It != ADReyeVRCustomActor::ActiveCustomActors.end();){
+    const std::string &ActiveActorName = It->first;
+    if (CustomActorsVisited.find(ActiveActorName) == CustomActorsVisited.end()) // currently alive actor who was not visited... time to disable
+    {
+      // now this has to be garbage collected
+      auto Next = std::next(It, 1); // iterator following the last removed element
+      It->second->Deactivate();
+      It = Next;
+    }
+    else
+    {
+      ++It; // increment iterator if not erased
+    }
+  }
+}
+
 void CarlaReplayer::ProcessToTime(double Time, bool IsFirstTime)
 {
   double Per = 0.0f;
@@ -354,6 +475,35 @@ void CarlaReplayer::ProcessToTime(double Time, bool IsFirstTime)
       case static_cast<char>(CarlaRecorderPacketId::SceneLight):
         if (bFrameFound)
           ProcessLightScene();
+        else
+          SkipPacket();
+        break;
+
+      // weather state
+      case static_cast<char>(CarlaRecorderPacketId::Weather):
+        ProcessWeather();
+        break;
+
+      // DReyeVR ego sensor data
+      case static_cast<char>(CarlaRecorderPacketId::DReyeVR):
+        if (bFrameFound)
+          ProcessDReyeVR<DReyeVR::AggregateData>(Per, Time);
+        else
+          SkipPacket();
+        break;
+
+      // DReyeVR custom actor data
+      case static_cast<char>(CarlaRecorderPacketId::DReyeVRCustomActor):
+        if (bFrameFound)
+          ProcessDReyeVR<DReyeVR::CustomActorData>(Per, Time);
+        else
+          SkipPacket();
+        break;
+      
+      // DReyeVR config file data
+      case static_cast<char>(CarlaRecorderPacketId::DReyeVRConfigFile):
+        if (bFrameFound)
+          ProcessDReyeVR<DReyeVR::ConfigFileData>(Per, Time);
         else
           SkipPacket();
         break;
@@ -574,6 +724,20 @@ void CarlaReplayer::ProcessLightScene(void)
   }
 }
 
+void CarlaReplayer::ProcessWeather(void)
+{
+  uint16_t Total;
+  CarlaRecorderWeather Weather;
+
+  // read Total light events
+  ReadValue<uint16_t>(File, Total);
+  for (uint16_t i = 0; i < Total; ++i)
+  {
+    Weather.Read(File);
+    Helper.ProcessReplayerWeather(Weather);
+  }
+}
+
 void CarlaReplayer::ProcessPositions(bool IsFirstTime)
 {
   uint16_t i, Total;
@@ -678,9 +842,90 @@ void CarlaReplayer::InterpolatePosition(
 void CarlaReplayer::Tick(float Delta)
 {
   TRACE_CPUPROFILER_EVENT_SCOPE(CarlaReplayer::Tick);
-  // check if there are events to process
-  if (Enabled)
+  // check if there are events to process (and unpaused)
+  if (Enabled && !Paused)
   {
-    ProcessToTime(Delta * TimeFactor, false);
+    if (bReplaySync)
+    {
+      ProcessFrameByFrame();
+    }
+    else // typical usage (replay as fast as possible with interpolation)
+    {
+      ProcessToTime(Delta * TimeFactor, false);
+    }
+  }
+}
+
+void CarlaReplayer::ProcessFrameByFrame()
+{
+  // get the times to process if needed
+  if (FrameStartTimes.size() == 0)
+  {
+    GetFrameStartTimes();
+    ensure(FrameStartTimes.size() > 0);
+  }
+
+  // process to those times
+  ensure(SyncCurrentFrameId < FrameStartTimes.size());
+  double LastTime = 0.f;
+  if (SyncCurrentFrameId > 0)
+    LastTime = FrameStartTimes[SyncCurrentFrameId - 1];
+  ProcessToTime(FrameStartTimes[SyncCurrentFrameId] - LastTime, (SyncCurrentFrameId == 0));
+  if (GetEgoSensor()) // take screenshot of this frame
+    GetEgoSensor()->TakeScreenshot();
+  // progress to the next frame
+  if (SyncCurrentFrameId < FrameStartTimes.size() - 1)
+    SyncCurrentFrameId++;
+  else
+    Stop();
+}
+
+void CarlaReplayer::Restart() 
+{
+  // Use same params as they were initially
+  ReplayFile(LastReplay.Filename, LastReplay.TimeStart,
+             LastReplay.Duration, LastReplay.ThisFollowId);
+}
+
+void CarlaReplayer::Advance(const float Amnt)
+{
+  // check out of bounds
+  const double DesiredTime = CurrentTime + Amnt;
+  if (DesiredTime < 0 || DesiredTime > TotalTime || DesiredTime > TimeToStop)
+  {
+    return;
+  }
+
+  // ignore if 0
+  if (Amnt == 0)
+  {
+    return;
+  }
+  // forward in time (easy)
+  else if (Amnt > 0) 
+  {
+    /// TODO: verify that this correctly places all actors
+    // else can use the Restart+ProcessToTime hack similar to backwards
+    ProcessToTime(Amnt, false);
+  }
+  // backwards in time (harder)
+  else
+  {
+    // // amnt is unit of time (timestep) for replay
+    // UE_LOG(LogTemp, Log, TEXT("Want to go back to: %.4f from"), DesiredTime, CurrentTime);
+    // int NumAmnts = ((CurrentTime - Frame.Elapsed) / (-Amnt)) + 1;
+    // // duration is unit of time (timestep) for recordings
+    // int NumDurations = (NumAmnts * (-Amnt)) / Frame.DurationThis;
+    // UE_LOG(LogTemp, Log, TEXT("With a duration of %.4f, this'll take %d prevs"), Frame.DurationThis, NumDurations);
+    // for (size_t i = 0; i < NumDurations; i++)
+    // {
+    //   PrevPacket(); // go backwards in the file
+    // }
+    // UE_LOG(LogTemp, Log, TEXT("Now the time is: %.3f"), Frame.Elapsed);
+    // // back to negative
+    // ProcessToTime(Amnt, false);
+    Stop(true); // stops the replaying while keeping actors (dosen't destroy & respawn)
+    Restart();
+    ProcessToTime(DesiredTime, true);
   }
 }

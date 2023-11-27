@@ -118,6 +118,7 @@ def main():
             if n >= count:
                 break
             blueprint = random.choice(blueprints)
+            assert blueprint is not None
             if blueprint.has_attribute('color'):
                 color = random.choice(blueprint.get_attribute('color').recommended_values)
                 blueprint.set_attribute('color', color)
@@ -137,7 +138,6 @@ def main():
         else:
             while True:
                 world.wait_for_tick()
-                # time.sleep(0.1)
 
     finally:
 

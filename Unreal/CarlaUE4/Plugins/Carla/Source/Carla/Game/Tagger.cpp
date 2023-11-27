@@ -69,16 +69,28 @@ bool ATagger::IsThing(const crp::CityObjectLabel &Label)
 
 FLinearColor ATagger::GetActorLabelColor(const AActor &Actor, const crp::CityObjectLabel &Label)
 {
-  uint32 id = Actor.GetUniqueID();
-  // TODO: Warn if id > 0xffff.
+  //uint32 id = Actor.GetUniqueID();
 
   // Encode label and id like semantic segmentation does
-  // TODO: Steal bits from R channel and maybe A channel?
+  uint32 id = 0;
+  UWorld* World = Actor.GetWorld();
+  if (World == NULL) {
+    std::cout << "World is NULL" << std::endl;
+  }
+  if (World != NULL) {
+    UCarlaEpisode *Episode = UCarlaStatics::GetCurrentEpisode(World);
+    if (Episode != NULL) {
+      const FActorRegistry &Registry = Episode->GetActorRegistry();
+      const FCarlaActor* CarlaActor = Registry.FindCarlaActor(&Actor);
+      if (CarlaActor != NULL) {
+        id = CarlaActor->GetActorId();
+      }
+    }
+  }
   FLinearColor Color(0.0f, 0.0f, 0.0f, 1.0f);
   Color.R = CastEnum(Label) / 255.0f;
   Color.G = ((id & 0x00ff) >> 0) / 255.0f;
   Color.B = ((id & 0xff00) >> 8) / 255.0f;
-
   return Color;
 }
 

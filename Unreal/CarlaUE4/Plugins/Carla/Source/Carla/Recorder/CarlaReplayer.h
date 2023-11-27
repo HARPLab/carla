@@ -9,6 +9,8 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include <functional>
 #include "CarlaRecorderInfo.h"
@@ -24,7 +26,7 @@
 
 class UCarlaEpisode;
 
-class CarlaReplayer
+class CARLA_API CarlaReplayer
 {
   #pragma pack(push, 1)
   struct Header
@@ -92,10 +94,26 @@ public:
   // tick for the replayer
   void Tick(float Time);
 
+  // DReyeVR replayer functions
+  void PlayPause()
+  {
+    Paused = !Paused;
+  }
+
+  void Restart(); // calls ReplayFile which is implemented in .cpp
+
+  void Advance(const float Amnt); // long function implemented in .cpp file
+
+  void SetSyncMode(bool bSyncModeIn)
+  {
+    bReplaySync = bSyncModeIn;
+  }
+  
 private:
 
   bool Enabled;
   bool bReplaySensors = false;
+  bool Paused = false;
   UCarlaEpisode *Episode = nullptr;
   // binary file reader
   std::ifstream File;
@@ -146,6 +164,31 @@ private:
 
   void ProcessLightVehicle(void);
   void ProcessLightScene(void);
+
+  void ProcessWeather(void);
+
+  // DReyeVR recordings
+  template <typename T>
+  void ProcessDReyeVR(double Per, double DeltaTime);
+  std::unordered_set<std::string> CustomActorsVisited = {};
+  class ADReyeVRSensor *GetEgoSensor(); // (safe) getter for EgoSensor
+  TWeakObjectPtr<class ADReyeVRSensor> EgoSensor;
+
+  // For restarting the recording with the same params
+  struct LastReplayStruct
+  {
+    std::string Filename = "None";
+    double TimeStart = 0;
+    double Duration = 0;
+    uint32_t ThisFollowId = 0;
+  };
+  LastReplayStruct LastReplay;
+
+  bool bReplaySync = false;
+  std::vector<double> FrameStartTimes;
+  size_t SyncCurrentFrameId = 0;
+  void GetFrameStartTimes();
+  void ProcessFrameByFrame();
 
   // positions
   void UpdatePositions(double Per, double DeltaTime);
