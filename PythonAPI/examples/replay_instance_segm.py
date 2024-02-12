@@ -11,6 +11,8 @@ import glob
 import os
 import sys
 import time
+import numpy as np
+from PIL import Image
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -135,6 +137,9 @@ def main():
     
         blueprint_library = world.get_blueprint_library()
         
+        import time
+        time.sleep(2)
+        
         ego_vehicle = find_ego_vehicle(world)
         egosensor = find_ego_sensor(world)
         ego_queue = queue.Queue()
@@ -180,9 +185,9 @@ def main():
         replay_started = 0
         replay_done = False
         ctr = 0
-
-        filename = args.recorder_filename.split("/")[-1]
-        filename = filename.split(".rec")[0]
+        
+        filename = os.path.basename(args.recorder_filename)
+        filename = os.path.splitext(filename)[0]
         while not replay_done:
             # replay_frames = set()
             # while not ego_queue.empty():
@@ -192,11 +197,13 @@ def main():
             # import ipdb; ipdb.set_trace()
             if not instseg_queue.empty():
                 image = instseg_queue.get(2.0)
-                image.save_to_disk('%s/images/instance_segmentation_output/%.6d.jpg' % (filename, ctr + 1))
-                
+                #image.save_to_disk('%s/images/instance_segmentation_output/%.6d.jpg' % (filename, ctr + 1))
+                raw_image = Image.fromarray(np.array(image.raw_data).reshape(image.height, image.width, 4))
+                #Image.fromarray(np.array(image.raw_data).reshape(600, 800, 4)).show()
+                raw_image.save('%s/images/instance_segmentation_output/%.6d.png' % (filename, ctr + 1))
             if not rgb_queue.empty():
                 image = rgb_queue.get(2.0)
-                image.save_to_disk('%s/images/rgb_output/%.6d.jpg' % (filename, ctr + 1))
+                image.save_to_disk('%s/images/rgb_output/%.6d.png' % (filename, ctr + 1))
 
             world.tick()
             ctr += 1
