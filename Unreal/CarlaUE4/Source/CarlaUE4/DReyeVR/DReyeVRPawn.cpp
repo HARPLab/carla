@@ -557,14 +557,14 @@ void ADReyeVRPawn::LogitechWheelUpdate()
     const bool bABXY_Y = static_cast<bool>(WheelState->rgbButtons[3]);
 
     // awareness 
-    if (bABXY_A) 
-        EgoVehicle->AwarenessFwdV();
-    else if (bABXY_B) 
-        EgoVehicle->AwarenessFwdV();
-    else if (bABXY_X) 
-        EgoVehicle->AwarenessFwdV();
-    else if (bABXY_Y) 
-        EgoVehicle->AwarenessFwdV();
+    if (bABXY_A)  // bottom on right
+        EgoVehicle->AwarenessBackW();
+    else if (bABXY_B) // right on right
+        EgoVehicle->AwarenessRightW();
+    else if (bABXY_X)  // left on right
+        EgoVehicle->AwarenessLeftW();
+    else if (bABXY_Y) // top on right
+        EgoVehicle->AwarenessFwdW();
         
     if (WheelState->rgdwPOV[0] == 0) // positive in X
         EgoVehicle->AwarenessFwdV();
@@ -579,6 +579,7 @@ void ADReyeVRPawn::LogitechWheelUpdate()
     //     EgoVehicle->PressReverse();
     // else
     //     EgoVehicle->ReleaseReverse();
+
     EgoVehicle->UpdateWheelButton(EgoVehicle->Button_ABXY_A, bABXY_A);
     EgoVehicle->UpdateWheelButton(EgoVehicle->Button_ABXY_B, bABXY_B);
     EgoVehicle->UpdateWheelButton(EgoVehicle->Button_ABXY_X, bABXY_X);
