@@ -1030,7 +1030,7 @@ void AEgoVehicle::InitWheelButtons()
         Button->MaterialParams.Emissive = ButtonNeutralCol;
         Button->UpdateMaterial();
         Button->SetActorTickEnabled(false);      // don't tick these actors (for performance)
-        Button->SetActorRecordEnabled(true);    // need to record these actors for sync
+        Button->SetActorRecordEnabled(false);    // need to record these actors for sync
         Button->GetMesh()->SetCastShadow(false); // don't want shadows (looks weird)
     }
     bInitializedButtons = true;

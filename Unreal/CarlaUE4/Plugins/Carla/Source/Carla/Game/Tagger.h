@@ -78,7 +78,20 @@ public:
     const FString Path = Object->GetPathName();
     TArray<FString> StringArray;
     Path.ParseIntoArray(StringArray, TEXT("/"), false);
-    return (StringArray.Num() > 4 ? GetLabelByFolderName(StringArray[4]) : crp::CityObjectLabel::None);
+    if (StringArray.Num() > 4){
+    // 2wheeled is a special case, as it is a subfolder of Vehicles (which will be in StringArray[4])
+    // To correspond, we have added a new label (TwoWheelers) in the CityObjectLabel enum
+        if (StringArray[5] == "2wheeled"){
+            // UE_LOG(LogCarla, Log, TEXT("Two wheeler found: %s, %d"), *Path, crp::CityObjectLabel::TwoWheelers);            
+            return crp::CityObjectLabel::TwoWheelers;
+        }
+        else 
+            return GetLabelByFolderName(StringArray[4]);
+    }
+    else
+        return crp::CityObjectLabel::None;
+    
+    // return (StringArray.Num() > 4 ? GetLabelByFolderName(StringArray[4]) : crp::CityObjectLabel::None)
   }
 
   static void SetStencilValue(UPrimitiveComponent &Component,
