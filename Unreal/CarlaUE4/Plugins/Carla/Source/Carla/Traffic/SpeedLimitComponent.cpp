@@ -6,6 +6,9 @@
 
 #include "SpeedLimitComponent.h"
 #include "Carla/Vehicle/CarlaWheeledVehicle.h"
+#include "Carla/Game/CarlaStatics.h"
+#include "Carla/MapGen/LargeMapManager.h"
+
 
 
 void USpeedLimitComponent::SetSpeedLimit(float Limit)

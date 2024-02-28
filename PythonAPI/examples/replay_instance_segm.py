@@ -6,10 +6,13 @@
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
+import configparser
 import glob
 import os
 import sys
 import time
+import numpy as np
+from PIL import Image
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -95,9 +98,21 @@ def main():
         default=0,
         type=int,
         help='number of frames in the recording')
+    argparser.add_argument(
+        '-parse', '--recorder-parse',
+        metavar='R',
+        default="test1.log",
+        help='recorder parse file outputted after running show_recorder_file_info.py')
+    argparser.add_argument(
+        '-config', '--sensor-config',
+        default = 'sensor_config.ini',
+        help = "sensor configuration deatils for camera orientation"
+    )
     args = argparser.parse_args()
     egosensor = None
     instseg_camera = None
+    sensor_config = configparser.ConfigParser()
+    sensor_config.read(args.sensor_config)
 
     try:
 
@@ -105,29 +120,54 @@ def main():
         client.set_timeout(60.0)
 
         world = client.get_world()
-
-        blueprint_library = world.get_blueprint_library()
-
-        ego_vehicle = find_ego_vehicle(world)
-
         
+        # Configure carla simulation in sync mode.
+        settings = world.get_settings()
+        settings.synchronous_mode = True
+        settings.fixed_delta_seconds = 0.05
+        world.apply_settings(settings)
+        world.tick()
         client.set_timeout(60.0)
 
         # set the time factor for the replayer
         client.set_replayer_time_factor(args.time_factor)
 
-        # set to ignore the hero vehicles or not
-        client.set_replayer_ignore_hero(args.ignore_hero)
-
-
+        # replay the session
+        replay_info_str = client.replay_file(args.recorder_filename, args.start, args.duration, args.camera, args.spawn_sensors)
+    
+        blueprint_library = world.get_blueprint_library()
+        
+        import time
+        time.sleep(2)
+        
+        ego_vehicle = find_ego_vehicle(world)
         egosensor = find_ego_sensor(world)
         ego_queue = queue.Queue()
         egosensor.listen(ego_queue.put)
         ReplayStatus = 0
 
+        for line in replay_info_str.split("\n"):
+            if "Total time recorded" in line:
+                replay_duration = float(line.split(": ")[-1])
+                break
+                
+        #Assigning the number of replay frames to run through
+        total_replay_frames = 200
+        if (args.frame_number is not 0):
+            total_replay_frames = args.frame_number
+        elif args.recorder_parse is not "test1.log":
+            with open(args.recorder_parse, 'r') as file:
+                for line in file:
+                    if "Frames: " in line:
+                        framesLine = line.strip()
+                        total_replay_frames = int(framesLine.split(": ")[1])
+                        print(total_replay_frames)
+                        break
+
+        # spawn sensors
         instseg_camera = world.spawn_actor(
             blueprint_library.find('sensor.camera.instance_segmentation'),
-            carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+            carla.Transform(carla.Location(x=float(sensor_config['rgb']['x']), z=float(sensor_config['rgb']['z'])), carla.Rotation(pitch=float(sensor_config['rgb']['pitch']))),
             attach_to=ego_vehicle)
 
         instseg_queue = queue.Queue()
@@ -135,56 +175,52 @@ def main():
 
         rgb_camera = world.spawn_actor(
             blueprint_library.find('sensor.camera.rgb'),
-            carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+            carla.Transform(carla.Location(x=float(sensor_config['rgb']['x']), z=float(sensor_config['rgb']['z'])), carla.Rotation(pitch=float(sensor_config['rgb']['pitch']))),
             attach_to=ego_vehicle)
-
         rgb_queue = queue.Queue()
         rgb_camera.listen(rgb_queue.put)
 
-
-
-
-        # replay the session
-        print(client.replay_file(args.recorder_filename, args.start, args.duration, args.camera, args.spawn_sensors))
-
+        world.tick()
 
         replay_started = 0
-        replaying = 0
-     
-        while (not replay_started) or replaying:
-            replaying = ego_queue.queue[-1].replaystatus
-            if replaying:
-                replay_started = 1
-            if (not replay_started) and ego_queue.qsize() > 200:
-                break
-
-        if egosensor:
-            egosensor.destroy()
-        if instseg_camera:
-            instseg_camera.destroy()
-        if rgb_camera:
-            rgb_camera.destroy()
-           
-        if not replay_started:
-            print("replay never started")
-        else:
-            replay_frames = set()
-            while not ego_queue.empty():
-                el = ego_queue.get(2.0)
-                if el.replaystatus:
-                    replay_frames.add(el.frame)
-            first_frame = min(replay_frames)
-
-            while not instseg_queue.empty():
+        replay_done = False
+        ctr = 0
+        
+        filename = os.path.basename(args.recorder_filename)
+        filename = os.path.splitext(filename)[0]
+        while not replay_done:
+            # replay_frames = set()
+            # while not ego_queue.empty():
+            #     el = ego_queue.get(2.0)
+            #     if el.replaystatus:
+            #         replay_frames.add(el.frame)
+            # import ipdb; ipdb.set_trace()
+            if not instseg_queue.empty():
                 image = instseg_queue.get(2.0)
-                if image.frame in replay_frames:
-                    image.save_to_disk('instance_segmentation_output/%.6d.jpg' % (image.frame - first_frame + 1))
-                
-            while not rgb_queue.empty():
+                #image.save_to_disk('%s/images/instance_segmentation_output/%.6d.jpg' % (filename, ctr + 1))
+                raw_image = Image.fromarray(np.array(image.raw_data).reshape(image.height, image.width, 4))
+                #Image.fromarray(np.array(image.raw_data).reshape(600, 800, 4)).show()
+                raw_image.save('%s/images/instance_segmentation_output/%.6d.png' % (filename, ctr + 1))
+            if not rgb_queue.empty():
                 image = rgb_queue.get(2.0)
-                if image.frame in replay_frames:
-                    image.save_to_disk('rgb_output/%.6d.jpg' % (image.frame - first_frame + 1))
+                image.save_to_disk('%s/images/rgb_output/%.6d.png' % (filename, ctr + 1))
+
+            world.tick()
+            ctr += 1
+
+            if ctr > total_replay_frames:
+                replay_done = True
+                break
             
+        # check if replay has finished
+        if replay_done:      
+            if egosensor:
+                egosensor.destroy()
+            if instseg_camera:
+                instseg_camera.destroy()
+            if rgb_camera:
+                rgb_camera.destroy()
+
 
     finally:
         pass
